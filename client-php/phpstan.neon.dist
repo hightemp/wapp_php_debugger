@@ -8,3 +8,9 @@ parameters:
     excludePaths:
         # scripts that make errors on purpose for the process tests
         - tests/scripts
+        # Monolog handlers: Monolog 2 and 3 cannot be analyzed in one run, and with phpVersion 7.4
+        # PHPStan does not see the PHP 8.1 classes of Monolog 3; the tests cover both lines
+        - src/Bridge/Monolog2Handler.php
+        - src/Bridge/Monolog3Handler.php
+        - src/Bridge/MonologHandler.php
+        - tests/Bridge/MonologHandlerTest.php

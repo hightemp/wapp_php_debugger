@@ -11,6 +11,9 @@ namespace WappDebugger;
  */
 final class Frames
 {
+    /** @var array<string, true> directories of logging code (PSR-3, Monolog) whose frames are skipped too */
+    private static array $loggingDirs = [];
+
     private ?string $projectRoot;
     private string $libraryDir;
 
@@ -18,6 +21,12 @@ final class Frames
     {
         $this->projectRoot = $projectRoot !== null ? rtrim($projectRoot, '/') . '/' : null;
         $this->libraryDir = __DIR__ . DIRECTORY_SEPARATOR;
+    }
+
+    /** Frames from this directory are logging code, not the application: used by the bridges. */
+    public static function skipDirectory(string $dir): void
+    {
+        self::$loggingDirs[rtrim($dir, '/\\') . DIRECTORY_SEPARATOR] = true;
     }
 
     /**
@@ -63,7 +72,7 @@ final class Frames
         // The first frame whose call site is outside the library is the call into the library
         $callIndex = null;
         foreach ($backtrace as $index => $frame) {
-            if (!isset($frame['file']) || !is_string($frame['file']) || strpos($frame['file'], $this->libraryDir) !== 0) {
+            if (!isset($frame['file']) || !is_string($frame['file']) || !$this->isLoggingCode($frame['file'])) {
                 $callIndex = $index;
                 break;
             }
@@ -110,6 +119,20 @@ final class Frames
         }
 
         return $result;
+    }
+
+    private function isLoggingCode(string $file): bool
+    {
+        if (strpos($file, $this->libraryDir) === 0) {
+            return true;
+        }
+        foreach (self::$loggingDirs as $dir => $_) {
+            if (strpos($file, $dir) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function relative(string $file): string

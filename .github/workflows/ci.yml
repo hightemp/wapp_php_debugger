@@ -20,13 +20,18 @@ concurrency:
 
 jobs:
   php-test:
-    name: PHP ${{ matrix.php }} tests
+    name: PHP ${{ matrix.php }} tests${{ matrix.psr-log && format(' (psr/log {0})', matrix.psr-log) || '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # The library supports PHP 7.4+
+        # The library supports PHP 7.4+. Without a lock file every PHP gets its own dependency line:
+        # 7.4 and 8.0 — Monolog 2 with psr/log 1 or 3, 8.1+ — Monolog 3 with psr/log 3
         php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        include:
+          # psr/log 2 is never picked by itself: the 8.1 job pins it (8.2+ keep psr/log 3)
+          - php: '8.1'
+            psr-log: '^2.0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
@@ -35,6 +40,9 @@ jobs:
           tools: composer:v2
           coverage: none
       - run: make php-deps
+      - name: Pin psr/log
+        if: matrix.psr-log
+        run: cd client-php && composer require --dev "psr/log:${{ matrix.psr-log }}" -W --no-interaction --no-progress
       - run: make php-test
 
   php-lint:
