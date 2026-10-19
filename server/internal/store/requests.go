@@ -14,6 +14,9 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/logformat"
 )
 
+// ErrInvalidCursor — курсор страницы повреждён или получен не от ListRequests.
+var ErrInvalidCursor = errors.New("invalid cursor")
+
 // Store — запросы к базе просмотрщика.
 type Store struct {
 	db *sql.DB
@@ -293,13 +296,13 @@ func encodeCursor(startedAt, id int64) string {
 func decodeCursor(cursor string) (startedAt, id int64, err error) {
 	raw, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid cursor")
+		return 0, 0, ErrInvalidCursor
 	}
 	left, right, found := strings.Cut(string(raw), ":")
 	startedAt, err1 := strconv.ParseInt(left, 10, 64)
 	id, err2 := strconv.ParseInt(right, 10, 64)
 	if !found || err1 != nil || err2 != nil {
-		return 0, 0, fmt.Errorf("invalid cursor")
+		return 0, 0, ErrInvalidCursor
 	}
 	return startedAt, id, nil
 }
