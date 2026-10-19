@@ -253,13 +253,7 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 	}
 	args = append(args, filter.Limit+1)
 
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT r.id, r.project_id, p.server_id, r.request_key, COALESCE(r.parent_request_key, ''), COALESCE(f.format_version, 2),
-			r.sapi, COALESCE(r.method, ''), COALESCE(r.url, ''), r.is_ajax, r.status_code, r.exit_code, r.started_at, r.duration_ms,
-			r.finished, r.message_count, r.error_count, r.warning_count, r.received_at
-		FROM requests r
-		JOIN projects p ON p.id = r.project_id
-		LEFT JOIN log_files f ON f.id = r.log_file_id
+	rows, err := s.db.QueryContext(ctx, selectRequestRows+`
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY r.started_at DESC, r.id DESC
 		LIMIT ?`, args...)
@@ -270,10 +264,8 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 
 	var page RequestPage
 	for rows.Next() {
-		var r RequestRow
-		if err := rows.Scan(&r.ID, &r.ProjectID, &r.ServerID, &r.Key, &r.ParentKey, &r.FormatVersion, &r.Sapi, &r.Method, &r.URL,
-			&r.IsAjax, &r.StatusCode, &r.ExitCode, &r.StartedAt, &r.DurationMs, &r.Finished, &r.MessageCount, &r.ErrorCount,
-			&r.WarningCount, &r.ReceivedAt); err != nil {
+		r, err := scanRequestRow(rows)
+		if err != nil {
 			return RequestPage{}, err
 		}
 		page.Items = append(page.Items, r)
@@ -287,6 +279,35 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 		page.NextCursor = encodeCursor(last.StartedAt, last.ID)
 	}
 	return page, nil
+}
+
+const selectRequestRows = `
+		SELECT r.id, r.project_id, p.server_id, r.request_key, COALESCE(r.parent_request_key, ''), COALESCE(f.format_version, 2),
+			r.sapi, COALESCE(r.method, ''), COALESCE(r.url, ''), r.is_ajax, r.status_code, r.exit_code, r.started_at, r.duration_ms,
+			r.finished, r.message_count, r.error_count, r.warning_count, r.received_at
+		FROM requests r
+		JOIN projects p ON p.id = r.project_id
+		LEFT JOIN log_files f ON f.id = r.log_file_id`
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanRequestRow(row rowScanner) (RequestRow, error) {
+	var r RequestRow
+	err := row.Scan(&r.ID, &r.ProjectID, &r.ServerID, &r.Key, &r.ParentKey, &r.FormatVersion, &r.Sapi, &r.Method, &r.URL,
+		&r.IsAjax, &r.StatusCode, &r.ExitCode, &r.StartedAt, &r.DurationMs, &r.Finished, &r.MessageCount, &r.ErrorCount,
+		&r.WarningCount, &r.ReceivedAt)
+	return r, err
+}
+
+// GetRequest возвращает запрос ленты по id.
+func (s *Store) GetRequest(ctx context.Context, id int64) (RequestRow, bool, error) {
+	r, err := scanRequestRow(s.db.QueryRowContext(ctx, selectRequestRows+` WHERE r.id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return RequestRow{}, false, nil
+	}
+	return r, err == nil, err
 }
 
 func encodeCursor(startedAt, id int64) string {

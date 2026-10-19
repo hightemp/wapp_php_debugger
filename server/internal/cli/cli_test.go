@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/version"
 )
@@ -44,5 +45,51 @@ func TestUnknownCommandIsUsageError(t *testing.T) {
 	code, _, stderr := run("frobnicate")
 	if code != 2 || !strings.Contains(stderr, `unknown command "frobnicate"`) || !strings.Contains(stderr, "Usage:") {
 		t.Fatalf("unknown: code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestParseServeDefaults(t *testing.T) {
+	cfg, err := parseServe(nil, func() (string, error) { return "/home/u/.config", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Addr != "127.0.0.1:8820" || cfg.DBPath != "/home/u/.config/wapp-debugger/wapp-debugger.db" || cfg.LogsDir != "" || cfg.ScanInterval != time.Second {
+		t.Fatalf("defaults = %+v", cfg)
+	}
+}
+
+func TestParseServeLocalProject(t *testing.T) {
+	cfg, err := parseServe([]string{"--logs-dir", "/var/www/shop/tmp/logs", "--root", "/var/www/shop", "--addr", "127.0.0.1:9000", "--db", "/tmp/x.db"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LogsDir != "/var/www/shop/tmp/logs" || cfg.RootPath != "/var/www/shop" || cfg.Addr != "127.0.0.1:9000" || cfg.DBPath != "/tmp/x.db" {
+		t.Fatalf("cfg = %+v", cfg)
+	}
+	// Имя проекта и конфиг библиотеки по умолчанию выводятся из корня проекта
+	if cfg.ProjectName != "shop" || cfg.ConfigPath != "/var/www/shop/dws_debugger.json" {
+		t.Fatalf("derived = %+v", cfg)
+	}
+}
+
+func TestParseServeRootDefaultsToParentOfLogsDir(t *testing.T) {
+	cfg, err := parseServe([]string{"--logs-dir", "/srv/app/logs", "--db", "/tmp/x.db"}, nil)
+	if err != nil || cfg.RootPath != "/srv/app" || cfg.ProjectName != "app" {
+		t.Fatalf("cfg = %+v, %v", cfg, err)
+	}
+}
+
+func TestParseServeRejectsBadFlags(t *testing.T) {
+	for _, args := range [][]string{{"--scan-interval", "0s", "--db", "x"}, {"--nope"}, {"extra-arg", "--db", "x"}} {
+		if _, err := parseServe(args, nil); err == nil {
+			t.Errorf("%v: expected error", args)
+		}
+	}
+}
+
+func TestServeHelpListsFlags(t *testing.T) {
+	code, _, stderr := run("serve", "--help")
+	if code != 0 || !strings.Contains(stderr, "-logs-dir") || !strings.Contains(stderr, "-addr") {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
 	}
 }

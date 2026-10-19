@@ -142,3 +142,20 @@ func TestListRequestsRejectsGarbageCursor(t *testing.T) {
 		t.Fatal("garbage cursor must be an error")
 	}
 }
+
+func TestGetRequest(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	ids, _ := s.EnsureLocalProject(ctx, "shop", "/r", "/r/logs")
+	saved, err := s.SaveFile(ctx, ids.ProjectID, FileState{Name: "a", Size: 1}, parsedRequest("a", 5, event(1, "error")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := s.GetRequest(ctx, saved.RequestID)
+	if err != nil || !found || got.ID != saved.RequestID || got.Key != "a" || got.ErrorCount != 1 || got.ServerID != ids.ServerID {
+		t.Fatalf("GetRequest = %+v, %v, %v", got, found, err)
+	}
+	if _, found, err := s.GetRequest(ctx, saved.RequestID+100); err != nil || found {
+		t.Fatalf("missing request: found=%v err=%v", found, err)
+	}
+}

@@ -114,8 +114,8 @@ server-test: ## Тесты Go-сервера (с детектором гонок
 	cd server && go test -race -count=1 ./...
 
 .PHONY: server-build
-server-build: ui-build ## Собрать бинарник (UI встраивается с фазы 4)
-	cd server && CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/wapp-debugger ./cmd/wapp-debugger
+server-build: ui-build ## Собрать бинарник со встроенным UI
+	cd server && CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/wapp-debugger ./cmd/wapp-debugger
 	@$(DIST)/wapp-debugger version
 
 # --- Веб-интерфейс (ui) -----------------------------------------------------

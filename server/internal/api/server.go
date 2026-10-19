@@ -54,7 +54,7 @@ func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestOb
 
 	response := ListRequests200JSONResponse{Items: make([]Request, 0, len(page.Items))}
 	for _, row := range page.Items {
-		response.Items = append(response.Items, requestDTO(row))
+		response.Items = append(response.Items, RequestDTO(row))
 	}
 	if page.NextCursor != "" {
 		response.NextCursor = &page.NextCursor
@@ -62,7 +62,8 @@ func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestOb
 	return response, nil
 }
 
-func requestDTO(r store.RequestRow) Request {
+// RequestDTO переводит строку ленты в DTO API.
+func RequestDTO(r store.RequestRow) Request {
 	return Request{
 		Id:               r.ID,
 		ProjectId:        r.ProjectID,
