@@ -4,6 +4,7 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -49,4 +50,44 @@ func ValidateName(name string) error {
 		return ErrInvalidName
 	}
 	return nil
+}
+
+// enabledKey is the flag key in the config: enabled (library 2.x), or bIsOnFlag of a v1 config.
+// With both keys enabled wins, as in library 2.x, which reads the v1 key only when the new one is missing.
+func enabledKey(config map[string]json.RawMessage) string {
+	if _, ok := config["enabled"]; ok {
+		return "enabled"
+	}
+	if _, ok := config["bIsOnFlag"]; ok {
+		return "bIsOnFlag"
+	}
+	return "enabled"
+}
+
+// enabledIn reads the debugger flag from the content of dws_debugger.json.
+func enabledIn(data []byte) (bool, error) {
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(data, &config); err != nil {
+		return false, err
+	}
+	var enabled bool
+	if raw, ok := config[enabledKey(config)]; ok {
+		_ = json.Unmarshal(raw, &enabled)
+	}
+	return enabled, nil
+}
+
+// withEnabled returns dws_debugger.json with the flag set and every other key kept.
+func withEnabled(data []byte, enabled bool) ([]byte, error) {
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+	value, _ := json.Marshal(enabled)
+	config[enabledKey(config)] = value
+	out, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
 }

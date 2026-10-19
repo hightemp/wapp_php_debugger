@@ -11,10 +11,21 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/watch"
 )
 
+// SourceFactory makes the log source of a project. remote means there are no file system events
+// to watch (SSH, HTTP): the directory is polled instead.
+type SourceFactory func(project store.Project) (src source.Source, remote bool, err error)
+
+// LocalSources is the factory for projects of the local server.
+func LocalSources(project store.Project) (source.Source, bool, error) {
+	return source.NewLocal(project.LogsDir, project.ConfigPath), false, nil
+}
+
 // ManagerOptions tune the manager.
 type ManagerOptions struct {
-	PollInterval time.Duration // fallback rescan period of every project
-	Logger       *slog.Logger
+	PollInterval       time.Duration // fallback rescan period of local projects
+	RemotePollInterval time.Duration // rescan period of remote projects (plan 10.18: SFTP stat every 1–2 s); 2 s
+	Sources            SourceFactory // LocalSources by default
+	Logger             *slog.Logger
 	// OnChange is called after a scan that created or updated requests of a project.
 	OnChange func(projectID int64, created, updated []int64)
 }
@@ -22,11 +33,12 @@ type ManagerOptions struct {
 type running struct {
 	project store.Project
 	source  source.Source
+	remote  bool
 	cancel  context.CancelFunc
 	done    chan struct{}
 }
 
-// Manager runs one import loop per project of the local server and restarts it when the project changes.
+// Manager runs one import loop per project and restarts it when the project changes.
 type Manager struct {
 	store    *store.Store
 	importer *Importer
@@ -48,53 +60,59 @@ func NewManager(s *store.Store, options ManagerOptions) *Manager {
 	if options.OnChange == nil {
 		options.OnChange = func(int64, []int64, []int64) {}
 	}
+	if options.RemotePollInterval == 0 {
+		options.RemotePollInterval = 2 * time.Second
+	}
+	if options.Sources == nil {
+		options.Sources = LocalSources
+	}
 	return &Manager{store: s, importer: New(s), options: options, running: map[int64]*running{}}
 }
 
-// Start launches a loop for every project of local servers. Loops stop when ctx is canceled.
+// Start launches a loop for every project. Loops stop when ctx is canceled.
 func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	m.ctx = ctx
 	m.mu.Unlock()
 
-	servers, err := m.store.ListServers(ctx)
+	projects, err := m.store.ListProjects(ctx, 0)
 	if err != nil {
 		return err
 	}
-	for _, server := range servers {
-		if server.Kind != "local" {
-			continue // SSH and HTTP sources arrive in phase 7
-		}
-		projects, err := m.store.ListProjects(ctx, server.ID)
-		if err != nil {
-			return err
-		}
-		for _, project := range projects {
-			m.Add(project)
-		}
+	for _, project := range projects {
+		m.Add(project)
 	}
 	return nil
 }
 
-// Add starts the loop of a project, or restarts it with the new settings.
+// Add starts the loop of a project, or restarts it with the new settings. A project whose source
+// cannot be made is skipped and logged.
 func (m *Manager) Add(project store.Project) {
 	m.Remove(project.ID)
 
+	src, remote, err := m.options.Sources(project)
+	if err != nil {
+		m.options.Logger.Warn("no log source", "project", project.Name, "error", err)
+		return
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.ctx == nil || m.ctx.Err() != nil {
+		_ = src.Close()
 		return
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
 	r := &running{
 		project: project,
-		source:  source.NewLocal(project.LogsDir, project.ConfigPath),
+		source:  src,
+		remote:  remote,
 		cancel:  cancel,
 		done:    make(chan struct{}),
 	}
 	m.running[project.ID] = r
 	go func() {
 		defer close(r.done)
+		defer func() { _ = r.source.Close() }()
 		m.loop(ctx, r)
 	}()
 }
@@ -135,10 +153,15 @@ func (m *Manager) Wait() {
 	}
 }
 
-// loop scans right after file changes (debounced so a growing file is not re-read per line)
-// and every PollInterval as a fallback for file systems without notifications.
+// loop scans a local project right after file changes (debounced so a growing file is not re-read
+// per line) and every PollInterval as a fallback; a remote project every RemotePollInterval.
 func (m *Manager) loop(ctx context.Context, r *running) {
-	signals := watch.Dir(ctx, r.project.LogsDir, watch.Options{PollInterval: m.options.PollInterval, Debounce: 100 * time.Millisecond})
+	var signals <-chan struct{}
+	if r.remote {
+		signals = watch.Every(ctx, m.options.RemotePollInterval)
+	} else {
+		signals = watch.Dir(ctx, r.project.LogsDir, watch.Options{PollInterval: m.options.PollInterval, Debounce: 100 * time.Millisecond})
+	}
 	for range signals {
 		result, err := m.importer.Scan(ctx, r.project.ID, r.source)
 		if err != nil && ctx.Err() == nil {

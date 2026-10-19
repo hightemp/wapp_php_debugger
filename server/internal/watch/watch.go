@@ -68,3 +68,27 @@ func Dir(ctx context.Context, dir string, options Options) <-chan struct{} {
 	}()
 	return signals
 }
+
+// Every sends a signal right away and then every interval: for directories without file system
+// events (SFTP, HTTP).
+func Every(ctx context.Context, interval time.Duration) <-chan struct{} {
+	signals := make(chan struct{}, 1)
+	signals <- struct{}{}
+	go func() {
+		defer close(signals)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				select {
+				case signals <- struct{}{}:
+				default: // a scan is still running: one pending signal is enough
+				}
+			}
+		}
+	}()
+	return signals
+}

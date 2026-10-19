@@ -97,3 +97,18 @@ func TestStopsWithContext(t *testing.T) {
 		}
 	}
 }
+
+func TestEverySignalsAtOnceThenPeriodically(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	signals := Every(ctx, 20*time.Millisecond)
+	for i := range 3 {
+		select {
+		case <-signals:
+		case <-time.After(time.Second):
+			t.Fatalf("signal %d did not come", i+1)
+		}
+	}
+	cancel()
+	for range signals {
+	}
+}

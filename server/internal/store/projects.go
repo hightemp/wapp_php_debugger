@@ -252,6 +252,65 @@ func (s *Store) DeleteProject(ctx context.Context, id int64) error {
 	return nil
 }
 
+// Permissions limit what the viewer may do on a server.
+type Permissions struct {
+	ReadOnly     bool
+	AllowDelete  bool
+	AllowControl bool
+}
+
+// ServerInput holds the fields of a new server; nil Permissions means everything is allowed.
+type ServerInput struct {
+	Name        string
+	Kind        string // ssh or http; the local server is made by EnsureLocalServer
+	Environment string // dev by default
+	Config      string // JSON object without secrets; {} by default
+	Permissions *Permissions
+}
+
+// CreateServer adds a server; ErrConflict means the name is taken.
+func (s *Store) CreateServer(ctx context.Context, input ServerInput) (Server, error) {
+	if input.Environment == "" {
+		input.Environment = "dev"
+	}
+	if input.Config == "" {
+		input.Config = "{}"
+	}
+	permissions := Permissions{AllowDelete: true, AllowControl: true}
+	if input.Permissions != nil {
+		permissions = *input.Permissions
+	}
+	now := time.Now().UnixMilli()
+	var id int64
+	err := s.db.QueryRowContext(ctx, `
+		INSERT INTO servers (name, kind, environment, config, read_only, allow_delete, allow_control, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+		input.Name, input.Kind, input.Environment, input.Config, permissions.ReadOnly, permissions.AllowDelete, permissions.AllowControl,
+		now, now).Scan(&id)
+	if err != nil {
+		return Server{}, classify(err)
+	}
+	server, _, err := s.GetServer(ctx, id)
+	return server, err
+}
+
+// DeleteServer removes a server with its projects and their data (logs on the server stay).
+// The local server cannot be deleted.
+func (s *Store) DeleteServer(ctx context.Context, id int64) error {
+	server, found, err := s.GetServer(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrNotFound
+	}
+	if server.Kind == "local" {
+		return errors.Join(ErrConflict, errors.New("the local server cannot be deleted"))
+	}
+	_, err = s.db.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
+	return err
+}
+
 // ServerPatch holds server fields to change; nil fields stay as they are.
 type ServerPatch struct {
 	Name         *string

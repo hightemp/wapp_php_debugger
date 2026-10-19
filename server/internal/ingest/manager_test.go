@@ -2,12 +2,14 @@ package ingest
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
@@ -174,4 +176,50 @@ func TestManagerGivesTheProjectSource(t *testing.T) {
 	}
 	cancel()
 	e.manager.Wait()
+}
+
+// Remote sources have no file system events: their directory is polled.
+func TestManagerPollsRemoteSources(t *testing.T) {
+	e := newManagerEnv(t)
+	remote := source.NewMemory(nil)
+	e.manager = NewManager(e.store, ManagerOptions{
+		PollInterval:       time.Hour,
+		RemotePollInterval: 30 * time.Millisecond,
+		Sources: func(project store.Project) (source.Source, bool, error) {
+			return remote, true, nil
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel(); e.manager.Wait() })
+	if err := e.manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	project := e.project(t, "shop")
+	e.manager.Add(project)
+
+	remote.Append("1792400000001", v1Fixtures(t)["web-get.log"])
+	eventually(t, "the polled file is imported", func() bool { return e.requests(t, project.ID) == 1 })
+	if src, ok := e.manager.Source(project.ID); !ok || src != remote {
+		t.Fatalf("Source = %v, %v", src, ok)
+	}
+}
+
+// A project whose source cannot be made (a server of an unknown kind, a broken config) is skipped.
+func TestManagerSkipsAProjectWithoutASource(t *testing.T) {
+	e := newManagerEnv(t)
+	e.manager = NewManager(e.store, ManagerOptions{
+		Sources: func(project store.Project) (source.Source, bool, error) {
+			return nil, false, errors.New("no source")
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel(); e.manager.Wait() })
+	if err := e.manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	project := e.project(t, "shop")
+	e.manager.Add(project)
+	if _, ok := e.manager.Source(project.ID); ok {
+		t.Fatal("no source, no loop")
+	}
 }

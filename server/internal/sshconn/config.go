@@ -4,6 +4,7 @@
 package sshconn
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -180,4 +181,45 @@ func splitDestination(destination string) (user, host string, port int, err erro
 		return "", "", 0, fmt.Errorf("no host in %q", destination)
 	}
 	return user, host, port, nil
+}
+
+// ServerSettings is the config of an ssh server in the viewer (spec/openapi.yaml ServerConfig).
+type ServerSettings struct {
+	Host      string   `json:"host"` // a host name or an alias from ~/.ssh/config
+	Port      int      `json:"port,omitempty"`
+	User      string   `json:"user,omitempty"`
+	JumpHosts []string `json:"jump_hosts,omitempty"`
+}
+
+// ParseServerSettings reads the stored config of a server.
+func ParseServerSettings(config string) (ServerSettings, error) {
+	var settings ServerSettings
+	if err := json.Unmarshal([]byte(config), &settings); err != nil {
+		return ServerSettings{}, fmt.Errorf("server config: %w", err)
+	}
+	return settings, nil
+}
+
+// ResolveServer resolves the host through the ssh config; user and port set in the viewer win over
+// it, and jump hosts set in the viewer replace its ProxyJump.
+func (r *Resolver) ResolveServer(settings ServerSettings) (Target, error) {
+	if strings.TrimSpace(settings.Host) == "" {
+		return Target{}, errors.New("server config: no host")
+	}
+	target, err := r.Resolve(settings.Host)
+	if err != nil {
+		return Target{}, err
+	}
+	if settings.User != "" {
+		target.User = settings.User
+	}
+	if settings.Port != 0 {
+		target.Port = settings.Port
+	}
+	if len(settings.JumpHosts) > 0 {
+		if target.Jumps, err = r.parseJumps(strings.Join(settings.JumpHosts, ",")); err != nil {
+			return Target{}, err
+		}
+	}
+	return target, nil
 }

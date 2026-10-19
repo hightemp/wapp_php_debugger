@@ -16,6 +16,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/api"
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/ingest"
+	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
@@ -29,8 +30,11 @@ type Config struct {
 	LogsDir      string // empty means no local project
 	ConfigPath   string // library dws_debugger.json
 	ScanInterval time.Duration
-	UI           fs.FS
-	Logger       *slog.Logger
+	// RemoteScanInterval is how often projects on SSH servers are polled; 2 s
+	RemoteScanInterval time.Duration
+	SSH                SSHConfig // zero value: DefaultSSH()
+	UI                 fs.FS
+	Logger             *slog.Logger
 }
 
 // Core is the running viewer core: database, background import and HTTP handler.
@@ -40,6 +44,7 @@ type Core struct {
 	handler http.Handler
 	broker  *events.Broker
 	manager *ingest.Manager
+	ssh     *sshconn.Pool
 	cancel  context.CancelFunc
 }
 
@@ -66,9 +71,21 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	}
 
 	broker := events.NewBroker(1024)
+	if cfg.SSH == (SSHConfig{}) {
+		cfg.SSH = DefaultSSH()
+	}
+	pool := sshconn.NewPool(&sshconn.Dialer{
+		HostKeys:    sshconn.NewHostKeys(cfg.SSH.TrustedHostsFile),
+		AgentSocket: cfg.SSH.AgentSocket,
+		Timeout:     15 * time.Second,
+	}, sshconn.PoolOptions{OnStatus: func(serverID int64, status sshconn.Status) {
+		broker.Publish("server_status", serverStatusEvent(serverID, status))
+	}})
 	manager := ingest.NewManager(s, ingest.ManagerOptions{
-		PollInterval: cfg.ScanInterval,
-		Logger:       cfg.Logger,
+		PollInterval:       cfg.ScanInterval,
+		RemotePollInterval: cfg.RemoteScanInterval,
+		Sources:            sourceFactory(ctx, s, pool, cfg.SSH),
+		Logger:             cfg.Logger,
 		OnChange: func(_ int64, created, updated []int64) {
 			publish(ctx, s, broker, "request_created", created)
 			publish(ctx, s, broker, "request_updated", updated)
@@ -77,6 +94,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	if err := manager.Start(ctx); err != nil {
 		cancel()
+		pool.Close()
 		_ = db.Close()
 		return nil, err
 	}
@@ -85,6 +103,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI}),
 		broker:  broker,
 		manager: manager,
+		ssh:     pool,
 		cancel:  cancel,
 	}, nil
 }
@@ -112,6 +131,7 @@ func (c *Core) Broker() *events.Broker { return c.broker }
 func (c *Core) Close() {
 	c.cancel()
 	c.manager.Wait()
+	c.ssh.Close()
 	_ = c.db.Close()
 }
 

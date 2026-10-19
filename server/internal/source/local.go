@@ -2,7 +2,6 @@ package source
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -99,50 +98,19 @@ func (l *Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(path)
 }
 
-// enabledKey is the flag key in the config: enabled (library 2.x), or bIsOnFlag of a v1 config.
-// With both keys enabled wins, as in library 2.x, which reads the v1 key only when the new one is missing.
-func enabledKey(config map[string]json.RawMessage) string {
-	if _, ok := config["enabled"]; ok {
-		return "enabled"
-	}
-	if _, ok := config["bIsOnFlag"]; ok {
-		return "bIsOnFlag"
-	}
-	return "enabled"
-}
-
-func (l *Local) readConfig() (map[string]json.RawMessage, error) {
-	data, err := os.ReadFile(l.configPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, ErrNoConfig
-	}
-	if err != nil {
-		return nil, err
-	}
-	var config map[string]json.RawMessage
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
 // Enabled reads the flag from the config; no config means the debugger is off.
 func (l *Local) Enabled(ctx context.Context) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	config, err := l.readConfig()
-	if errors.Is(err, ErrNoConfig) {
+	data, err := os.ReadFile(l.configPath)
+	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	var enabled bool
-	if raw, ok := config[enabledKey(config)]; ok {
-		_ = json.Unmarshal(raw, &enabled)
-	}
-	return enabled, nil
+	return enabledIn(data)
 }
 
 // SetEnabled changes only the flag, keeping other keys and the file mode; the write is atomic.
@@ -150,15 +118,14 @@ func (l *Local) SetEnabled(ctx context.Context, enabled bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	config, err := l.readConfig()
+	data, err := os.ReadFile(l.configPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return ErrNoConfig
+	}
 	if err != nil {
 		return err
 	}
-	value, _ := json.Marshal(enabled)
-	config[enabledKey(config)] = value
-
-	data, err := json.MarshalIndent(config, "", "    ")
-	if err != nil {
+	if data, err = withEnabled(data, enabled); err != nil {
 		return err
 	}
 	info, err := os.Stat(l.configPath)
@@ -170,7 +137,7 @@ func (l *Local) SetEnabled(ctx context.Context, enabled bool) error {
 		return err
 	}
 	defer func() { _ = os.Remove(temp.Name()) }()
-	if _, err := temp.Write(append(data, '\n')); err != nil {
+	if _, err := temp.Write(data); err != nil {
 		_ = temp.Close()
 		return err
 	}

@@ -111,3 +111,28 @@ func TestBadPort(t *testing.T) {
 		t.Fatal("want an error for a bad port")
 	}
 }
+
+func TestResolveServerSettings(t *testing.T) {
+	r := resolver(t)
+	got, err := r.ResolveServer(ServerSettings{Host: "shop-stage", User: "release", Port: 2200})
+	if err != nil || got.Host != "10.0.0.5" || got.User != "release" || got.Port != 2200 || len(got.Jumps) != 1 || got.Jumps[0].Host != "bastion.example.com" {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+	got, err = r.ResolveServer(ServerSettings{Host: "shop-stage", JumpHosts: []string{"ops@gate.example.com"}})
+	if err != nil || len(got.Jumps) != 1 || got.Jumps[0].Host != "gate.example.com" || got.Jumps[0].User != "ops" {
+		t.Fatalf("jump hosts of the settings replace ProxyJump: %+v, %v", got.Jumps, err)
+	}
+	if _, err := r.ResolveServer(ServerSettings{}); err == nil {
+		t.Fatal("no host must fail")
+	}
+}
+
+func TestParseServerSettings(t *testing.T) {
+	settings, err := ParseServerSettings(`{"host":"stage-web","port":2222,"user":"deploy","jump_hosts":["bastion"]}`)
+	if err != nil || settings.Host != "stage-web" || settings.Port != 2222 || settings.User != "deploy" || len(settings.JumpHosts) != 1 {
+		t.Fatalf("settings %+v, %v", settings, err)
+	}
+	if _, err := ParseServerSettings(`{"host": 7}`); err == nil {
+		t.Fatal("bad JSON must fail")
+	}
+}
