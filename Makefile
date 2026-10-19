@@ -136,7 +136,7 @@ desktop-build: ui-build ## Собрать десктоп-приложение п
 	cd server && CGO_ENABLED=1 go build -tags "$(DESKTOP_TAGS)" -trimpath -ldflags "$(LDFLAGS)" -o $(DESKTOP_BIN) ./cmd/wapp-debugger-desktop
 
 .PHONY: desktop-vet
-desktop-vet: ## go vet кода десктопа (с тегами сборки)
+desktop-vet: ui-build ## go vet кода десктопа (с тегами сборки; встроенному UI нужна сборка)
 	cd server && CGO_ENABLED=1 go vet -tags "$(DESKTOP_TAGS)" ./cmd/wapp-debugger-desktop
 
 .PHONY: desktop-selftest
