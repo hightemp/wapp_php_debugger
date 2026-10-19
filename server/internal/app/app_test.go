@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -176,5 +177,24 @@ func TestRunFailsOnBusyAddress(t *testing.T) {
 	err := Run(context.Background(), Config{Addr: busy, DBPath: filepath.Join(dir, "b.db"), UI: fstest.MapFS{}}, func(string) {})
 	if err == nil {
 		t.Fatal("second server on the same address must fail")
+	}
+}
+
+// Десктоп монтирует обработчик в Wails без сетевого порта: ядро должно запускаться отдельно от HTTP-сервера.
+func TestStartGivesHandlerWithoutListening(t *testing.T) {
+	dir := t.TempDir()
+	core, err := Start(context.Background(), Config{DBPath: filepath.Join(dir, "viewer.db"), UI: fstest.MapFS{"index.html": {Data: []byte("ui")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer core.Close()
+
+	recorder := httptest.NewRecorder()
+	core.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/version", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"version"`) {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if core.Broker() == nil {
+		t.Fatal("desktop needs the broker to publish its own events")
 	}
 }

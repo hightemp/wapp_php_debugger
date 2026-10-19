@@ -30,8 +30,18 @@ type Config struct {
 	Logger       *slog.Logger
 }
 
-// Run работает до отмены ctx; ready вызывается с фактическим адресом, когда сервер принимает соединения.
-func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
+// Core — работающее ядро просмотрщика: база, фоновый импорт и HTTP-обработчик.
+// Сервер (Run) вешает обработчик на сетевой порт, десктоп — в asset handler Wails.
+type Core struct {
+	db       interface{ Close() error }
+	handler  http.Handler
+	broker   *events.Broker
+	cancel   context.CancelFunc
+	scanDone chan struct{}
+}
+
+// Start открывает базу и запускает фоновый импорт; Close останавливает их.
+func Start(ctx context.Context, cfg Config) (*Core, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -41,30 +51,60 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 
 	db, err := store.Open(ctx, cfg.DBPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() { _ = db.Close() }()
 	s := store.New(db)
 	broker := events.NewBroker(1024)
 
-	listener, err := net.Listen("tcp", cfg.Addr)
-	if err != nil {
-		return err
-	}
-	httpServer := &http.Server{
-		Handler:           api.NewHandler(api.Deps{Store: s, Broker: broker, UI: cfg.UI}),
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	scanDone := make(chan struct{})
+	core := &Core{
+		db:       db,
+		handler:  api.NewHandler(api.Deps{Store: s, Broker: broker, UI: cfg.UI}),
+		broker:   broker,
+		cancel:   cancel,
+		scanDone: make(chan struct{}),
+	}
 	go func() {
-		defer close(scanDone)
+		defer close(core.scanDone)
 		if cfg.LogsDir != "" {
 			scanLoop(ctx, cfg, s, broker)
 		}
 	}()
+	return core, nil
+}
+
+// Handler — /api/v1/*, SSE и UI.
+func (c *Core) Handler() http.Handler { return c.handler }
+
+// Broker — поток событий: десктоп публикует в него свои события (самопроверка).
+func (c *Core) Broker() *events.Broker { return c.broker }
+
+// Close останавливает импорт, отменяет потоки SSE и закрывает базу.
+func (c *Core) Close() {
+	c.cancel()
+	<-c.scanDone
+	_ = c.db.Close()
+}
+
+// Run работает до отмены ctx; ready вызывается с фактическим адресом, когда сервер принимает соединения.
+func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
+	if cfg.Logger == nil {
+		cfg.Logger = slog.Default()
+	}
+	listener, err := net.Listen("tcp", cfg.Addr)
+	if err != nil {
+		return err
+	}
+	core, err := Start(ctx, cfg)
+	if err != nil {
+		_ = listener.Close()
+		return err
+	}
+	defer core.Close()
+
+	httpServer := &http.Server{Handler: core.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	// Потоки SSE держат соединения: при остановке их закрывает отмена ядра
+	httpServer.RegisterOnShutdown(core.cancel)
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()
@@ -76,12 +116,8 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	case <-ctx.Done():
 		shutdownCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
-		// Потоки SSE держат соединения: Shutdown дожидается их закрытия по отмене контекста запросов
-		httpServer.RegisterOnShutdown(cancel)
 		err = httpServer.Shutdown(shutdownCtx)
 	}
-	cancel()
-	<-scanDone
 	if errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}
