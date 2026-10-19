@@ -587,7 +587,7 @@ components:
       required: [state]
       properties:
         state: { $ref: '#/components/schemas/ConnectionState' }
-        latency_ms: { type: number, minimum: 0 }
+        latency_ms: { type: number, format: double, minimum: 0 }
         clock_offset_ms:
           type: integer
           description: Насколько часы сервера отстают (минус) или спешат относительно просмотрщика
@@ -702,7 +702,7 @@ components:
         status_code: { type: integer, nullable: true }
         exit_code: { type: integer, nullable: true }
         started_at: { type: integer, format: int64 }
-        duration_ms: { type: number, nullable: true }
+        duration_ms: { type: number, format: double, nullable: true }
         finished: { type: boolean, description: false — запрос выполняется или процесс был убит }
         message_count: { type: integer, minimum: 0 }
         error_count: { type: integer, minimum: 0 }
@@ -791,7 +791,7 @@ components:
           type: array
           items: { type: string }
         source: { $ref: '#/components/schemas/Frame' }
-        duration_ms: { type: number, nullable: true }
+        duration_ms: { type: number, format: double, nullable: true }
         error_kind: { type: string, nullable: true, enum: [php_error, exception, fatal, null] }
         has_context: { type: boolean }
         size_bytes: { type: integer, minimum: 0 }

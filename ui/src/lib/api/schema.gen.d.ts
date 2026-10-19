@@ -382,6 +382,7 @@ export interface components {
         };
         ServerConnection: {
             state: components["schemas"]["ConnectionState"];
+            /** Format: double */
             latency_ms?: number;
             /** @description Насколько часы сервера отстают (минус) или спешат относительно просмотрщика */
             clock_offset_ms?: number;
@@ -513,6 +514,7 @@ export interface components {
             exit_code?: number | null;
             /** Format: int64 */
             started_at: number;
+            /** Format: double */
             duration_ms?: number | null;
             /** @description false — запрос выполняется или процесс был убит */
             finished: boolean;
@@ -596,6 +598,7 @@ export interface components {
             message: string;
             tags: string[];
             source?: components["schemas"]["Frame"];
+            /** Format: double */
             duration_ms?: number | null;
             /** @enum {string|null} */
             error_kind?: "php_error" | "exception" | "fatal" | null;
