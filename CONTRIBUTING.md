@@ -1,79 +1,87 @@
-# Как вносить изменения
+# Contributing
 
-План и все принятые решения — в [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md). Порядок работ — п. 8, решения — п. 10.
+The plan and all decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) (in Russian): section 8 is the order of work, section 10 the decisions.
 
-## Структура репозитория
+## Language
 
-| Каталог | Что | Язык |
+The project is open source and **English is the base language**: code, comments, identifiers, commit messages, CLI output, API error messages, specifications and documentation. Russian is the second language: the UI is translated (`ui/src/lib/i18n`) and user documentation has a Russian version (`README.ru.md`). A change to user-facing docs updates both versions.
+
+## Repository layout
+
+| Directory | What | Language |
 |---|---|---|
-| `client-php/` | PHP-библиотека (отладчик), Composer-пакет, PHP 7.4+ | PHP |
-| `server/` | Просмотрщик: CLI, сервер, импорт логов | Go 1.26+ |
-| `ui/` | Веб-интерфейс, встраивается в Go-бинарник | Svelte 5 + TypeScript |
-| `desktop/` | Десктоп-версия на Wails (с фазы 4) | Go |
-| `spec/` | Контракты: фикстуры, JSON Schema, OpenAPI | — |
-| `legacy/` | Старый сервер, EasyUI и библиотека v1. Только срочные исправления, удаляется в фазе 5 | PHP, JS |
+| `client-php/` | PHP library (the debugger), Composer package, PHP 7.4+ | PHP |
+| `server/` | Viewer: CLI, server, log import, desktop entry point | Go 1.26+ |
+| `ui/` | Web UI, embedded into the Go binary | Svelte 5 + TypeScript |
+| `desktop/` | Notes on the Wails desktop build | — |
+| `spec/` | Contracts: fixtures, JSON Schema, OpenAPI | — |
+| `legacy/` | Old server, EasyUI and library v1. Urgent fixes only; removed in phase 5 | PHP, JS |
 
-## Команды
+## Commands
 
-Все проверки запускаются через `make`, CI вызывает те же цели:
+Every check runs through `make`; CI calls the same targets:
 
 ```sh
-make doctor   # что установлено, чего не хватает
-make tools    # линтеры закреплённых версий в .tools/bin
-make deps     # зависимости всех компонентов
-make test     # все тесты
-make lint     # все линтеры
-make ci       # всё, что делает CI
-make help     # остальные цели
+make doctor   # what is installed, what is missing
+make tools    # pinned linter versions in .tools/bin
+make deps     # dependencies of all components
+make test     # all tests
+make lint     # all linters
+make ci       # everything CI does
+make help     # all other targets
 ```
 
 ## TDD
 
-Новый код пишется через тесты:
+New code is written test first:
 
-1. Тест, который описывает нужное поведение, — и он падает (красный).
-2. Минимальная реализация, при которой тест проходит (зелёный).
-3. Рефакторинг при зелёных тестах.
+1. A test that describes the behavior — and fails (red).
+2. The minimal implementation that makes it pass (green).
+3. Refactoring with green tests.
 
-Код без теста, который его потребовал, не принимается. Ошибка, найденная вручную, сначала воспроизводится тестом, потом исправляется.
+Code without a test that required it is not accepted. A bug found by hand is first reproduced by a test, then fixed.
 
-| Компонент | Тесты | Где |
+| Component | Tests | Where |
 |---|---|---|
-| `client-php` | PHPUnit 9.6, матрица PHP 7.4–8.4 в CI | `client-php/tests/` |
-| `server` | `go test -race` | рядом с кодом, `*_test.go` |
-| `ui` | Vitest + Testing Library | рядом с кодом, `*.test.ts` |
+| `client-php` | PHPUnit 9.6, PHP 7.4–8.4 matrix in CI | `client-php/tests/` |
+| `server` | `go test -race` | next to the code, `*_test.go` |
+| `ui` | Vitest + Testing Library | next to the code, `*.test.ts` |
 
-Тесты на разбор логов используют фикстуры из `spec/fixtures/`, а не придуманные строки.
+Log parsing tests use the fixtures in `spec/fixtures/`, not made-up strings.
 
-## Контракты и сгенерированный код
+## Contracts and generated code
 
-Сначала меняется контракт в `spec/` (формат логов, OpenAPI), потом код. Типы Go (`server/internal/api`, `server/internal/libclient`) и TypeScript (`ui/src/lib/api/schema.gen.d.ts`) генерируются из OpenAPI командой `make generate`; файлы `*.gen.*` руками не правятся. CI проверяет, что сгенерированный код совпадает с закоммиченным (`make generate-check`).
+The contract in `spec/` (log formats, OpenAPI) changes first, then the code. Go types (`server/internal/api`, `server/internal/libclient`) and TypeScript types (`ui/src/lib/api/schema.gen.d.ts`) are generated from OpenAPI with `make generate`; `*.gen.*` files are never edited by hand. CI checks that generated code matches what is committed (`make generate-check`).
 
-## Именование
+## Naming
 
-Венгерская нотация запрещена во всём новом коде (п. 4.4 плана): никаких префиксов типа `a`, `s`, `i`, `b`, `o`, `m`, `f`, `fn` (`$aVars`, `$sMessage`, `fnDebugLog`, `oSelectedProject`). Тип выражается системой типов.
+Hungarian notation is banned in all new code: no type prefixes such as `a`, `s`, `i`, `b`, `o`, `m`, `f`, `fn` (`$aVars`, `$sMessage`, `fnDebugLog`, `oSelectedProject`). The type system expresses the type.
 
-| Где | Стиль | Пример |
+| Where | Style | Example |
 |---|---|---|
-| PHP | PSR-12: классы `PascalCase`, методы и свойства `camelCase`, константы `UPPER_SNAKE` | `$projectRoot`, `log()`, `Level::ERROR` |
-| Go | идиоматичный Go (`MixedCaps`) | `Project.LogDir()` |
-| TypeScript / Svelte | `camelCase`, компоненты `PascalCase` | `selectedRequest`, `RequestList.svelte` |
-| Формат логов, конфиг, API, БД | `snake_case` | `request_id`, `is_cli`, `messages.level` |
+| PHP | PSR-12: classes `PascalCase`, methods and properties `camelCase`, constants `UPPER_SNAKE` | `$projectRoot`, `log()`, `Level::ERROR` |
+| Go | idiomatic Go (`MixedCaps`) | `Project.LogDir()` |
+| TypeScript / Svelte | `camelCase`, components `PascalCase` | `selectedRequest`, `RequestList.svelte` |
+| Log format, config, API, database | `snake_case` | `request_id`, `is_cli`, `messages.level` |
 
-Поля DTO из OpenAPI в TypeScript остаются `snake_case` (без слоя конвертации).
+OpenAPI DTO fields stay `snake_case` in TypeScript (no conversion layer).
 
-Проверяется автоматически: `client-php/tools/bin/check-naming` для PHP, ESLint `naming-convention` для TS/Svelte. Для deprecated-обёрток со старыми именами (п. 10.23) строку можно исключить комментарием `// naming-check:ignore`.
+This is checked automatically: `client-php/tools/bin/check-naming` for PHP and the ESLint `naming-convention` rule for TS/Svelte. A line with a deprecated wrapper that keeps an old name can be excluded with `// naming-check:ignore`.
 
-Словарь: **запрос** (request) — один HTTP- или CLI-запуск и его файл лога; **сообщение** (message) — событие внутри запроса; **контекст** (context) — переменные сообщения; **сервер** — машина, где лежат проекты; **проект** — приложение на сервере.
+## UI text
 
-## Коммиты
+Every user-visible string goes through `i18n.t('key')`. Add the key to both dictionaries in `ui/src/lib/i18n/messages.ts`; the tests check that `en` and `ru` have the same keys, the same placeholders and all plural forms (`Intl.PluralRules`). Native browser dialogs (`alert`, `confirm`, `prompt`), `<select>` and `title` tooltips are not used: there are custom components for them.
 
-[Conventional Commits](https://www.conventionalcommits.org/), описание на русском:
+Glossary: **request** — one HTTP or CLI run and its log file; **message** — an event inside a request; **context** — the variables of a message; **server** — a machine that hosts projects; **project** — an application on a server.
+
+## Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/) in English:
 
 ```
-feat(server): импорт логов формата v1
-fix(client-php): маскировать секреты во вложенных массивах
-chore: обновить golangci-lint до v2.15
+feat(server): import v2 logs from the saved offset
+fix(client-php): mask secrets in nested arrays
+chore: update golangci-lint to v2.15
 ```
 
-Типы: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. Область — каталог верхнего уровня (`client-php`, `server`, `ui`, `desktop`, `spec`, `legacy`).
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope is the top-level directory (`client-php`, `server`, `ui`, `desktop`, `spec`, `legacy`).

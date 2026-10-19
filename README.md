@@ -3,26 +3,40 @@
 [![CI](https://github.com/hightemp/wapp_php_debugger/actions/workflows/ci.yml/badge.svg)](https://github.com/hightemp/wapp_php_debugger/actions/workflows/ci.yml)
 [![](https://asdertasd.site/counter/wapp_avto_express_debugger?a=1)](https://asdertasd.site/counter/wapp_avto_express_debugger)
 
-Логгер-отладчик для PHP-проектов: PHP-библиотека пишет события каждого запроса в JSONL-логи, просмотрщик показывает запросы, сообщения, бэктрейсы и переменные.
+[Русская версия](README.ru.md)
 
-> **Статус: идёт переписывание.** Просмотрщик переписывается на Go + Svelte (с десктоп-версией на Wails), библиотека — в Composer-пакет для PHP 7.4+. План, фазы и решения — в [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md), правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md).
+A logger and debugger for PHP projects: a PHP library writes the events of every request into JSONL logs, and a viewer shows requests, messages, backtraces and variables in real time.
 
-## Структура
+> **Status: being rewritten.** The viewer is being rewritten in Go + Svelte (with a desktop app on Wails), and the library is becoming a Composer package for PHP 7.4+. The plan, phases and decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) (in Russian); development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-| Каталог | Что |
+## Layout
+
+| Directory | What |
 |---|---|
-| `client-php/` | Новая PHP-библиотека (в разработке) |
-| `server/` | Новый просмотрщик на Go (в разработке) |
-| `ui/` | Новый веб-интерфейс на Svelte (в разработке) |
-| `desktop/` | Десктоп-версия на Wails (фаза 4) |
-| `spec/` | Фикстуры логов и контракты |
-| `legacy/` | Текущая рабочая версия: библиотека v1 и старый просмотрщик |
+| `server/` | New viewer in Go: `wapp-debugger serve`, API, live updates, embedded UI |
+| `ui/` | New web UI in Svelte, English and Russian |
+| `server/cmd/wapp-debugger-desktop/` | Desktop app on Wails v3 |
+| `client-php/` | New PHP library (in progress) |
+| `spec/` | Log formats, API contracts and fixtures |
+| `legacy/` | The current library v1 and the old viewer |
 
-## Текущая версия (legacy)
+## New viewer (preview)
 
-Пока новая версия не готова, используется `legacy/` (тег `legacy-hotfix` — со срочными исправлениями безопасности).
+The new viewer already reads logs of the current library v1:
 
-**Библиотека.** Подключить `legacy/Debugger.class.php` в проект через `require_once` и положить рядом `dws_debugger.json`:
+```sh
+make build                                        # dist/wapp-debugger with the embedded UI
+dist/wapp-debugger serve --logs-dir /var/www/app/tmp/logs
+# open http://127.0.0.1:8820
+```
+
+It listens on `127.0.0.1` only, imports new and changed log files in the background and pushes new requests to the page as they appear. The desktop app: `make desktop-build`, then `dist/wapp-debugger-desktop --logs-dir …`. The UI language (English or Russian) is switched in the header.
+
+## Current version (legacy)
+
+Until the new version is released, `legacy/` is the working version (tag `legacy-hotfix` carries urgent security fixes).
+
+**Library.** Include `legacy/Debugger.class.php` in your project with `require_once` and put `dws_debugger.json` next to it:
 
 ```json
 {
@@ -33,22 +47,22 @@
 }
 ```
 
-Логирование:
+Logging:
 
 ```php
-__d(DWS_MESSAGE, 'Заказ создан', ['order' => $order]);
-func(__log($a), __log($b)); // перехват значений прямо в выражении
-__start('db'); /* ... */ __stop('db'); // таймер
+__d(DWS_MESSAGE, 'Order created', ['order' => $order]);
+func(__log($a), __log($b)); // capture values right inside an expression
+__start('db'); /* ... */ __stop('db'); // timer
 ```
 
-Значения с ключами вроде `password`, `token`, `api_key` маскируются. `$_SESSION` и `$_COOKIE` пишутся только при `"bLogSessionAndCookies": true`. HTTP-команды (`?debug_msg=…`) работают только с константой `DA_HTTP_TOKEN` и заголовком `X-Debugger-Token`.
+Values with keys such as `password`, `token` or `api_key` are masked. `$_SESSION` and `$_COOKIE` are logged only with `"bLogSessionAndCookies": true`. HTTP commands (`?debug_msg=…`) work only with the `DA_HTTP_TOKEN` constant and the `X-Debugger-Token` header.
 
-**Просмотрщик:**
+**Old viewer:**
 
 ```sh
 cd legacy
 ./bin_start_server.sh        # http://127.0.0.1:8820
-# или
+# or
 cp .env.example .env && docker compose up -d
 ```
 
