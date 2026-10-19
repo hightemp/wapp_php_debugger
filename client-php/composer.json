@@ -15,7 +15,13 @@
     "autoload": {
         "psr-4": {
             "WappDebugger\\": "src/"
-        }
+        },
+        "files": [
+            "src/functions.php"
+        ],
+        "exclude-from-classmap": [
+            "src/autoload.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

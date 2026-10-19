@@ -57,4 +57,37 @@ final class ConfigTest extends TestCase
 
         self::assertFalse(Config::fromFile($file)->enabled());
     }
+
+    public function testOldKeysOfLibraryV1(): void
+    {
+        $config = Config::fromArray([
+            'bIsOnFlag' => true, 'sProjectRootPath' => '/var/www/app', 'sMessagesFilesPath' => '/var/www/app/tmp/logs',
+            'sTempPath' => '/var/www/app/tmp', 'iArraySizeLimit' => 50, 'bLogSessionAndCookies' => true,
+        ]);
+
+        self::assertTrue($config->enabled());
+        self::assertSame('/var/www/app', $config->projectRoot());
+        self::assertSame('/var/www/app/tmp/logs', $config->logsDir());
+        self::assertSame(50, $config->maxItems());
+        self::assertSame(['get', 'post', 'files', 'session', 'cookie'], $config->logGlobals());
+        self::assertSame(
+            ['bIsOnFlag' => 'enabled', 'sProjectRootPath' => 'project_root', 'sMessagesFilesPath' => 'logs_dir', 'sTempPath' => null,
+                'iArraySizeLimit' => 'max_items', 'bLogSessionAndCookies' => 'log_globals'],
+            $config->oldKeys()
+        );
+    }
+
+    public function testNewKeysWinOverOldOnes(): void
+    {
+        $config = Config::fromArray(['bIsOnFlag' => true, 'enabled' => false, 'logs_dir' => '/new', 'sMessagesFilesPath' => '/old']);
+
+        self::assertFalse($config->enabled());
+        self::assertSame('/new', $config->logsDir());
+    }
+
+    public function testGlobalsToLog(): void
+    {
+        self::assertSame(['get', 'post', 'files'], Config::fromArray([])->logGlobals(), '$_SERVER, session and cookies only on request');
+        self::assertSame(['server', 'get'], Config::fromArray(['log_globals' => ['server', 'GET', 'bogus']])->logGlobals());
+    }
 }

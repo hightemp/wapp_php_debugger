@@ -21,12 +21,30 @@ final class Config
     private int $maxItems;
     private int $maxStringBytes;
     private int $traceFrames;
+    /** @var list<string> */
+    private array $logGlobals;
+    /** @var array<string, string|null> */
+    private array $oldKeys = [];
+
+    /** Keys of library v1 and their names in 2.x; null means the key is no longer used. */
+    private const OLD_KEYS = [
+        'bIsOnFlag' => 'enabled',
+        'sProjectRootPath' => 'project_root',
+        'sMessagesFilesPath' => 'logs_dir',
+        'sTempPath' => null,
+        'iArraySizeLimit' => 'max_items',
+        'iPageSize' => null,
+        'bLogSessionAndCookies' => 'log_globals',
+    ];
+
+    private const GLOBALS = ['server', 'get', 'post', 'files', 'session', 'cookie'];
 
     /**
      * @param array<string, mixed> $values
      */
     private function __construct(array $values, ?string $baseDir)
     {
+        $values = $this->upgradeOldKeys($values);
         $this->enabled = ($values['enabled'] ?? false) === true;
         $root = self::stringOrNull($values['project_root'] ?? null);
         $this->projectRoot = $root !== null ? self::resolve($root, $baseDir) : $baseDir;
@@ -42,6 +60,9 @@ final class Config
         $this->maxStringBytes = self::positiveInt($values['max_string_bytes'] ?? null, 2000);
         $traceFrames = $values['trace_frames'] ?? null;
         $this->traceFrames = is_int($traceFrames) && $traceFrames >= 0 ? $traceFrames : 10;
+        $globals = is_array($values['log_globals'] ?? null) ? $values['log_globals'] : ['get', 'post', 'files'];
+        $globals = array_map('strtolower', array_filter($globals, 'is_string'));
+        $this->logGlobals = array_values(array_intersect($globals, self::GLOBALS));
         if ($this->logsDir === null) {
             $this->enabled = false;
         }
@@ -119,6 +140,50 @@ final class Config
     public function traceFrames(): int
     {
         return $this->traceFrames;
+    }
+
+    /**
+     * Superglobals written at boot: server, get, post, files, session, cookie.
+     *
+     * @return list<string>
+     */
+    public function logGlobals(): array
+    {
+        return $this->logGlobals;
+    }
+
+    /**
+     * Keys of library v1 found in the config, with their new names (null: not used any more).
+     *
+     * @return array<string, string|null>
+     */
+    public function oldKeys(): array
+    {
+        return $this->oldKeys;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    private function upgradeOldKeys(array $values): array
+    {
+        foreach (self::OLD_KEYS as $old => $new) {
+            if (!array_key_exists($old, $values)) {
+                continue;
+            }
+            $this->oldKeys[$old] = $new;
+            if ($new === 'log_globals') {
+                if ($values[$old] === true && !array_key_exists('log_globals', $values)) {
+                    $values['log_globals'] = ['get', 'post', 'files', 'session', 'cookie'];
+                }
+            } elseif ($new !== null && !array_key_exists($new, $values)) {
+                $values[$new] = $values[$old];
+            }
+        }
+
+        return $values;
     }
 
     /**

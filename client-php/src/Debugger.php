@@ -22,8 +22,10 @@ final class Debugger
     private Frames $frames;
     private int $traceFrames;
     private float $startedMonotonic;
-    /** @var array<string, float> running timers: name => monotonic start */
+    /** @var array<string, float> running named timers: name => monotonic start */
     private array $timers = [];
+    /** @var list<float> running unnamed timers, a stack as in library v1 */
+    private array $unnamedTimers = [];
     private ?JsonlFileWriter $writer;
     private string $requestId;
     private int $lastTs;
@@ -76,6 +78,16 @@ final class Debugger
             return self::$instance = self::start($config, RequestInfo::cli([]));
         }
         $debugger = self::start($config, RequestInfo::fromGlobals($_SERVER));
+        if ($config->oldKeys() !== []) {
+            $debugger->log(Level::WARNING, 'dws_debugger.json uses keys of library v1; rename them', ['keys' => $config->oldKeys()], ['config']);
+        }
+        $globals = ['server' => $_SERVER, 'get' => $_GET, 'post' => $_POST, 'files' => $_FILES,
+            'session' => $_SESSION ?? [], 'cookie' => $_COOKIE];
+        foreach ($config->logGlobals() as $name) {
+            if ($globals[$name] !== []) {
+                $debugger->log(Level::MESSAGE, '$_' . strtoupper($name), $globals[$name], ['globals']);
+            }
+        }
         (new ErrorHandler($debugger, static function (): ?int {
             $code = http_response_code();
 
@@ -89,6 +101,12 @@ final class Debugger
     public static function instance(): self
     {
         return self::$instance ??= self::start(Config::fromArray([]), RequestInfo::cli([]));
+    }
+
+    /** Sets the debugger the global helpers (__d, __log, __start, __stop) write to; null resets it. */
+    public static function setInstance(?self $debugger): void
+    {
+        self::$instance = $debugger;
     }
 
     public function enabled(): bool
@@ -187,30 +205,44 @@ final class Debugger
         $this->emit('error', $fields);
     }
 
-    public function startTimer(string $name): void
-    {
-        if ($this->enabled()) {
-            $this->timers[$name] = $this->clock->monotonicMs();
-        }
-    }
-
-    /** Writes a timer event with the time since startTimer($name). */
-    public function stopTimer(string $name, string $level = Level::MESSAGE): void
+    /** Starts a named timer; without a name the timers form a stack, as in library v1. */
+    public function startTimer(string $name = ''): void
     {
         if (!$this->enabled()) {
             return;
         }
-        if (!isset($this->timers[$name])) {
+        if ($name === '') {
+            $this->unnamedTimers[] = $this->clock->monotonicMs();
+        } else {
+            $this->timers[$name] = $this->clock->monotonicMs();
+        }
+    }
+
+    /**
+     * Writes a timer event with the time since startTimer($name). Without a level it follows the
+     * duration, as in library v1: info, warning over 1 s, error over 2 s.
+     */
+    public function stopTimer(string $name = '', ?string $level = null): void
+    {
+        if (!$this->enabled()) {
+            return;
+        }
+        if ($name === '' && $this->unnamedTimers !== []) {
+            $name = (string) count($this->unnamedTimers);
+            $started = (float) array_pop($this->unnamedTimers);
+        } elseif ($name !== '' && isset($this->timers[$name])) {
+            $started = $this->timers[$name];
+            unset($this->timers[$name]);
+        } else {
             $this->log(Level::WARNING, sprintf('Timer "%s" was stopped but never started', $name));
 
             return;
         }
-        $fields = [
-            'name' => $name === '' ? 'timer' : $name,
-            'duration_ms' => round(max(0.0, $this->clock->monotonicMs() - $this->timers[$name]), 3),
-            'level' => Level::normalize($level),
-        ];
-        unset($this->timers[$name]);
+        $duration = round(max(0.0, $this->clock->monotonicMs() - $started), 3);
+        if ($level === null) {
+            $level = $duration > 2000 ? Level::ERROR : ($duration > 1000 ? Level::WARNING : Level::INFO);
+        }
+        $fields = ['name' => $name, 'duration_ms' => $duration, 'level' => Level::normalize($level)];
         $source = $this->frames->callStack()['source'];
         if ($source !== null) {
             $fields['source'] = $source;

@@ -103,7 +103,7 @@ final class DebuggerDetailsTest extends TestCase
         self::assertSame('timer', $timer['type']);
         self::assertSame('db', $timer['name']);
         self::assertSame(12.0, (float) $timer['duration_ms']);
-        self::assertSame('message', $timer['level']);
+        self::assertSame('info', $timer['level'], 'a fast timer');
         self::assertSame($line, $timer['source']['line']);
     }
 
