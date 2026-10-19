@@ -17,6 +17,9 @@ LDFLAGS := -s -w -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$
 
 GOLANGCI_LINT_VERSION := v2.15.0
 ACTIONLINT_VERSION := v1.7.12
+# Генератор запускается через npx: его peer-зависимость — TypeScript 5, а UI на TypeScript 6
+OPENAPI_TS_VERSION := 7.13.0
+GENERATED := server/internal/api/openapi.gen.go server/internal/libclient/client.gen.go ui/src/lib/api/schema.gen.d.ts
 GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
 ACTIONLINT := $(TOOLS_BIN)/actionlint
 
@@ -137,6 +140,20 @@ ui-build: ## Собрать UI в server/web/dist
 .PHONY: ui-dev
 ui-dev: ## Vite dev server
 	cd ui && npm run dev
+
+# --- Кодогенерация из spec/ -------------------------------------------------
+
+.PHONY: generate
+generate: ## Сгенерировать Go- и TS-код из spec/*.yaml
+	cd server && go generate ./...
+	cd ui && npx -y openapi-typescript@$(OPENAPI_TS_VERSION) ../spec/openapi.yaml -o src/lib/api/schema.gen.d.ts
+
+.PHONY: generate-check
+generate-check: generate ## Проверить, что сгенерированный код совпадает с закоммиченным
+	@if [ -n "$$(git status --porcelain -- $(GENERATED))" ]; then \
+		echo "Сгенерированный код устарел: выполните make generate и закоммитьте изменения"; \
+		git status --short -- $(GENERATED); git --no-pager diff --stat -- $(GENERATED); exit 1; \
+	fi
 
 # --- Прочее -----------------------------------------------------------------
 

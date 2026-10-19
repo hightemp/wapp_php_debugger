@@ -1,0 +1,20 @@
+// Типы DTO из spec/openapi.yaml. schema.gen.d.ts генерируется (make generate), здесь — короткие имена.
+import type { components } from './schema.gen';
+
+type Schemas = components['schemas'];
+
+export type Level = Schemas['Level'];
+export type Sapi = Schemas['Sapi'];
+export type MessageType = Schemas['MessageType'];
+export type Server = Schemas['Server'];
+export type ServerConnection = Schemas['ServerConnection'];
+export type Project = Schemas['Project'];
+export type Request = Schemas['Request'];
+export type RequestDetail = Schemas['RequestDetail'];
+export type RequestPage = Schemas['RequestPage'];
+export type Message = Schemas['Message'];
+export type MessageDetail = Schemas['MessageDetail'];
+export type MessagePage = Schemas['MessagePage'];
+export type StreamEvent = Schemas['StreamEvent'];
+export type Settings = Schemas['Settings'];
+export type Problem = Schemas['Problem'];
