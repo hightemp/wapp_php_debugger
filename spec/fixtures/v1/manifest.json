@@ -1,0 +1,145 @@
+{
+    "format": "v1",
+    "fixtures": [
+        {
+            "file": "cli.log",
+            "description": "CLI-запуск с аргументами (bIsCli=true, aArgv заполнен)",
+            "size": 8672,
+            "header_valid": true,
+            "header_length": 1000,
+            "finished": true,
+            "is_cli": true,
+            "is_ajax": false,
+            "url": "",
+            "messages_valid": 11,
+            "messages_broken": 0,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 7,
+                "warning": 1
+            },
+            "ends_with_newline": true
+        },
+        {
+            "file": "killed.log",
+            "description": "Процесс убит SIGKILL до shutdown: bFinished=false, нет итоговых сообщений",
+            "size": 8112,
+            "header_valid": true,
+            "header_length": 1000,
+            "finished": false,
+            "is_cli": true,
+            "is_ajax": false,
+            "url": "",
+            "messages_valid": 10,
+            "messages_broken": 0,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 6,
+                "warning": 1
+            },
+            "ends_with_newline": true
+        },
+        {
+            "file": "long-url.log",
+            "description": "URL длиннее 1000 байт: hotfix-версия укорачивает sURL до 300 байт, заголовок ровно 1000 байт",
+            "size": 96790,
+            "header_valid": true,
+            "header_length": 1000,
+            "finished": true,
+            "is_cli": false,
+            "is_ajax": false,
+            "url": "http://shop.example.test/scenario.php?q=%D0%BE%D1%87%D0%B5%D0%BD%D1%8C-%D0%B4%D0%BB%D0%B8%D0%BD%D0%BD%D1%8B%D0%B9-%D0%B7%D0%B0%D0%BF%D1%80%D0%BE%D1%81-%D0%BE%D1%87%D0%B5%D0%BD%D1%8C-%D0%B4%D0%BB%D0%B8%D0%BD%D0%BD%D1%8B%D0%B9-%D0%B7%D0%B0%D0%BF%D1%80%D0%BE%D1%81-%D0%BE%D1%87%D0%B5%D0%BD%D1%8C-%D0%B4%",
+            "messages_valid": 11,
+            "messages_broken": 0,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 7,
+                "warning": 1
+            },
+            "ends_with_newline": true
+        },
+        {
+            "file": "pre-hotfix-long-header.log",
+            "description": "Библиотека до hotfix: заголовок длиннее 1000 байт затёр начало первого сообщения",
+            "size": 18884,
+            "header_valid": true,
+            "header_length": 2714,
+            "finished": true,
+            "is_cli": true,
+            "is_ajax": false,
+            "url": "",
+            "messages_valid": 13,
+            "messages_broken": 1,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 9,
+                "warning": 1
+            },
+            "ends_with_newline": true
+        },
+        {
+            "file": "truncated-last-line.log",
+            "description": "Копия web-get, последняя строка оборвана посередине (сбой во время записи)",
+            "size": 7490,
+            "header_valid": true,
+            "header_length": 1000,
+            "finished": true,
+            "is_cli": false,
+            "is_ajax": false,
+            "url": "http://shop.example.test/scenario.php?id=42",
+            "messages_valid": 10,
+            "messages_broken": 1,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 6,
+                "warning": 1
+            },
+            "ends_with_newline": false
+        },
+        {
+            "file": "web-ajax-post.log",
+            "description": "AJAX POST с паролем в $_POST (замаскирован hotfix-версией)",
+            "size": 7946,
+            "header_valid": true,
+            "header_length": 1000,
+            "finished": true,
+            "is_cli": false,
+            "is_ajax": true,
+            "url": "http://shop.example.test/scenario.php",
+            "messages_valid": 11,
+            "messages_broken": 0,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 7,
+                "warning": 1
+            },
+            "ends_with_newline": true
+        },
+        {
+            "file": "web-get.log",
+            "description": "Обычный GET-запрос: все типы сообщений, таймер, __log, E_USER_ERROR, поля найдено/не найдено",
+            "size": 7530,
+            "header_valid": true,
+            "header_length": 1000,
+            "finished": true,
+            "is_cli": false,
+            "is_ajax": false,
+            "url": "http://shop.example.test/scenario.php?id=42",
+            "messages_valid": 11,
+            "messages_broken": 0,
+            "levels": {
+                "error": 1,
+                "info": 2,
+                "message": 7,
+                "warning": 1
+            },
+            "ends_with_newline": true
+        }
+    ]
+}
