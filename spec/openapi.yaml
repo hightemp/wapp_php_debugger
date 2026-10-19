@@ -11,11 +11,14 @@ info:
     - times are milliseconds since the epoch; `started_at` and `ts` use the project server clock, `received_at` the viewer clock;
     - errors are Problem Details (RFC 9457), `application/problem+json`;
     - request and message lists use cursor pagination: pass `next_cursor` as `cursor`; `null` means the end.
+    - without a token only loopback host names are served (403 otherwise, against DNS rebinding);
+      writes with a foreign `Origin` get 403 (CSRF); request bodies over 1 MiB get 413.
 servers:
   - url: http://127.0.0.1:8820
     description: Local wapp-debugger serve
 security:
   - bearer_auth: []
+  - cookie_auth: []
   - {}
 tags:
   - name: system
@@ -437,7 +440,16 @@ components:
     bearer_auth:
       type: http
       scheme: bearer
-      description: Token from the viewer config. Not needed when listening on 127.0.0.1 without a token, or in the desktop app.
+      description: |
+        Token from WAPP_DEBUGGER_TOKEN (or --token). Not needed when the viewer listens on loopback
+        without a token, or in the desktop app. Missing or wrong token: 401 with `WWW-Authenticate: Bearer`.
+    cookie_auth:
+      type: apiKey
+      in: cookie
+      name: wapp_debugger_token
+      description: |
+        Set (HttpOnly, SameSite=Strict) when a UI page is opened with `?token=<token>`; the browser
+        then sends it with every call, including the SSE stream, where headers cannot be set.
 
   parameters:
     ServerId:

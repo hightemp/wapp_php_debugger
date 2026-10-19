@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net"
@@ -21,6 +22,7 @@ import (
 // Config holds launch settings.
 type Config struct {
 	Addr         string // HTTP address; only 127.0.0.1 is listened on by default
+	Token        string // required from clients when set; mandatory outside loopback
 	DBPath       string
 	ProjectName  string
 	RootPath     string
@@ -118,6 +120,9 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
+	if err := CheckExposure(cfg.Addr, cfg.Token); err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
 		return err
@@ -129,14 +134,16 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	}
 	defer core.Close()
 
-	httpServer := &http.Server{Handler: core.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	handler := api.Protect(core.Handler(), api.Security{Token: cfg.Token})
+	httpServer := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	// SSE streams hold connections open: canceling the core closes them on shutdown
 	httpServer.RegisterOnShutdown(core.cancel)
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()
 	ready(listener.Addr().String())
-	cfg.Logger.Info("wapp-debugger started", "addr", "http://"+listener.Addr().String(), "logs_dir", cfg.LogsDir)
+	cfg.Logger.Info("wapp-debugger started", "addr", "http://"+listener.Addr().String(), "logs_dir", cfg.LogsDir,
+		"token_required", cfg.Token != "")
 
 	select {
 	case err = <-serveErr:
@@ -175,4 +182,20 @@ func GuessRoot(logsDir string) string {
 		}
 	}
 	return parent
+}
+
+// CheckExposure refuses to serve a non-loopback address without a token: the viewer shows
+// application data and can delete logs and switch the debugger.
+func CheckExposure(addr, token string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("address %q: %w", addr, err)
+	}
+	if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
+		return nil
+	}
+	if token == "" {
+		return fmt.Errorf("refusing to listen on %s without a token: set WAPP_DEBUGGER_TOKEN (or --token), or use 127.0.0.1", addr)
+	}
+	return nil
 }

@@ -229,3 +229,28 @@ func TestNewLogsAppearWithoutWaitingForThePoll(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+func TestRunProtectsTheNetworkServer(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ready := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Addr: "127.0.0.1:0", DBPath: filepath.Join(dir, "viewer.db"), Token: "s3cret", UI: fstest.MapFS{"index.html": {}}},
+			func(addr string) { ready <- addr })
+	}()
+	base := "http://" + <-ready
+	resp, err := http.Get(base + "/api/v1/requests")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized || resp.Header.Get("Content-Security-Policy") == "" {
+		t.Fatalf("status %d, headers %v", resp.StatusCode, resp.Header)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"net/http"
 	"path"
@@ -48,7 +49,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux := http.NewServeMux()
 	// SSE does not fit strict handlers (it needs a flush after every event)
 	mux.Handle("GET /api/v1/stream", &streamHandler{broker: deps.Broker, heartbeat: deps.Heartbeat})
-	mux.Handle("/api/", apiMux)
+	mux.Handle("/api/", limitBody(apiMux))
 	mux.Handle("/", spaHandler(deps.UI))
 	return mux
 }
@@ -60,6 +61,10 @@ func writeProblem(w http.ResponseWriter, status int, title, detail string) {
 }
 
 func badRequest(w http.ResponseWriter, _ *http.Request, err error) {
+	if tooLarge := new(http.MaxBytesError); errors.As(err, &tooLarge) {
+		writeProblem(w, http.StatusRequestEntityTooLarge, "Content Too Large", err.Error())
+		return
+	}
 	writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
 }
 

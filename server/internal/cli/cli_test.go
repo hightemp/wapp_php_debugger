@@ -112,3 +112,30 @@ func TestParseServeFindsTheRootByTheLibraryConfig(t *testing.T) {
 		t.Fatalf("cfg = %+v, %v", cfg, err)
 	}
 }
+
+func TestParseServeRefusesTheNetworkWithoutAToken(t *testing.T) {
+	t.Setenv("WAPP_DEBUGGER_TOKEN", "")
+	for _, addr := range []string{"0.0.0.0:8820", ":8820", "192.168.1.10:8820", "[::]:8820"} {
+		if _, err := parseServe([]string{"--addr", addr, "--db", "/tmp/x.db"}, nil); err == nil || !strings.Contains(err.Error(), "token") {
+			t.Errorf("%s: err = %v, want a token error", addr, err)
+		}
+	}
+	for _, addr := range []string{"127.0.0.1:0", "localhost:8820", "[::1]:8820"} {
+		if _, err := parseServe([]string{"--addr", addr, "--db", "/tmp/x.db"}, nil); err != nil {
+			t.Errorf("%s: %v", addr, err)
+		}
+	}
+	cfg, err := parseServe([]string{"--addr", "0.0.0.0:8820", "--token", "s3cret", "--db", "/tmp/x.db"}, nil)
+	if err != nil || cfg.Token != "s3cret" {
+		t.Fatalf("flag token: %+v, %v", cfg, err)
+	}
+}
+
+// The environment keeps the token out of the process list
+func TestParseServeTakesTheTokenFromTheEnvironment(t *testing.T) {
+	t.Setenv("WAPP_DEBUGGER_TOKEN", "from-env")
+	cfg, err := parseServe([]string{"--addr", "0.0.0.0:8820", "--db", "/tmp/x.db"}, nil)
+	if err != nil || cfg.Token != "from-env" {
+		t.Fatalf("cfg = %+v, %v", cfg, err)
+	}
+}
