@@ -51,23 +51,39 @@ func (s *Store) EnsureLocalProject(ctx context.Context, name, rootPath, logsDir 
 	return ids, err
 }
 
-// FileState is what is known about a log file: size and mtime tell whether it must be re-read.
+// FileState is what is known about a log file: size and mtime tell whether it must be re-read,
+// ReadOffset and LastSeq tell where a v2 file continues.
 type FileState struct {
-	Name    string
-	Size    int64
-	ModTime time.Time
+	Name          string
+	Size          int64
+	ModTime       time.Time
+	ReadOffset    int64
+	FormatVersion int
+	LastSeq       int
+	Status        string // active, complete or broken
+	Error         string
 }
 
 // FileState returns the stored state of a project log file.
 func (s *Store) FileState(ctx context.Context, projectID int64, name string) (FileState, bool, error) {
 	state := FileState{Name: name}
 	var mtime int64
-	err := s.db.QueryRowContext(ctx, `SELECT size, mtime FROM log_files WHERE project_id = ? AND path = ?`, projectID, name).Scan(&state.Size, &mtime)
+	var fileError sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+		SELECT size, mtime, read_offset, format_version, last_seq, status, error FROM log_files WHERE project_id = ? AND path = ?`,
+		projectID, name).Scan(&state.Size, &mtime, &state.ReadOffset, &state.FormatVersion, &state.LastSeq, &state.Status, &fileError)
 	if errors.Is(err, sql.ErrNoRows) {
 		return state, false, nil
 	}
 	state.ModTime = time.UnixMilli(mtime)
+	state.Error = fileError.String
 	return state, err == nil, err
+}
+
+// ForgetFile removes a log file and everything imported from it (the file was truncated or replaced).
+func (s *Store) ForgetFile(ctx context.Context, projectID int64, name string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM log_files WHERE project_id = ? AND path = ?`, projectID, name)
+	return err
 }
 
 // SaveResult is the outcome of saving a file.
@@ -113,6 +129,88 @@ func (s *Store) SaveFile(ctx context.Context, projectID int64, file FileState, p
 		if err := insertEvent(ctx, tx, result.RequestID, e); err != nil {
 			return SaveResult{}, fmt.Errorf("message %d: %w", e.Seq, err)
 		}
+	}
+	return result, tx.Commit()
+}
+
+// SaveV2Chunk appends a parsed v2 chunk read from offset: the request from request_start, new events,
+// and the end data from request_end. Saving the same chunk again changes nothing.
+func (s *Store) SaveV2Chunk(ctx context.Context, projectID int64, file FileState, offset int64, chunk logformat.V2Chunk) (SaveResult, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SaveResult{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var logFileID int64
+	err = tx.QueryRowContext(ctx, `
+		INSERT INTO log_files (project_id, path, format_version, size, mtime, read_offset) VALUES (?, ?, 2, ?, ?, 0)
+		ON CONFLICT (project_id, path) DO UPDATE SET size = excluded.size, mtime = excluded.mtime
+		RETURNING id`, projectID, file.Name, max(file.Size, offset+chunk.Consumed), file.ModTime.UnixMilli()).Scan(&logFileID)
+	if err != nil {
+		return SaveResult{}, fmt.Errorf("log file: %w", err)
+	}
+
+	var result SaveResult
+	err = tx.QueryRowContext(ctx, `SELECT id FROM requests WHERE log_file_id = ?`, logFileID).Scan(&result.RequestID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows) && chunk.Start != nil:
+		created, err := upsertRequest(ctx, tx, projectID, logFileID, logformat.Parsed{Request: *chunk.Start})
+		if err != nil {
+			return SaveResult{}, fmt.Errorf("request: %w", err)
+		}
+		result = created
+	case errors.Is(err, sql.ErrNoRows) && chunk.Consumed == 0:
+		// Not even the first line is complete yet: just remember the size
+		return SaveResult{}, tx.Commit()
+	case errors.Is(err, sql.ErrNoRows):
+		// Without request_start there is nothing to attach events to; skip the file until it changes
+		problem := "the file does not begin with request_start"
+		if len(chunk.Problems) > 0 {
+			problem = strings.Join(chunk.Problems, "; ")
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE log_files SET read_offset = ?, last_seq = ?, status = 'broken', error = ? WHERE id = ?`,
+			offset+chunk.Consumed, chunk.LastSeq, problem, logFileID); err != nil {
+			return SaveResult{}, err
+		}
+		return SaveResult{}, tx.Commit()
+	case err != nil:
+		return SaveResult{}, err
+	}
+
+	for _, e := range chunk.Events {
+		if err := insertEvent(ctx, tx, result.RequestID, e); err != nil {
+			return SaveResult{}, fmt.Errorf("message %d: %w", e.Seq, err)
+		}
+	}
+	if end := chunk.End; end != nil {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE requests SET finished = 1, ended_at = ?, duration_ms = ?, status_code = ?, exit_code = ?, memory_peak_bytes = ? WHERE id = ?`,
+			end.EndedAt, end.DurationMs, end.StatusCode, end.ExitCode, end.MemoryPeakBytes, result.RequestID); err != nil {
+			return SaveResult{}, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE requests SET
+			message_count = (SELECT count(*) FROM messages WHERE request_id = requests.id),
+			error_count = (SELECT count(*) FROM messages WHERE request_id = requests.id AND level = 'error'),
+			warning_count = (SELECT count(*) FROM messages WHERE request_id = requests.id AND level = 'warning')
+		WHERE id = ?`, result.RequestID); err != nil {
+		return SaveResult{}, err
+	}
+
+	status, problems := "active", sql.NullString{}
+	if chunk.End != nil {
+		status = "complete"
+	}
+	if len(chunk.Problems) > 0 {
+		problems = sql.NullString{String: strings.Join(chunk.Problems, "; "), Valid: true}
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE log_files SET read_offset = ?, last_seq = ?, status = CASE WHEN status = 'complete' THEN status ELSE ? END,
+			error = COALESCE(?, error) WHERE id = ?`,
+		offset+chunk.Consumed, chunk.LastSeq, status, problems, logFileID); err != nil {
+		return SaveResult{}, err
 	}
 	return result, tx.Commit()
 }
@@ -193,7 +291,8 @@ func insertEvent(ctx context.Context, tx *sql.Tx, requestID int64, e logformat.E
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO messages (request_id, seq, ts, type, level, message, tags, context, source_file, source_line, source_function,
 			source_class, trace, duration_ms, error_kind, error_type, exception_class, code, previous, size_bytes)
-		VALUES (`+placeholders(20)+`)`,
+		VALUES (`+placeholders(20)+`)
+		ON CONFLICT (request_id, seq) DO NOTHING`,
 		requestID, e.Seq, e.TS, e.Type, e.Level, e.Message, string(encodedTags), nullJSON(e.Context),
 		nullString(source.File), nullInt(source.Line), nullString(source.Function), nullString(source.Class), trace,
 		e.DurationMs, nullString(e.ErrorKind), nullString(e.ErrorType), nullString(e.ExceptionClass), nullString(e.Code),
