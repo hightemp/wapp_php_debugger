@@ -13,9 +13,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/api"
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/ingest"
-	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
-	"github.com/hightemp/wapp_php_debugger/server/internal/watch"
 )
 
 // Config holds launch settings.
@@ -34,14 +32,15 @@ type Config struct {
 // Core is the running viewer core: database, background import and HTTP handler.
 // The server (Run) puts the handler on a network port, the desktop into the Wails asset handler.
 type Core struct {
-	db       interface{ Close() error }
-	handler  http.Handler
-	broker   *events.Broker
-	cancel   context.CancelFunc
-	scanDone chan struct{}
+	db      interface{ Close() error }
+	handler http.Handler
+	broker  *events.Broker
+	manager *ingest.Manager
+	cancel  context.CancelFunc
 }
 
-// Start opens the database and starts the background import; Close stops them.
+// Start opens the database and starts the background import of every project; Close stops it.
+// With LogsDir set, that directory is registered as a project of the local server first.
 func Start(ctx context.Context, cfg Config) (*Core, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
@@ -55,23 +54,48 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		return nil, err
 	}
 	s := store.New(db)
-	broker := events.NewBroker(1024)
-
-	ctx, cancel := context.WithCancel(ctx)
-	core := &Core{
-		db:       db,
-		handler:  api.NewHandler(api.Deps{Store: s, Broker: broker, UI: cfg.UI}),
-		broker:   broker,
-		cancel:   cancel,
-		scanDone: make(chan struct{}),
-	}
-	go func() {
-		defer close(core.scanDone)
-		if cfg.LogsDir != "" {
-			scanLoop(ctx, cfg, s, broker)
+	if cfg.LogsDir != "" {
+		if err := registerProject(ctx, s, cfg); err != nil {
+			_ = db.Close()
+			return nil, err
 		}
-	}()
-	return core, nil
+	}
+
+	broker := events.NewBroker(1024)
+	manager := ingest.NewManager(s, ingest.ManagerOptions{
+		PollInterval: cfg.ScanInterval,
+		Logger:       cfg.Logger,
+		OnChange: func(_ int64, created, updated []int64) {
+			publish(ctx, s, broker, "request_created", created)
+			publish(ctx, s, broker, "request_updated", updated)
+		},
+	})
+	ctx, cancel := context.WithCancel(ctx)
+	if err := manager.Start(ctx); err != nil {
+		cancel()
+		_ = db.Close()
+		return nil, err
+	}
+	return &Core{
+		db:      db,
+		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI}),
+		broker:  broker,
+		manager: manager,
+		cancel:  cancel,
+	}, nil
+}
+
+// registerProject makes sure the --logs-dir project exists on the local server with these paths.
+func registerProject(ctx context.Context, s *store.Store, cfg Config) error {
+	ids, err := s.EnsureLocalProject(ctx, cfg.ProjectName, cfg.RootPath, cfg.LogsDir)
+	if err != nil {
+		return err
+	}
+	if cfg.ConfigPath == "" {
+		return nil
+	}
+	_, err = s.UpdateProject(ctx, ids.ProjectID, store.ProjectPatch{ConfigPath: &cfg.ConfigPath})
+	return err
 }
 
 // Handler serves /api/v1/*, SSE and the UI.
@@ -83,7 +107,7 @@ func (c *Core) Broker() *events.Broker { return c.broker }
 // Close stops the import, cancels SSE streams and closes the database.
 func (c *Core) Close() {
 	c.cancel()
-	<-c.scanDone
+	c.manager.Wait()
 	_ = c.db.Close()
 }
 
@@ -123,29 +147,6 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 		return nil
 	}
 	return err
-}
-
-func scanLoop(ctx context.Context, cfg Config, s *store.Store, broker *events.Broker) {
-	ids, err := s.EnsureLocalProject(ctx, cfg.ProjectName, cfg.RootPath, cfg.LogsDir)
-	if err != nil {
-		cfg.Logger.Error("register local project", "error", err)
-		return
-	}
-	src := source.NewLocal(cfg.LogsDir, cfg.ConfigPath)
-	importer := ingest.New(s)
-	// Scan right after file changes (debounced so a growing file is not re-read per line)
-	// and every ScanInterval as a fallback for file systems without notifications
-	for range watch.Dir(ctx, cfg.LogsDir, watch.Options{PollInterval: cfg.ScanInterval, Debounce: 100 * time.Millisecond}) {
-		result, err := importer.Scan(ctx, ids.ProjectID, src)
-		if err != nil && ctx.Err() == nil {
-			cfg.Logger.Warn("scan logs", "error", err)
-		}
-		for name, fileErr := range result.Failed {
-			cfg.Logger.Warn("skip log file", "file", name, "error", fileErr)
-		}
-		publish(ctx, s, broker, "request_created", result.Created)
-		publish(ctx, s, broker, "request_updated", result.Updated)
-	}
 }
 
 func publish(ctx context.Context, s *store.Store, broker *events.Broker, name string, ids []int64) {

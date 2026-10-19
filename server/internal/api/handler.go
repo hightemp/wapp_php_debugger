@@ -9,13 +9,22 @@ import (
 	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
+	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
+
+// ProjectRuntime runs the import of projects; the API restarts it when a project changes.
+type ProjectRuntime interface {
+	Add(project store.Project)
+	Remove(projectID int64)
+	Source(projectID int64) (source.Source, bool)
+}
 
 // Deps are the dependencies of the HTTP layer.
 type Deps struct {
 	Store     *store.Store
 	Broker    *events.Broker
+	Projects  ProjectRuntime
 	UI        fs.FS         // built Svelte UI (index.html and assets/)
 	Heartbeat time.Duration // SSE heartbeat comment period; 0 means 15 seconds
 }
