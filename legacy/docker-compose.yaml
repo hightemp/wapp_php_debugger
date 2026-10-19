@@ -35,7 +35,7 @@ services:
     working_dir: /var/www
     volumes:
       - ${WORK_PATH}:/var/www
-      - ~/__SpecFolders__/WorkProjects/front_fast_01:/var/www/projects/front_fast_01
+      - ${PROJECTS_PATH:-./projects}:/var/www/projects
       - ./docker/php-workspace/logs/log1:/var/log/
       - ./docker/php-workspace/logs/log2:/usr/local/var/log
     networks:
