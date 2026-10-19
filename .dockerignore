@@ -1,0 +1,6 @@
+# Only what the Dockerfile copies: ui/ and server/
+*
+!ui/
+!server/
+ui/node_modules
+server/web/dist

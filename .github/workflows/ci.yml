@@ -8,6 +8,8 @@ on:
     tags-ignore: ['**']
   pull_request:
   workflow_dispatch:
+  # release.yml runs the whole CI before publishing anything
+  workflow_call:
 
 permissions:
   contents: read
@@ -145,6 +147,8 @@ jobs:
       - run: make desktop-vet
       # A real window opens: REST through the asset handler and the Wails event stream
       - run: make desktop-selftest
+      # The same archive release.yml attaches to a release
+      - run: make desktop-package
 
   release-snapshot:
     name: Release snapshot

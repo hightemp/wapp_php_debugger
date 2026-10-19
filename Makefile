@@ -202,9 +202,29 @@ generate-check: generate ## Check that generated code matches what is committed
 
 # --- Release ----------------------------------------------------------------
 
+.PHONY: release
+release: $(GORELEASER) ui-build ## Publish a draft GitHub release for the current tag (CI only: needs GITHUB_TOKEN)
+	$(GORELEASER) release --clean
+
 .PHONY: release-snapshot
 release-snapshot: $(GORELEASER) ui-build ## Local release check: server archives for all OSes in dist/release
 	$(GORELEASER) release --snapshot --clean
+
+DESKTOP_ARCHIVE := $(DIST)/release-desktop/wapp-debugger-desktop_$(patsubst v%,%,$(VERSION))_$(shell go env GOOS)_$(shell go env GOARCH)
+
+.PHONY: desktop-package
+desktop-package: desktop-build ## Archive the desktop app for the current OS into dist/release-desktop (unsigned)
+	rm -rf $(DIST)/release-desktop && mkdir -p $(DIST)/release-desktop
+	@if [ "$$(go env GOOS)" = windows ]; then \
+		powershell -NoProfile -Command "Compress-Archive -Path '$(DESKTOP_BIN)','README.md' -DestinationPath '$(DESKTOP_ARCHIVE).zip'"; \
+	else \
+		tar -czf $(DESKTOP_ARCHIVE).tar.gz -C $(DIST) $(notdir $(DESKTOP_BIN)) -C $(ROOT) README.md; \
+	fi
+	@ls $(DIST)/release-desktop
+
+.PHONY: docker-build
+docker-build: ## Build the server image wapp-debugger:dev (see Dockerfile)
+	docker build -t wapp-debugger:dev --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) .
 
 # --- Misc -------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # Server release build. Locally: make release-snapshot; in CI: release.yml.
 # The UI is built beforehand (make ui-build) and embedded with the embedui tag.
-# The desktop app is built separately on each OS (requires CGO) by the desktop CI job.
+# The desktop app is built separately on each OS (requires CGO) by release.yml and added to the release.
 version: 2
 project_name: wapp-debugger
 dist: dist/release
@@ -45,3 +45,9 @@ snapshot:
 
 changelog:
   disable: true
+
+release:
+  # Published by hand after a look at the notes and the desktop archives the release workflow adds
+  draft: true
+  replace_existing_draft: true
+  prerelease: auto
