@@ -1,4 +1,4 @@
-// Типы DTO из spec/openapi.yaml. schema.gen.d.ts генерируется (make generate), здесь — короткие имена.
+// DTO types from spec/openapi.yaml. schema.gen.d.ts is generated (make generate); this file gives short names.
 import type { components } from './schema.gen';
 
 type Schemas = components['schemas'];

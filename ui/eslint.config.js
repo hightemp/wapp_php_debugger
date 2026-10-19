@@ -4,7 +4,7 @@ import globals from 'globals';
 import ts from 'typescript-eslint';
 import svelteConfig from './svelte.config.js';
 
-// Венгерская нотация запрещена (п. 4.4 плана): aItems, sName, fnReload и т. п.
+// Hungarian notation is banned: aItems, sName, fnReload and the like.
 const hungarian = { regex: '^(a|s|i|b|o|m|f|fn)[A-Z]', match: false };
 
 export default ts.config(
@@ -34,7 +34,7 @@ export default ts.config(
           format: null,
           custom: hungarian,
         },
-        // Поля DTO из OpenAPI остаются snake_case (п. 10.17), поэтому для свойств формат не навязывается
+        // OpenAPI DTO fields stay snake_case, so no format is enforced for properties
         { selector: ['property', 'classProperty'], format: null, custom: hungarian },
       ],
     },

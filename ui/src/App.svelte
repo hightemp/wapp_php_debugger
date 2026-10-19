@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import LanguageSwitch from './components/LanguageSwitch.svelte';
   import RequestList from './components/RequestList.svelte';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport } from './lib/api/client';
   import { createWailsEventSource, isDesktop, openWailsStream } from './lib/api/wails-stream';
 
-  // В десктопе REST идёт тем же fetch через asset handler Wails, а события — через Wails Stream
+  // In the desktop app REST uses the same fetch through the Wails asset handler, events use a Wails stream
   let {
     transport = createHttpTransport({
       baseUrl: '',
@@ -30,6 +31,7 @@
       <span class="version">{version}</span>
     {/if}
     <span class="spacer"></span>
+    <LanguageSwitch />
     <ThemeSwitch />
   </header>
   <main class="main">

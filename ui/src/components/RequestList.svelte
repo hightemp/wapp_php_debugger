@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import type { Transport } from '../lib/api/client';
   import type { Request } from '../lib/api/types';
-  import { formatDuration, formatTime, plural, requestTitle } from '../lib/format';
+  import { formatDuration, formatTime, requestTitle } from '../lib/format';
+  import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
 
   let { transport }: { transport: Transport } = $props();
@@ -58,12 +59,12 @@
 
   function outcome(request: Request): string {
     if (!request.finished) {
-      return 'не завершён';
+      return i18n.t('request.notFinished');
     }
     if (request.sapi === 'cli') {
       return request.exit_code === null || request.exit_code === undefined
-        ? 'CLI'
-        : `exit ${request.exit_code}`;
+        ? i18n.t('request.cli')
+        : i18n.t('request.exitCode', { code: request.exit_code });
     }
     return request.status_code ? String(request.status_code) : '—';
   }
@@ -80,21 +81,19 @@
 </script>
 
 <section class="feed" aria-labelledby="feed-title">
-  <h2 id="feed-title" class="visually-hidden">Запросы</h2>
+  <h2 id="feed-title" class="visually-hidden">{i18n.t('feed.title')}</h2>
 
   {#if status === 'loading' && items.length === 0}
-    <p class="state">Загрузка…</p>
+    <p class="state">{i18n.t('feed.loading')}</p>
   {:else if status === 'error'}
     <div class="state error" role="alert">
-      <p>Не удалось загрузить запросы: {errorMessage}</p>
-      <button type="button" class="action" onclick={load}>Повторить</button>
+      <p>{i18n.t('feed.error', { message: errorMessage })}</p>
+      <button type="button" class="action" onclick={load}>{i18n.t('feed.retry')}</button>
     </div>
   {:else if items.length === 0}
     <div class="state">
-      <p class="state-title">Запросов пока нет</p>
-      <p class="hint">
-        Подключите отладчик в проект и откройте страницу — запрос появится здесь сам.
-      </p>
+      <p class="state-title">{i18n.t('feed.emptyTitle')}</p>
+      <p class="hint">{i18n.t('feed.emptyHint')}</p>
     </div>
   {:else}
     <ul class="list">
@@ -107,22 +106,17 @@
           <span class="meta">
             {#if request.error_count > 0}
               <span class="badge error"
-                >{plural(request.error_count, ['ошибка', 'ошибки', 'ошибок'])}</span
+                >{i18n.t('request.errors', { count: request.error_count })}</span
               >
             {/if}
             {#if request.warning_count > 0}
               <span class="badge warning"
-                >{plural(request.warning_count, [
-                  'предупреждение',
-                  'предупреждения',
-                  'предупреждений',
-                ])}</span
+                >{i18n.t('request.warnings', { count: request.warning_count })}</span
               >
             {/if}
-            <span class="count"
-              >{plural(request.message_count, ['сообщение', 'сообщения', 'сообщений'])}</span
+            <span class="count">{i18n.t('request.messages', { count: request.message_count })}</span
             >
-            <span class="duration">{formatDuration(request.duration_ms)}</span>
+            <span class="duration">{formatDuration(request.duration_ms, i18n.locale)}</span>
             <time datetime={new Date(request.started_at).toISOString()}
               >{formatTime(request.started_at)}</time
             >
@@ -132,7 +126,7 @@
     </ul>
     {#if nextCursor}
       <button type="button" class="action more" onclick={loadMore} disabled={loadingMore}>
-        Загрузить ещё
+        {i18n.t('feed.loadMore')}
       </button>
     {/if}
   {/if}

@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [svelte(), svelteTesting()],
   build: {
-    // Сборка встраивается в Go-бинарник через //go:embed (п. 6.2 плана)
+    // The build is embedded into the Go binary via //go:embed
     outDir: '../server/web/dist',
     emptyOutDir: true,
   },

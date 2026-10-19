@@ -1,5 +1,5 @@
-// Клиент API просмотрщика (spec/openapi.yaml). Transport скрывает способ связи:
-// HTTP + SSE в браузере; в десктопе тот же API отдаётся через asset handler Wails (п. 7.8).
+// Viewer API client (spec/openapi.yaml). Transport hides how the UI talks to the core:
+// HTTP + SSE in the browser; in the desktop app the same API goes through the Wails asset handler.
 import type { Problem, RequestPage, StreamEvent } from './types';
 
 export interface Version {
@@ -17,11 +17,11 @@ export interface ListRequestsParams {
 export interface Transport {
   getVersion(): Promise<Version>;
   listRequests(params: ListRequestsParams): Promise<RequestPage>;
-  /** Подписка на /api/v1/stream; возвращает функцию отписки. */
+  /** Subscribes to /api/v1/stream; returns the unsubscribe function. */
   subscribe(onEvent: (event: StreamEvent) => void): () => void;
 }
 
-/** Ошибка API: Problem Details или сбой сети (status 0). */
+/** API error: Problem Details or a network failure (status 0). */
 export class ApiError extends Error {
   readonly status: number;
   readonly title: string;
@@ -90,7 +90,7 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     getVersion: () => getJSON<Version>('/api/v1/version'),
     listRequests: (params) => getJSON<RequestPage>('/api/v1/requests', params),
     subscribe(onEvent) {
-      // EventSource сам переподключается и передаёт Last-Event-ID
+      // EventSource reconnects by itself and sends Last-Event-ID
       const source = createEventSource(`${options.baseUrl}/api/v1/stream`);
       for (const name of streamEventNames) {
         source.addEventListener(name, (message) => {

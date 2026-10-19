@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { i18n } from '../lib/i18n/locale.svelte';
 import { ApiError, type Transport } from '../lib/api/client';
 import type { Request, RequestPage, StreamEvent } from '../lib/api/types';
 import RequestList from './RequestList.svelte';
@@ -48,6 +49,8 @@ function fakeTransport(pages: RequestPage[] | Error) {
 }
 
 describe('RequestList', () => {
+  beforeEach(() => i18n.set('en'));
+
   it('shows requests newest first with status, duration and counters', async () => {
     const { transport } = fakeTransport([
       {
@@ -61,15 +64,15 @@ describe('RequestList', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent('GET /item/2');
     expect(rows[0]).toHaveTextContent('200');
-    expect(rows[0]).toHaveTextContent('40 мс');
-    expect(rows[0]).toHaveTextContent('2 ошибки');
+    expect(rows[0]).toHaveTextContent('40 ms');
+    expect(rows[0]).toHaveTextContent('2 errors');
     expect(rows[1]).toHaveTextContent('CLI');
   });
 
   it('shows an empty state with a hint', async () => {
     const { transport } = fakeTransport([{ items: [], next_cursor: null }]);
     render(RequestList, { transport });
-    expect(await screen.findByText('Запросов пока нет')).toBeInTheDocument();
+    expect(await screen.findByText('No requests yet')).toBeInTheDocument();
   });
 
   it('shows an error and retries', async () => {
@@ -78,7 +81,7 @@ describe('RequestList', () => {
     );
     render(RequestList, { transport });
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error');
-    await fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(listRequests).toHaveBeenCalledTimes(2);
   });
 
@@ -104,17 +107,28 @@ describe('RequestList', () => {
       { items: [request(2)], next_cursor: null },
     ]);
     render(RequestList, { transport });
-    await fireEvent.click(await screen.findByRole('button', { name: 'Загрузить ещё' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
 
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
     expect(listRequests).toHaveBeenLastCalledWith({ limit: 100, cursor: 'c1' });
-    expect(screen.queryByRole('button', { name: 'Загрузить ещё' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  });
+
+  it('speaks Russian when the locale is ru', async () => {
+    i18n.set('ru');
+    const { transport } = fakeTransport([
+      { items: [request(1, { error_count: 5, duration_ms: 1890.5 })], next_cursor: null },
+    ]);
+    render(RequestList, { transport });
+    const [row] = await screen.findAllByRole('listitem');
+    expect(row).toHaveTextContent('5 ошибок');
+    expect(row).toHaveTextContent('1,89 с');
   });
 
   it('unsubscribes from the stream when removed', async () => {
     const { transport, unsubscribe } = fakeTransport([{ items: [], next_cursor: null }]);
     const { unmount } = render(RequestList, { transport });
-    await screen.findByText('Запросов пока нет');
+    await screen.findByText('No requests yet');
     unmount();
     expect(unsubscribe).toHaveBeenCalled();
   });

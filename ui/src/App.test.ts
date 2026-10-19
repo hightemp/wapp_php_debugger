@@ -13,8 +13,8 @@ describe('App', () => {
   it('shows the product name, theme switch and the request feed', async () => {
     render(App, { transport });
     expect(screen.getByRole('heading', { name: 'wapp-debugger', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('radiogroup', { name: 'Тема' })).toBeInTheDocument();
-    expect(await screen.findByText('Запросов пока нет')).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument();
+    expect(await screen.findByText('No requests yet')).toBeInTheDocument();
   });
 
   it('shows the viewer version', async () => {

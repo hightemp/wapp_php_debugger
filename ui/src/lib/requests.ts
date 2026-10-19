@@ -2,11 +2,11 @@ import type { Request, StreamEvent } from './api/types';
 
 export interface FeedUpdate {
   items: Request[];
-  /** Пропущены события (resync): ленту надо перечитать целиком. */
+  /** Events were missed (resync): the feed must be reloaded. */
   reload: boolean;
 }
 
-/** Применяет событие потока к ленте запросов (новые сверху). */
+/** Applies a stream event to the request feed (newest first). */
 export function applyStreamEvent(items: Request[], event: StreamEvent): FeedUpdate {
   switch (event.event) {
     case 'request_created': {

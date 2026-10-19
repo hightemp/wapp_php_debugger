@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { themePreferences } from '../lib/theme';
 
-// Токены тем читаются из настоящего theme.css: что проверено — то и в сборке.
+// Theme tokens are read from the real theme.css: what is checked is what ships.
 const css = readFileSync(new URL('./theme.css', import.meta.url), 'utf8');
 
 function tokens(theme: string): Record<string, string> {
@@ -29,7 +29,7 @@ function contrast(a: string, b: string): number {
   return (light + 0.05) / (dark + 0.05);
 }
 
-// [цвет, фон, минимальный контраст]: 4.5 — текст, 3 — крупные и неречевые элементы (WCAG AA)
+// [color, background, minimum contrast]: 4.5 for text, 3 for large and non-text elements (WCAG AA)
 const pairs: [string, string, number][] = [
   ['text', 'bg', 4.5],
   ['text', 'surface', 4.5],

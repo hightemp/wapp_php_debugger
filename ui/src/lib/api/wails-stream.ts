@@ -1,9 +1,9 @@
-// В десктопе asset handler Wails буферизует ответ целиком, и SSE до окна не доходит
-// (п. 10.27 плана, проверено самопроверкой). События идут через Wails Stream "events";
-// адаптер делает из него EventSourceLike, поэтому остальной UI не знает о разнице.
+// In the desktop app the Wails asset handler buffers whole responses, so SSE never reaches the window
+// (found by the self-test). Events go through the Wails stream "events";
+// this adapter turns it into an EventSourceLike, so the rest of the UI sees no difference.
 import type { EventSourceLike } from './client';
 
-/** Нужная часть JSONStream из /wails/runtime.js. */
+/** The part of JSONStream from /wails/runtime.js that is needed. */
 export interface JSONStreamLike {
   onopen: (() => void) | null;
   onclose: (() => void) | null;
@@ -18,7 +18,7 @@ interface Frame {
   data: unknown;
 }
 
-/** Имя потока на стороне Go: desktop.StreamName. */
+/** Stream name on the Go side: desktop.StreamName. */
 export const wailsStreamName = 'events';
 
 export function createWailsEventSource(
@@ -40,7 +40,7 @@ export function createWailsEventSource(
         return;
       }
       current = stream;
-      // Как Last-Event-ID у EventSource: сервер повторит пропущенное или пришлёт resync
+      // Like Last-Event-ID in EventSource: the server replays what was missed or sends resync
       stream.onopen = () => stream.send({ last_event_id: lastEventId });
       stream.onmessage = ({ data }) => {
         const frame = data as Frame;
@@ -71,14 +71,14 @@ export function createWailsEventSource(
   };
 }
 
-/** Страница открыта в окне Wails: у него своё происхождение на каждой ОС. */
+/** The page runs inside a Wails window: Wails uses its own origin on each OS. */
 export function isDesktop(
   location: Pick<Location, 'protocol' | 'hostname'> = globalThis.location,
 ): boolean {
   return location.protocol === 'wails:' || location.hostname === 'wails.localhost';
 }
 
-/** JSONStream из рантайма Wails; путь существует только внутри окна десктопа. */
+/** JSONStream from the Wails runtime; the path exists only inside the desktop window. */
 export async function openWailsStream(name: string): Promise<JSONStreamLike> {
   const runtimeUrl = '/wails/runtime.js';
   const runtime = (await import(/* @vite-ignore */ runtimeUrl)) as {

@@ -76,7 +76,7 @@ describe('createWailsEventSource', () => {
 
 describe('isDesktop', () => {
   it('recognises the Wails window origin on every OS', () => {
-    // Linux и macOS — wails://localhost (проверено самопроверкой), Windows — http://wails.localhost
+    // Linux and macOS: wails://localhost (seen in the self-test); Windows: http://wails.localhost
     expect(isDesktop({ protocol: 'wails:', hostname: 'localhost' })).toBe(true);
     expect(isDesktop({ protocol: 'http:', hostname: 'wails.localhost' })).toBe(true);
     expect(isDesktop({ protocol: 'http:', hostname: '127.0.0.1' })).toBe(false);
