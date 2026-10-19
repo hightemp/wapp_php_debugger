@@ -1,0 +1,33 @@
+# golangci-lint v2 (версия закреплена в Makefile: GOLANGCI_LINT_VERSION)
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      # Ошибки записи в stdout/stderr CLI обрабатывать некуда
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    revive:
+      rules:
+        - name: var-naming
+        - name: exported
+        - name: package-comments
+        - name: receiver-naming
+        - name: error-naming
+        - name: error-strings
+        - name: indent-error-flow
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
