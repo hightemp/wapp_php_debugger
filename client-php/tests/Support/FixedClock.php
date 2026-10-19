@@ -20,6 +20,11 @@ final class FixedClock implements Clock
         return $this->now;
     }
 
+    public function monotonicMs(): float
+    {
+        return (float) $this->now;
+    }
+
     public function advance(int $milliseconds): void
     {
         $this->now += $milliseconds;

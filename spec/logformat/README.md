@@ -40,6 +40,10 @@ Fields of every event: `v` (2), `type`, `request_id` (ULID), `seq`, `ts` (ms sin
 4. `ts` never decreases.
 5. At most one `request_end`, and only as the last event. No `request_end` means the request is still running or the process was killed.
 
+**Parent request.** A web request takes `parent_request_id` from the `X-Wapp-Debugger-Parent` header (the page passes its own `request_id` to its AJAX calls); a CLI process takes it from the `WAPP_DEBUGGER_PARENT` environment variable, which the library sets to the current `request_id`, so processes started from a request (exec, proc_open, queued jobs run in place) link to it automatically. A value that is not a ULID is ignored.
+
+**Durations** (`duration_ms` of `timer` and `request_end`) are measured on a monotonic clock and may be fractional; `ts` is the wall clock.
+
 **Levels:** `error`, `warning`, `info`, `message`, `debug`. PSR-3 levels map as follows: `emergency`, `alert`, `critical`, `error` → `error`; `warning` → `warning`; `notice`, `info` → `info`; `debug` → `debug`.
 
 **Names** are `snake_case`. Paths in `source` and `trace` are relative to the project root. The library masks secrets before writing (`"***"`).

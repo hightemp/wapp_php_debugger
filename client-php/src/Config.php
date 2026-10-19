@@ -20,6 +20,7 @@ final class Config
     private int $maxDepth;
     private int $maxItems;
     private int $maxStringBytes;
+    private int $traceFrames;
 
     /**
      * @param array<string, mixed> $values
@@ -39,6 +40,8 @@ final class Config
         $this->maxDepth = self::positiveInt($values['max_depth'] ?? null, 6);
         $this->maxItems = self::positiveInt($values['max_items'] ?? null, 100);
         $this->maxStringBytes = self::positiveInt($values['max_string_bytes'] ?? null, 2000);
+        $traceFrames = $values['trace_frames'] ?? null;
+        $this->traceFrames = is_int($traceFrames) && $traceFrames >= 0 ? $traceFrames : 10;
         if ($this->logsDir === null) {
             $this->enabled = false;
         }
@@ -110,6 +113,12 @@ final class Config
     public function maxStringBytes(): int
     {
         return $this->maxStringBytes;
+    }
+
+    /** Frames of the trace of a message; 0 means only the source. */
+    public function traceFrames(): int
+    {
+        return $this->traceFrames;
     }
 
     /**

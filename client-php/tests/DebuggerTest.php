@@ -51,7 +51,7 @@ final class DebuggerTest extends TestCase
         self::assertSame('https://shop.test/item?id=42', $events[0]['url']);
         self::assertSame(['item_id' => 42], $events[1]['context']);
         self::assertSame(self::START + 2, $events[1]['ts']);
-        self::assertSame(40, $events[2]['duration_ms']);
+        self::assertSame(40.0, (float) $events[2]['duration_ms'], 'measured on the monotonic clock');
         self::assertSame(200, $events[2]['status_code']);
         self::assertIsInt($events[2]['memory_peak_bytes']);
     }

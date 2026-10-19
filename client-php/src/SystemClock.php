@@ -10,4 +10,9 @@ final class SystemClock implements Clock
     {
         return (int) floor(microtime(true) * 1000);
     }
+
+    public function monotonicMs(): float
+    {
+        return hrtime(true) / 1e6;
+    }
 }
