@@ -53,7 +53,7 @@ CREATE TABLE requests (
     project_id         INTEGER NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
     -- NULL для запросов, пришедших не из файла (приём по HTTP, фаза 10)
     log_file_id        INTEGER REFERENCES log_files (id) ON DELETE CASCADE,
-    -- v2: request_id (ULID); v1: iRequestTimestamp строкой
+    -- v2: request_id (ULID); v1: имя файла лога
     request_key        TEXT    NOT NULL,
     parent_request_key TEXT,
     sapi               TEXT    NOT NULL CHECK (sapi IN ('web', 'cli')),

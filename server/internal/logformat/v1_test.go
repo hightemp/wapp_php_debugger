@@ -179,3 +179,11 @@ func TestParseV1RejectsNonJSONHeader(t *testing.T) {
 		t.Fatal("garbage header must be an error")
 	}
 }
+
+// Ключ запроса v1 — имя файла: оно уникально в папке логов, а iRequestTimestamp у копий файла совпадает.
+func TestParseV1KeyIsFileName(t *testing.T) {
+	web, truncated := loadV1(t, "web-get.log").Request, loadV1(t, "truncated-last-line.log").Request
+	if web.Key != "web-get.log" || truncated.Key != "truncated-last-line.log" {
+		t.Fatalf("keys = %q, %q", web.Key, truncated.Key)
+	}
+}

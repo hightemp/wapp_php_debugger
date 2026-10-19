@@ -48,7 +48,7 @@
 
 | v1 | v2 |
 |---|---|
-| заголовок `iRequestTimestamp` | `ts` у `request_start`; `request_id` для v1 = строка `iRequestTimestamp` |
+| заголовок `iRequestTimestamp` | `ts` у `request_start`; ключ запроса v1 — имя файла (у настоящих файлов оно равно `iRequestTimestamp`, но только имя гарантированно уникально в папке логов) |
 | `bIsCli` | `sapi` |
 | `sURL`, `bIsAjax`, `aArgv`, `sIP`, `sServerIP`, `sServerName` | `url`, `is_ajax`, `argv`, `ip`, `server_ip`, `server_name` |
 | `sUser`, `sSysUser`, `sSession`, `sLang` | `process_user`, `app_user`, `session_id`, `lang` |

@@ -9,19 +9,21 @@ import (
 
 // Memory — источник в памяти для тестов импорта и API.
 type Memory struct {
-	mu      sync.Mutex
-	files   map[string][]byte
-	enabled bool
-	now     func() time.Time
+	mu       sync.Mutex
+	files    map[string][]byte
+	modTimes map[string]time.Time
+	enabled  bool
 }
 
 var _ Source = (*Memory)(nil)
 
 // NewMemory создаёт источник с копией files; отладчик выключен.
 func NewMemory(files map[string][]byte) *Memory {
-	m := &Memory{files: make(map[string][]byte, len(files)), now: time.Now}
+	m := &Memory{files: make(map[string][]byte, len(files)), modTimes: make(map[string]time.Time, len(files))}
+	created := time.Now()
 	for name, data := range files {
 		m.files[name] = append([]byte(nil), data...)
+		m.modTimes[name] = created
 	}
 	return m
 }
@@ -31,6 +33,7 @@ func (m *Memory) Append(name string, data []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.files[name] = append(m.files[name], data...)
+	m.modTimes[name] = time.Now()
 }
 
 // List возвращает файлы, отсортированные по имени.
@@ -42,7 +45,7 @@ func (m *Memory) List(ctx context.Context) ([]FileInfo, error) {
 	defer m.mu.Unlock()
 	list := make([]FileInfo, 0, len(m.files))
 	for name, data := range m.files {
-		list = append(list, FileInfo{Name: name, Size: int64(len(data)), ModTime: m.now()})
+		list = append(list, FileInfo{Name: name, Size: int64(len(data)), ModTime: m.modTimes[name]})
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].Name < list[j].Name })
 	return list, nil
@@ -83,6 +86,7 @@ func (m *Memory) Remove(ctx context.Context, name string) error {
 		return ErrNotFound
 	}
 	delete(m.files, name)
+	delete(m.modTimes, name)
 	return nil
 }
 

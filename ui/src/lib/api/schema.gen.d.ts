@@ -501,7 +501,7 @@ export interface components {
             project_id: number;
             /** Format: int64 */
             server_id: number;
-            /** @description v2: request_id (ULID); v1: iRequestTimestamp */
+            /** @description v2: request_id (ULID); v1: имя файла лога */
             request_key: string;
             parent_request_key?: string | null;
             /** @enum {integer} */

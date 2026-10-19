@@ -692,7 +692,7 @@ components:
         id: { type: integer, format: int64 }
         project_id: { type: integer, format: int64 }
         server_id: { type: integer, format: int64 }
-        request_key: { type: string, description: 'v2: request_id (ULID); v1: iRequestTimestamp' }
+        request_key: { type: string, description: 'v2: request_id (ULID); v1: имя файла лога' }
         parent_request_key: { type: string, nullable: true }
         format_version: { type: integer, enum: [1, 2] }
         sapi: { $ref: '#/components/schemas/Sapi' }

@@ -75,7 +75,7 @@ func ParseV1(name string, data []byte) (Parsed, error) {
 
 func v1Request(name string, h v1Header) Request {
 	r := Request{
-		Key:           strconv.FormatInt(h.RequestTimestamp, 10),
+		Key:           name, // уникально в папке логов; у настоящих файлов совпадает с iRequestTimestamp
 		FormatVersion: 1,
 		Sapi:          SapiWeb,
 		Lang:          h.Lang,
@@ -89,9 +89,6 @@ func v1Request(name string, h v1Header) Request {
 		SessionID:     h.Session,
 		StartedAt:     h.RequestTimestamp,
 		Finished:      h.Finished,
-	}
-	if h.RequestTimestamp == 0 {
-		r.Key = name
 	}
 	if r.Lang == "" {
 		r.Lang = "php"
