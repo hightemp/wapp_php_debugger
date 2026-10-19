@@ -23,6 +23,7 @@ type Target struct {
 	Port            int
 	User            string
 	IdentityFiles   []string
+	IdentitiesOnly  bool // offer only the IdentityFile keys, not the agent's others
 	KnownHostsFiles []string
 	Jumps           []Target // ProxyJump hosts, in order
 }
@@ -92,6 +93,7 @@ func (r *Resolver) resolve(destination string, depth int) (Target, error) {
 	if len(t.IdentityFiles) == 0 {
 		t.IdentityFiles = defaultIdentities(r.home)
 	}
+	t.IdentitiesOnly = strings.EqualFold(r.get(alias, "IdentitiesOnly"), "yes")
 	knownHosts := r.get(alias, "UserKnownHostsFile")
 	if knownHosts == "" {
 		knownHosts = "~/.ssh/known_hosts ~/.ssh/known_hosts2"

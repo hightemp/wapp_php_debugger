@@ -29,15 +29,16 @@ type Server struct {
 	User          string
 	ClientKeyFile string // OpenSSH private key accepted by the server
 
-	root      string
-	execs     map[string]string
-	authKeys  []ssh.PublicKey
-	listener  net.Listener
-	mu        sync.Mutex
-	conns     map[*ssh.ServerConn]struct{}
-	forwards  atomic.Int64
-	keepalive atomic.Int64
-	accepts   atomic.Int64
+	root         string
+	execs        map[string]string
+	maxAuthTries int
+	authKeys     []ssh.PublicKey
+	listener     net.Listener
+	mu           sync.Mutex
+	conns        map[*ssh.ServerConn]struct{}
+	forwards     atomic.Int64
+	keepalive    atomic.Int64
+	accepts      atomic.Int64
 }
 
 // Option changes the server before it starts.
@@ -46,6 +47,11 @@ type Option func(*Server)
 // WithExec answers the exec request command with output and exit status 0.
 func WithExec(command, output string) Option {
 	return func(s *Server) { s.execs[command] = output }
+}
+
+// WithMaxAuthTries limits authentication attempts per connection, like MaxAuthTries of sshd (6 by default there).
+func WithMaxAuthTries(tries int) Option {
+	return func(s *Server) { s.maxAuthTries = tries }
 }
 
 // WithAuthorizedKey accepts another public key (for example one held by an agent).
@@ -73,6 +79,7 @@ func Start(t *testing.T, options ...Option) *Server {
 	}
 
 	config := &ssh.ServerConfig{
+		MaxAuthTries: s.maxAuthTries,
 		PublicKeyCallback: func(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 			if meta.User() != s.User {
 				return nil, errDenied

@@ -104,27 +104,25 @@ func (d *Dialer) hop(ctx context.Context, through *ssh.Client, target Target) (*
 	}
 }
 
-// auth offers the agent keys, then the key files. A key protected by a passphrase cannot be
-// used directly: the user adds it to ssh-agent (asking for passphrases in the UI comes later).
+// auth offers the configured key files first, then the agent's keys, as OpenSSH does: sshd drops the
+// client after MaxAuthTries failures, so with many keys in the agent the configured one must come
+// early. With IdentitiesOnly only agent keys matching a configured file (or its .pub) are offered.
+// A key protected by a passphrase is used through the agent (asking for passphrases in the UI comes later).
 func (d *Dialer) auth(target Target) (ssh.AuthMethod, func(), error) {
 	var signers []ssh.Signer
-	closeAgent := func() {}
-	if d.AgentSocket != "" {
-		if conn, err := net.Dial("unix", d.AgentSocket); err == nil {
-			closeAgent = func() { _ = conn.Close() }
-			if agentSigners, err := agent.NewClient(conn).Signers(); err == nil {
-				signers = append(signers, agentSigners...)
-			}
-		}
-	}
+	configured := map[string]bool{} // public keys of the IdentityFile entries
 	var locked []string
 	for _, file := range target.IdentityFiles {
+		if data, err := os.ReadFile(file + ".pub"); err == nil {
+			if key, _, _, _, err := ssh.ParseAuthorizedKey(data); err == nil {
+				configured[string(key.Marshal())] = true
+			}
+		}
 		data, err := os.ReadFile(file)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
 		if err != nil {
-			closeAgent()
 			return nil, nil, fmt.Errorf("key %s: %w", file, err)
 		}
 		signer, err := ssh.ParsePrivateKey(data)
@@ -134,11 +132,33 @@ func (d *Dialer) auth(target Target) (ssh.AuthMethod, func(), error) {
 			continue
 		}
 		if err != nil {
-			closeAgent()
 			return nil, nil, fmt.Errorf("key %s: %w", file, err)
 		}
+		configured[string(signer.PublicKey().Marshal())] = true
 		signers = append(signers, signer)
 	}
+
+	closeAgent := func() {}
+	if d.AgentSocket != "" {
+		if conn, err := net.Dial("unix", d.AgentSocket); err == nil {
+			closeAgent = func() { _ = conn.Close() }
+			if agentSigners, err := agent.NewClient(conn).Signers(); err == nil {
+				offered := map[string]bool{}
+				for _, signer := range signers {
+					offered[string(signer.PublicKey().Marshal())] = true
+				}
+				for _, signer := range agentSigners {
+					key := string(signer.PublicKey().Marshal())
+					if offered[key] || (target.IdentitiesOnly && !configured[key]) {
+						continue
+					}
+					offered[key] = true
+					signers = append(signers, signer)
+				}
+			}
+		}
+	}
+
 	if len(signers) == 0 {
 		closeAgent()
 		if len(locked) > 0 {

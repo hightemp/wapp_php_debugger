@@ -136,3 +136,13 @@ func TestParseServerSettings(t *testing.T) {
 		t.Fatal("bad JSON must fail")
 	}
 }
+
+func TestIdentitiesOnlyFromTheConfig(t *testing.T) {
+	r, _ := NewResolver(strings.NewReader("Host strict\n    IdentitiesOnly yes\n"), "/home/dev", "dev")
+	if got, _ := r.Resolve("strict"); !got.IdentitiesOnly {
+		t.Fatalf("got %+v", got)
+	}
+	if got, _ := resolver(t).Resolve("shop-stage"); got.IdentitiesOnly {
+		t.Fatal("off by default")
+	}
+}

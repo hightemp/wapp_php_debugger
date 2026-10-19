@@ -180,16 +180,18 @@ func TestDialRespectsTheContext(t *testing.T) {
 	}
 }
 
-func startAgent(t *testing.T, signer ssh.Signer) string {
+func startAgent(t *testing.T, signers ...ssh.Signer) string {
 	t.Helper()
 	keyring := agent.NewKeyring()
-	// The keyring needs the private key itself; the test signer wraps an ed25519 key
-	key, ok := sshtest.PrivateKey(signer)
-	if !ok {
-		t.Fatal("no private key for the agent")
-	}
-	if err := keyring.Add(agent.AddedKey{PrivateKey: key}); err != nil {
-		t.Fatal(err)
+	for _, signer := range signers {
+		// The keyring needs the private key itself; the test signers wrap ed25519 keys
+		key, ok := sshtest.PrivateKey(signer)
+		if !ok {
+			t.Fatal("no private key for the agent")
+		}
+		if err := keyring.Add(agent.AddedKey{PrivateKey: key}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	dir, err := os.MkdirTemp("", "agent")
 	if err != nil {
@@ -212,4 +214,44 @@ func startAgent(t *testing.T, signer ssh.Signer) string {
 		}
 	}()
 	return socket
+}
+
+// sshd drops a client after MaxAuthTries failed keys: the configured key goes before the agent's
+// other keys, as in OpenSSH, or a developer with many keys in the agent could never connect.
+func TestTheConfiguredKeyGoesBeforeTheAgentKeys(t *testing.T) {
+	server := sshtest.Start(t, sshtest.WithMaxAuthTries(3))
+	var others []ssh.Signer
+	for range 6 {
+		others = append(others, sshtest.NewSigner(t))
+	}
+	d := dialer(t)
+	d.AgentSocket = startAgent(t, others...)
+
+	client, err := d.Dial(context.Background(), targetOf(server, knownHostsFile(t, server)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = client.Close()
+}
+
+// IdentitiesOnly yes: only the configured keys, the agent's others are not offered.
+func TestIdentitiesOnly(t *testing.T) {
+	allowed := sshtest.NewSigner(t)
+	server := sshtest.Start(t, sshtest.WithAuthorizedKey(allowed.PublicKey()))
+	d := dialer(t)
+	d.AgentSocket = startAgent(t, allowed)
+
+	target := targetOf(server, knownHostsFile(t, server))
+	_, otherFile := sshtest.NewKeyFile(t, t.TempDir(), "id_other", "")
+	target.IdentityFiles = []string{otherFile}
+	target.IdentitiesOnly = true
+	if _, err := d.Dial(context.Background(), target); err == nil {
+		t.Fatal("the agent key is not configured: it must not be offered")
+	}
+	target.IdentitiesOnly = false
+	client, err := d.Dial(context.Background(), target)
+	if err != nil {
+		t.Fatalf("without IdentitiesOnly the agent key works: %v", err)
+	}
+	_ = client.Close()
 }
