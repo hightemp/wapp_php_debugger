@@ -1,0 +1,124 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Server } from '../lib/api/types';
+import { i18n } from '../lib/i18n/locale.svelte';
+import { fakeTransport, sampleServer } from '../test/transport';
+import ServersDialog from './ServersDialog.svelte';
+
+const fingerprint = 'SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8';
+
+function setup(servers: Server[] = [sampleServer(1), sampleServer(2, { name: 'stage' })]) {
+  let list = servers;
+  const fake = fakeTransport({
+    listServers: vi.fn(async () => ({ items: list })),
+    createServer: vi.fn(async (input) => {
+      const created = sampleServer(3, { name: input.name, config: input.config ?? {} });
+      list = [...list, created];
+      return created;
+    }),
+    deleteServer: vi.fn(async (id: number) => {
+      list = list.filter((server) => server.id !== id);
+    }),
+  });
+  const onchange = vi.fn();
+  render(ServersDialog, { open: true, transport: fake.transport, onclose: vi.fn(), onchange });
+  return { ...fake, onchange };
+}
+
+const row = async (name: string) => (await screen.findByRole('listitem', { name })) as HTMLElement;
+
+describe('ServersDialog', () => {
+  beforeEach(() => i18n.set('en'));
+
+  it('lists servers with their connection', async () => {
+    setup([
+      sampleServer(1),
+      sampleServer(2, {
+        name: 'stage',
+        connection: { state: 'offline', error: 'connection refused' },
+      }),
+    ]);
+    const stage = await row('stage');
+    expect(stage).toHaveTextContent('deploy@stage-2');
+    expect(stage).toHaveTextContent('Offline');
+    expect(stage).toHaveTextContent('connection refused');
+    expect(
+      within(await row('local')).queryByRole('button', { name: 'Remove' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('adds an SSH server', async () => {
+    const { transport, onchange } = setup();
+    await fireEvent.click(await screen.findByRole('button', { name: 'Add server' }));
+    const form = screen.getByRole('dialog', { name: 'New SSH server' });
+    await fireEvent.input(within(form).getByLabelText('Name'), { target: { value: 'prod' } });
+    await fireEvent.input(within(form).getByLabelText('Host or ~/.ssh/config alias'), {
+      target: { value: 'prod-web' },
+    });
+    await fireEvent.input(within(form).getByLabelText('User'), { target: { value: 'deploy' } });
+    await fireEvent.input(within(form).getByLabelText('Jump hosts'), {
+      target: { value: 'bastion, ops@gate:2200' },
+    });
+    await fireEvent.click(within(form).getByRole('radio', { name: 'prod' }));
+    await fireEvent.click(within(form).getByRole('switch', { name: 'Read only' }));
+    await fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(transport.createServer).toHaveBeenCalledWith({
+        name: 'prod',
+        kind: 'ssh',
+        environment: 'prod',
+        config: { host: 'prod-web', user: 'deploy', jump_hosts: ['bastion', 'ops@gate:2200'] },
+        permissions: { read_only: true, allow_delete: false, allow_control: false },
+      }),
+    );
+    expect(await row('prod')).toBeInTheDocument();
+    expect(onchange).toHaveBeenCalled();
+  });
+
+  it('checks a server and trusts an unknown host key after confirmation', async () => {
+    const { transport } = setup();
+    vi.mocked(transport.checkServer)
+      .mockResolvedValueOnce({
+        ok: false,
+        steps: [{ name: 'connect', ok: false, detail: 'unknown host 10.0.0.5:22' }],
+        host_key_fingerprint: fingerprint,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        steps: [
+          { name: 'connect', ok: true },
+          { name: 'sftp', ok: true },
+        ],
+      });
+
+    const stage = await row('stage');
+    await fireEvent.click(within(stage).getByRole('button', { name: 'Check' }));
+    expect(await within(stage).findByText(fingerprint)).toBeInTheDocument();
+    expect(stage).toHaveTextContent('ssh-keygen -lf');
+
+    await fireEvent.click(within(stage).getByRole('button', { name: 'Trust this key' }));
+    await waitFor(() => expect(transport.trustHostKey).toHaveBeenCalledWith(2, fingerprint));
+    await waitFor(() => expect(transport.checkServer).toHaveBeenCalledTimes(2));
+    expect(await within(stage).findByText('Connection works')).toBeInTheDocument();
+  });
+
+  it('follows the connection live', async () => {
+    const { emit } = setup();
+    const stage = await row('stage');
+    emit({ event: 'server_status', server_id: 2, connection: { state: 'online' } });
+    await waitFor(() => expect(stage).toHaveTextContent('Online'));
+  });
+
+  it('removes a server after confirmation', async () => {
+    const { transport, onchange } = setup();
+    await fireEvent.click(within(await row('stage')).getByRole('button', { name: 'Remove' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Remove stage?' });
+    await fireEvent.click(within(confirm).getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(transport.deleteServer).toHaveBeenCalledWith(2));
+    await waitFor(() =>
+      expect(screen.queryByRole('listitem', { name: 'stage' })).not.toBeInTheDocument(),
+    );
+    expect(onchange).toHaveBeenCalled();
+  });
+});

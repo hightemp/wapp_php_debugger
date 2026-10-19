@@ -11,6 +11,9 @@ import type {
   ProjectPatch,
   RequestDetail,
   Server,
+  ServerCheck,
+  ServerInput,
+  ServerPatch,
   RequestPage,
   StreamEvent,
 } from './types';
@@ -48,6 +51,13 @@ export interface Transport {
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
   getMessage(id: number): Promise<MessageDetail>;
   listServers(): Promise<{ items: Server[] }>;
+  createServer(input: ServerInput): Promise<Server>;
+  updateServer(id: number, patch: ServerPatch): Promise<Server>;
+  deleteServer(id: number): Promise<void>;
+  /** Connects to the server now; an unknown host key comes back as host_key_fingerprint. */
+  checkServer(id: number): Promise<ServerCheck>;
+  /** Trusts the host key once the user compared its fingerprint with the server. */
+  trustHostKey(id: number, fingerprint: string): Promise<void>;
   listProjects(): Promise<{ items: Project[] }>;
   createProject(input: ProjectInput): Promise<Project>;
   updateProject(id: number, patch: ProjectPatch): Promise<Project>;
@@ -154,6 +164,15 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
       getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
     getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
     listServers: () => getJSON<{ items: Server[] }>('/api/v1/servers'),
+    createServer: (input) => request<Server>('POST', '/api/v1/servers', {}, input),
+    updateServer: (id, patch) => request<Server>('PATCH', `/api/v1/servers/${id}`, {}, patch),
+    deleteServer: async (id) => {
+      await request<unknown>('DELETE', `/api/v1/servers/${id}`);
+    },
+    checkServer: (id) => request<ServerCheck>('POST', `/api/v1/servers/${id}/check`),
+    trustHostKey: async (id, fingerprint) => {
+      await request<unknown>('POST', `/api/v1/servers/${id}/host-key`, {}, { fingerprint });
+    },
     listProjects: () => getJSON<{ items: Project[] }>('/api/v1/projects'),
     createProject: (input) => request<Project>('POST', '/api/v1/projects', {}, input),
     updateProject: (id, patch) => request<Project>('PATCH', `/api/v1/projects/${id}`, {}, patch),

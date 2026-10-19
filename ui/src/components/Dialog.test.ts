@@ -29,6 +29,15 @@ describe('Dialog', () => {
     expect(onclose).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps Escape to itself, so a dialog opened from another one closes alone', async () => {
+    const outer = vi.fn();
+    document.addEventListener('keydown', outer);
+    render(Dialog, { open: true, title: 'Project', onclose: vi.fn(), children: content });
+    await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    document.removeEventListener('keydown', outer);
+    expect(outer).not.toHaveBeenCalled();
+  });
+
   it('keeps Tab inside the dialog', async () => {
     render(Dialog, { open: true, title: 'Project', onclose: vi.fn(), children: content });
     const close = screen.getByRole('button', { name: 'Close' });

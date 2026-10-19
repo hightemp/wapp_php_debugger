@@ -98,4 +98,10 @@ describe('ProjectsPanel', () => {
     await waitFor(() => expect(onselect).toHaveBeenCalledWith(undefined));
     expect(screen.queryByRole('button', { name: 'shop' })).not.toBeInTheDocument();
   });
+
+  it('opens the servers', async () => {
+    setup();
+    await fireEvent.click(await screen.findByRole('button', { name: 'Servers' }));
+    expect(screen.getByRole('dialog', { name: 'Servers' })).toBeInTheDocument();
+  });
 });

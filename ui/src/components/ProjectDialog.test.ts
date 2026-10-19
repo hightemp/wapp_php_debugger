@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../lib/api/client';
 import { i18n } from '../lib/i18n/locale.svelte';
-import { sampleProject } from '../test/transport';
+import { sampleProject, sampleServer } from '../test/transport';
 import ProjectDialog from './ProjectDialog.svelte';
 
 async function type(label: string, value: string) {
@@ -58,5 +58,35 @@ describe('ProjectDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'a project with this name already exists',
     );
+  });
+
+  it('puts a new project on the chosen server', async () => {
+    const onsave = vi.fn(async () => {});
+    render(ProjectDialog, {
+      open: true,
+      servers: [sampleServer(1), sampleServer(2, { name: 'stage' })],
+      onsave,
+      onclose: vi.fn(),
+    });
+    const server = screen.getByRole('combobox', { name: 'Server' });
+    expect(server).toHaveTextContent('local');
+    await fireEvent.click(server);
+    await fireEvent.click(screen.getByRole('option', { name: /stage/ }));
+
+    await type('Name', 'shop');
+    await type('Project root', '/var/www/shop');
+    await type('Logs directory', '/var/www/shop/tmp/logs');
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onsave).toHaveBeenCalledWith(expect.objectContaining({ server_id: 2, name: 'shop' }));
+  });
+
+  it('asks for no server when there is one, or when editing', () => {
+    render(ProjectDialog, {
+      open: true,
+      servers: [sampleServer(1)],
+      onsave: vi.fn(),
+      onclose: vi.fn(),
+    });
+    expect(screen.queryByRole('combobox', { name: 'Server' })).not.toBeInTheDocument();
   });
 });

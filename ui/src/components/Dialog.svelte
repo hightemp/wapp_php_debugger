@@ -41,6 +41,8 @@
   function onKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       event.preventDefault();
+      // A dialog opened from another one: only the top one closes
+      event.stopPropagation();
       onclose();
       return;
     }

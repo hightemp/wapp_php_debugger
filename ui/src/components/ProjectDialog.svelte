@@ -1,12 +1,14 @@
 <script lang="ts">
   import { ApiError } from '../lib/api/client';
-  import type { Project } from '../lib/api/types';
+  import type { Project, Server } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
   import Dialog from './Dialog.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
+  import Select from './Select.svelte';
 
   type Editor = Project['editor'];
   export interface ProjectFields {
+    server_id?: number; // only for a new project
     name: string;
     root_path: string;
     logs_dir: string;
@@ -18,11 +20,14 @@
   let {
     open,
     project,
+    servers = [],
     onsave,
     onclose,
   }: {
     open: boolean;
     project?: Project;
+    /** Servers a new project can go to; the choice shows when there is more than one. */
+    servers?: Server[];
     onsave: (fields: ProjectFields) => Promise<void>;
     onclose: () => void;
   } = $props();
@@ -35,6 +40,7 @@
   let localPath = $state('');
   let configPath = $state('');
   let editor = $state<Editor>('vscode');
+  let serverId = $state<number | undefined>(undefined);
   let saving = $state(false);
   let failure = $state('');
 
@@ -47,6 +53,7 @@
       localPath = project?.local_path ?? '';
       configPath = project ? project.config_path : '';
       editor = project?.editor ?? 'vscode';
+      serverId = (servers.find((server) => server.kind === 'local') ?? servers[0])?.id;
       failure = '';
     }
   });
@@ -64,6 +71,9 @@
       logs_dir: logsDir.trim(),
       editor,
     };
+    if (!project && serverId !== undefined) {
+      fields.server_id = serverId;
+    }
     // A new project sends only what was filled in; an edited one sends empty values to clear them
     if (project || localPath.trim() !== '') {
       fields.local_path = localPath.trim();
@@ -88,6 +98,21 @@
 
 <Dialog {open} title={i18n.t(project ? 'project.editTitle' : 'project.newTitle')} {onclose}>
   <form id="project-form" class="form" onsubmit={submit}>
+    {#if !project && servers.length > 1 && serverId !== undefined}
+      <div class="field">
+        <span>{i18n.t('project.server')}</span>
+        <Select
+          label={i18n.t('project.server')}
+          options={servers.map((server) => ({
+            value: server.id,
+            label: server.name,
+            hint: server.kind === 'local' ? undefined : (server.config.host ?? undefined),
+          }))}
+          value={serverId}
+          onchange={(value: number) => (serverId = value)}
+        />
+      </div>
+    {/if}
     <label class="field">
       <span>{i18n.t('project.name')}</span>
       <input bind:value={name} autocomplete="off" />

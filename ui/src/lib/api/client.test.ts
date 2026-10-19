@@ -103,6 +103,30 @@ describe('createHttpTransport', () => {
     ]);
   });
 
+  it('manages servers and their host keys', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse({}));
+    const transport = createHttpTransport({ baseUrl: '', fetch: fetchMock });
+
+    await transport.createServer({ name: 'stage', kind: 'ssh', config: { host: 'stage-web' } });
+    await transport.updateServer(2, { config: { host: 'stage-web-2' } });
+    await transport.checkServer(2);
+    await transport.trustHostKey(2, 'SHA256:abc');
+    await transport.deleteServer(2);
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => [
+      url,
+      init?.method,
+      init?.body ?? null,
+    ]);
+    expect(calls).toEqual([
+      ['/api/v1/servers', 'POST', '{"name":"stage","kind":"ssh","config":{"host":"stage-web"}}'],
+      ['/api/v1/servers/2', 'PATCH', '{"config":{"host":"stage-web-2"}}'],
+      ['/api/v1/servers/2/check', 'POST', null],
+      ['/api/v1/servers/2/host-key', 'POST', '{"fingerprint":"SHA256:abc"}'],
+      ['/api/v1/servers/2', 'DELETE', null],
+    ]);
+  });
+
   it('accepts 204 No Content', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     await expect(

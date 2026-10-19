@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Transport } from '../lib/api/client';
-  import type { Project } from '../lib/api/types';
+  import type { Project, Server } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import ProjectDialog, { type ProjectFields } from './ProjectDialog.svelte';
+  import ServersDialog from './ServersDialog.svelte';
   import Switch from './Switch.svelte';
 
   let {
@@ -15,7 +16,8 @@
     $props();
 
   let projects = $state<Project[]>([]);
-  let localServerId = $state<number | undefined>(undefined);
+  let servers = $state<Server[]>([]);
+  let serversOpen = $state(false);
   let debuggerOn = $state(false);
   let dialog = $state<'none' | 'create' | 'edit'>('none');
   let confirm = $state<'none' | 'clear' | 'remove'>('none');
@@ -23,8 +25,11 @@
   const selected = $derived(projects.find((project) => project.id === selectedId));
 
   async function load() {
-    const [servers, list] = await Promise.all([transport.listServers(), transport.listProjects()]);
-    localServerId = servers.items.find((server) => server.kind === 'local')?.id;
+    const [serverList, list] = await Promise.all([
+      transport.listServers(),
+      transport.listProjects(),
+    ]);
+    servers = serverList.items;
     projects = list.items;
   }
 
@@ -54,8 +59,13 @@
   async function save(fields: ProjectFields) {
     if (dialog === 'edit' && selected) {
       await transport.updateProject(selected.id, fields);
-    } else if (localServerId !== undefined) {
-      const created = await transport.createProject({ ...fields, server_id: localServerId });
+    } else {
+      const { server_id: chosen, ...rest } = fields;
+      const serverId = chosen ?? servers.find((server) => server.kind === 'local')?.id;
+      if (serverId === undefined) {
+        return;
+      }
+      const created = await transport.createProject({ ...rest, server_id: serverId });
       onselect(created.id);
     }
     dialog = 'none';
@@ -83,6 +93,9 @@
 <nav class="projects" aria-label={i18n.t('projects.label')}>
   <div class="head">
     <h2 class="title">{i18n.t('projects.label')}</h2>
+    <button type="button" class="add" onclick={() => (serversOpen = true)}
+      >{i18n.t('servers.open')}</button
+    >
     <button type="button" class="add" onclick={() => (dialog = 'create')}
       >{i18n.t('projects.add')}</button
     >
@@ -136,7 +149,14 @@
   {/if}
 </nav>
 
+<ServersDialog
+  open={serversOpen}
+  {transport}
+  onclose={() => (serversOpen = false)}
+  onchange={() => void load().catch(() => {})}
+/>
 <ProjectDialog
+  {servers}
   open={dialog !== 'none'}
   project={dialog === 'edit' ? selected : undefined}
   onsave={save}
