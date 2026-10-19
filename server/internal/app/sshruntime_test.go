@@ -48,7 +48,8 @@ func TestCheckAndTrustAnUnknownHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	fingerprint := ssh.FingerprintSHA256(remote.HostKey)
-	if check.Ok || check.HostKeyFingerprint == nil || *check.HostKeyFingerprint != fingerprint {
+	if check.Ok || check.HostKeyFingerprint == nil || *check.HostKeyFingerprint != fingerprint ||
+		check.HostKeyType == nil || *check.HostKeyType != ssh.KeyAlgoED25519 {
 		t.Fatalf("check = %+v", check)
 	}
 

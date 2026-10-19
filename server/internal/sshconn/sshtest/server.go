@@ -3,7 +3,9 @@
 package sshtest
 
 import (
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/pem"
@@ -25,13 +27,15 @@ type Server struct {
 	Addr          string
 	Host          string
 	Port          int
-	HostKey       ssh.PublicKey
+	HostKey       ssh.PublicKey // ed25519
+	HostKeyECDSA  ssh.PublicKey // set with WithECDSAHostKey: the server then has two keys, like OpenSSH
 	User          string
 	ClientKeyFile string // OpenSSH private key accepted by the server
 
 	root         string
 	execs        map[string]string
 	maxAuthTries int
+	ecdsa        bool
 	authKeys     []ssh.PublicKey
 	listener     net.Listener
 	mu           sync.Mutex
@@ -47,6 +51,11 @@ type Option func(*Server)
 // WithExec answers the exec request command with output and exit status 0.
 func WithExec(command, output string) Option {
 	return func(s *Server) { s.execs[command] = output }
+}
+
+// WithECDSAHostKey gives the server an ECDSA host key next to the ed25519 one, as OpenSSH has.
+func WithECDSAHostKey() Option {
+	return func(s *Server) { s.ecdsa = true }
 }
 
 // WithMaxAuthTries limits authentication attempts per connection, like MaxAuthTries of sshd (6 by default there).
@@ -93,6 +102,18 @@ func Start(t *testing.T, options ...Option) *Server {
 		},
 	}
 	config.AddHostKey(hostSigner)
+	if s.ecdsa {
+		private, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		signer, err := ssh.NewSignerFromKey(private)
+		if err != nil {
+			t.Fatal(err)
+		}
+		config.AddHostKey(signer)
+		s.HostKeyECDSA = signer.PublicKey()
+	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

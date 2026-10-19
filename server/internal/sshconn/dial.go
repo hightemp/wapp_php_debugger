@@ -46,7 +46,7 @@ func (d *Dialer) hop(ctx context.Context, through *ssh.Client, target Target) (*
 	if target.User == "" {
 		return nil, fmt.Errorf("%s: no user", target.Address())
 	}
-	hostKeys, err := d.HostKeys.callback(target.KnownHostsFiles)
+	hostKeys, knownKeys, err := d.HostKeys.callback(target.KnownHostsFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +80,10 @@ func (d *Dialer) hop(ctx context.Context, through *ssh.Client, target Target) (*
 	done := make(chan result, 1)
 	go func() {
 		c, channels, requests, err := ssh.NewClientConn(conn, target.Address(), &ssh.ClientConfig{
-			User:            target.User,
-			Auth:            []ssh.AuthMethod{auth},
-			HostKeyCallback: hostKeys,
+			User:              target.User,
+			Auth:              []ssh.AuthMethod{auth},
+			HostKeyCallback:   hostKeys,
+			HostKeyAlgorithms: algorithms(knownKeys, target.Address()),
 		})
 		if err != nil {
 			done <- result{err: err}

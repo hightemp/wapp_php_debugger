@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
@@ -66,8 +67,48 @@ func (h *HostKeys) Trust(address string, key ssh.PublicKey) error {
 	return file.Close()
 }
 
-// callback checks a host against the given known_hosts files and the trusted file.
-func (h *HostKeys) callback(knownHostsFiles []string) (ssh.HostKeyCallback, error) {
+// defaultHostKeyAlgorithms: for a host known nowhere, ed25519 first — the fingerprint people usually
+// compare — then ECDSA and RSA.
+var defaultHostKeyAlgorithms = []string{
+	ssh.KeyAlgoED25519,
+	ssh.KeyAlgoECDSA256, ssh.KeyAlgoECDSA384, ssh.KeyAlgoECDSA521,
+	ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256,
+}
+
+// algorithms puts the types of keys known_hosts holds for the host first, as OpenSSH does: a server
+// with several host keys then presents the known one, not another type mistaken for a changed key.
+func algorithms(check ssh.HostKeyCallback, address string) []string {
+	var known []string
+	probe := &knownhosts.KeyError{}
+	if err := check(address, &net.TCPAddr{}, probeKey{}); errors.As(err, &probe) {
+		for _, want := range probe.Want {
+			switch want.Key.Type() {
+			case ssh.KeyAlgoRSA:
+				known = append(known, ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256)
+			default:
+				known = append(known, want.Key.Type())
+			}
+		}
+	}
+	result := known
+	for _, algorithm := range defaultHostKeyAlgorithms {
+		if !slices.Contains(result, algorithm) {
+			result = append(result, algorithm)
+		}
+	}
+	return result
+}
+
+// probeKey matches no known key: checking it lists the known keys of a host.
+type probeKey struct{}
+
+func (probeKey) Type() string                        { return "probe" }
+func (probeKey) Marshal() []byte                     { return []byte("probe") }
+func (probeKey) Verify([]byte, *ssh.Signature) error { return errors.New("probe") }
+
+// callback checks a host against the given known_hosts files and the trusted file. raw is the plain
+// knownhosts check, for algorithms().
+func (h *HostKeys) callback(knownHostsFiles []string) (check, raw ssh.HostKeyCallback, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var files []string
@@ -76,17 +117,16 @@ func (h *HostKeys) callback(knownHostsFiles []string) (ssh.HostKeyCallback, erro
 			files = append(files, file)
 		}
 	}
-	check := func(string, net.Addr, ssh.PublicKey) error {
+	raw = func(string, net.Addr, ssh.PublicKey) error {
 		return &knownhosts.KeyError{} // no file at all: every host is unknown
 	}
 	if len(files) > 0 {
-		var err error
-		if check, err = knownhosts.New(files...); err != nil {
-			return nil, fmt.Errorf("known_hosts: %w", err)
+		if raw, err = knownhosts.New(files...); err != nil {
+			return nil, nil, fmt.Errorf("known_hosts: %w", err)
 		}
 	}
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-		err := check(hostname, remote, key)
+		err := raw(hostname, remote, key)
 		var keyErr *knownhosts.KeyError
 		if errors.As(err, &keyErr) {
 			if len(keyErr.Want) == 0 {
@@ -95,5 +135,5 @@ func (h *HostKeys) callback(knownHostsFiles []string) (ssh.HostKeyCallback, erro
 			return &HostKeyChangedError{Address: hostname, Fingerprint: ssh.FingerprintSHA256(key)}
 		}
 		return err
-	}, nil
+	}, raw, nil
 }

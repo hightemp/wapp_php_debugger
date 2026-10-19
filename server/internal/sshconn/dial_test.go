@@ -255,3 +255,36 @@ func TestIdentitiesOnly(t *testing.T) {
 	}
 	_ = client.Close()
 }
+
+// A new host shows its ed25519 key: that is the fingerprint people usually compare.
+func TestANewHostShowsItsEd25519Key(t *testing.T) {
+	server := sshtest.Start(t, sshtest.WithECDSAHostKey())
+	_, err := dialer(t).Dial(context.Background(), targetOf(server, knownHostsFile(t)))
+	var unknown *UnknownHostError
+	if !errors.As(err, &unknown) || unknown.Key.Type() != ssh.KeyAlgoED25519 {
+		t.Fatalf("err = %v; want the ed25519 key", err)
+	}
+}
+
+// known_hosts holding a key of another type than the client would pick is not a changed key: the
+// known type is asked for first, as OpenSSH does.
+func TestAKnownKeyOfAnotherTypeIsAskedFor(t *testing.T) {
+	server := sshtest.Start(t, sshtest.WithECDSAHostKey())
+	path := filepath.Join(t.TempDir(), "known_hosts")
+	_ = os.WriteFile(path, []byte(knownhosts.Line([]string{knownhosts.Normalize(server.Addr)}, server.HostKeyECDSA)+"\n"), 0o600)
+
+	client, err := dialer(t).Dial(context.Background(), targetOf(server, path))
+	if err != nil {
+		t.Fatalf("a known ECDSA key: %v", err)
+	}
+	_ = client.Close()
+}
+
+func TestAKnownEd25519KeyIsAskedFor(t *testing.T) {
+	server := sshtest.Start(t, sshtest.WithECDSAHostKey())
+	client, err := dialer(t).Dial(context.Background(), targetOf(server, knownHostsFile(t, server))) // the ed25519 key
+	if err != nil {
+		t.Fatalf("a known ed25519 key: %v", err)
+	}
+	_ = client.Close()
+}

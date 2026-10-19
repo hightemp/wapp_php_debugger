@@ -643,6 +643,9 @@ components:
         host_key_fingerprint:
           type: string
           description: For a new SSH host, the key fingerprint to confirm in the UI
+        host_key_type:
+          type: string
+          description: Type of that key (ssh-ed25519, ecdsa-sha2-nistp256, ssh-rsa…), so the user compares it with the right file on the server
       example:
         ok: false
         steps:

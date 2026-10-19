@@ -61,6 +61,8 @@ func (r *sshRuntime) Check(ctx context.Context, server store.Server) (api.Server
 	var unknown *sshconn.UnknownHostError
 	if errors.As(err, &unknown) {
 		check.HostKeyFingerprint = &unknown.Fingerprint
+		keyType := unknown.Key.Type()
+		check.HostKeyType = &keyType
 	}
 	if !step("connect", err, fmt.Sprintf("%s@%s", target.User, target.Address())) {
 		return check, nil
