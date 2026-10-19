@@ -53,9 +53,19 @@ $(GOLANGCI_LINT):
 $(ACTIONLINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
-# GoReleaser needs a newer Go than the project; GOTOOLCHAIN=auto lets go fetch it just for this build
+# GoReleaser: the official binary, checked against the release checksums. Building it with go install
+# needs a newer Go than the project and pulls hundreds of modules, which made CI flaky.
+GORELEASER_OS := $(shell uname -s)
+GORELEASER_ARCH := $(subst aarch64,arm64,$(subst amd64,x86_64,$(shell uname -m)))
+GORELEASER_ARCHIVE := goreleaser_$(GORELEASER_OS)_$(GORELEASER_ARCH).tar.gz
+GORELEASER_URL := https://github.com/goreleaser/goreleaser/releases/download/$(GORELEASER_VERSION)
+
 $(GORELEASER):
-	GOTOOLCHAIN=auto GOBIN=$(TOOLS_BIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
+	@mkdir -p $(TOOLS_BIN) $(TOOLS_BIN)/.goreleaser
+	cd $(TOOLS_BIN)/.goreleaser && curl -fsSLO $(GORELEASER_URL)/$(GORELEASER_ARCHIVE) && curl -fsSLO $(GORELEASER_URL)/checksums.txt \
+		&& grep " $(GORELEASER_ARCHIVE)$$" checksums.txt | sha256sum -c - \
+		&& tar -xzf $(GORELEASER_ARCHIVE) goreleaser && mv goreleaser $(GORELEASER)
+	rm -rf $(TOOLS_BIN)/.goreleaser
 
 # --- Общие цели -------------------------------------------------------------
 
@@ -143,7 +153,8 @@ desktop-vet: ui-build ## go vet кода десктопа (с тегами сб�
 .PHONY: desktop-selftest
 desktop-selftest: desktop-build ## Открыть окно и проверить REST и поток событий внутри Wails (п. 10.27)
 	@if [ "$$(go env GOOS)" = linux ] && [ -z "$${DISPLAY:-}" ]; then \
-		xvfb-run -a -s "-screen 0 1280x800x24" $(DESKTOP_BIN) --self-test; \
+		GSK_RENDERER=cairo WEBKIT_DISABLE_DMABUF_RENDERER=1 LIBGL_ALWAYS_SOFTWARE=1 \
+			xvfb-run -a -s "-screen 0 1280x800x24" $(DESKTOP_BIN) --self-test; \
 	else \
 		$(DESKTOP_BIN) --self-test; \
 	fi

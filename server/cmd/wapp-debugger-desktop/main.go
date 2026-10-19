@@ -104,7 +104,8 @@ func run() int {
 	exitCode := 0
 	if check != nil {
 		go func() {
-			result, err := check.Wait(30 * time.Second)
+			// GTK4 under Xvfb (no GPU) takes up to half a minute to show the window in CI
+			result, err := check.Wait(2 * time.Minute)
 			report, _ := json.Marshal(map[string]any{"ok": err == nil && result.OK(), "result": result, "error": errorText(err)})
 			fmt.Println(string(report))
 			if err != nil || !result.OK() {
