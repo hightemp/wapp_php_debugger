@@ -93,3 +93,7 @@ WAPP_DEBUGGER_TOKEN=$(openssl rand -hex 32) dist/wapp-debugger serve --addr 0.0.
 | `spec/` | Форматы логов, контракты API и фикстуры |
 
 Старого PHP-просмотрщика на EasyUI больше нет; он остался в истории git (тег `legacy-hotfix` — его последняя версия).
+
+## Лицензия
+
+[MIT](LICENSE)

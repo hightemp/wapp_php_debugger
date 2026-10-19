@@ -96,3 +96,7 @@ The library itself has no HTTP commands by default (`?debug_msg=…` needs the `
 | `spec/` | Log formats, API contracts and fixtures |
 
 The old PHP viewer with EasyUI is gone; it stays in the git history (tag `legacy-hotfix` is its last version).
+
+## License
+
+[MIT](LICENSE)
