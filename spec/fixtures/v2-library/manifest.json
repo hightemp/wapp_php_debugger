@@ -1,0 +1,61 @@
+{
+    "files": {
+        "cli-child.jsonl": {
+            "request_id": "01M5AKMC9N5KS2F2W6DH35S5SK",
+            "parent_request_id": "01M5AKMC9C89177JZN8BMPKP0G",
+            "types": [
+                "request_start",
+                "message",
+                "request_end"
+            ]
+        },
+        "cli-exception.jsonl": {
+            "request_id": "01M5AKMC92501YCNQ1XF09HF3S",
+            "types": [
+                "request_start",
+                "message",
+                "error",
+                "request_end"
+            ]
+        },
+        "cli-fatal.jsonl": {
+            "request_id": "01M5AKMCA1RTNE178QDPB09V9E",
+            "types": [
+                "request_start",
+                "error",
+                "request_end"
+            ]
+        },
+        "cli-parent.jsonl": {
+            "request_id": "01M5AKMC9C89177JZN8BMPKP0G",
+            "types": [
+                "request_start",
+                "message",
+                "message",
+                "request_end"
+            ]
+        },
+        "web-ajax.jsonl": {
+            "request_id": "01M5AKMC8PYHRX0CVEH60ATQ7D",
+            "parent_request_id": "01M5AKMC85PGPCYWYC2SGM8GK6",
+            "types": [
+                "request_start",
+                "message",
+                "message",
+                "request_end"
+            ]
+        },
+        "web-page.jsonl": {
+            "request_id": "01M5AKMC85PGPCYWYC2SGM8GK6",
+            "types": [
+                "request_start",
+                "message",
+                "message",
+                "message",
+                "timer",
+                "error",
+                "request_end"
+            ]
+        }
+    }
+}

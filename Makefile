@@ -242,3 +242,7 @@ workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows
 .PHONY: fixtures-v1
 fixtures-v1: ## Regenerate v1 log fixtures (requires Docker)
 	spec/fixtures/v1/generator/generate.sh
+
+.PHONY: fixtures-v2-library
+fixtures-v2-library: ## Regenerate the logs of the real PHP library 2.x (requires Docker)
+	spec/fixtures/v2-library/generator/generate.sh

@@ -1,0 +1,6 @@
+{
+    "enabled": true,
+    "project_root": "/var/www/app",
+    "logs_dir": "tmp/logs",
+    "trace_frames": 3
+}

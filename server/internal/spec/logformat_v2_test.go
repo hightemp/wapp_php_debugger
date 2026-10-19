@@ -71,9 +71,11 @@ func checkV2Stream(data []byte) error {
 	return nil
 }
 
+// Hand-written fixtures and logs of the real library (fixtures/v2-library) obey the same contract.
 func TestV2ValidFixtures(t *testing.T) {
 	schema := v2Schema(t)
-	for _, file := range globFixtures(t, "fixtures/v2/*.jsonl") {
+	files := append(globFixtures(t, "fixtures/v2/*.jsonl"), globFixtures(t, "fixtures/v2-library/*.jsonl")...)
+	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			data := readFile(t, file)
 			if !bytes.HasSuffix(data, []byte("\n")) {
