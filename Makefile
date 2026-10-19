@@ -115,7 +115,7 @@ php74-test: ## PHP library tests on PHP 7.4 in Docker, dependencies resolved for
 	rm -rf $(DIST)/php74 && mkdir -p $(DIST)/php74
 	tar -C $(ROOT) --exclude=client-php/vendor --exclude=client-php/composer.lock -cf - client-php | tar -C $(DIST)/php74 -xf -
 	docker run --rm -u $$(id -u):$$(id -g) -e COMPOSER_HOME=/tmp -v $(DIST)/php74/client-php:/app -w /app composer:2 \
-		sh -c 'composer config platform.php 7.4.33 && composer update --no-interaction --no-progress --quiet'
+		sh -c 'composer config platform.php 7.4.33 && { composer update --no-interaction --no-progress || composer update --no-interaction --no-progress; }'
 	docker run --rm -u $$(id -u):$$(id -g) -v $(DIST)/php74:/work -v $(ROOT)/spec:/work/spec:ro -w /work/client-php \
 		php:7.4-cli vendor/bin/phpunit
 

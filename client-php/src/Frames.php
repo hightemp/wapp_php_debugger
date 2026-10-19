@@ -44,6 +44,16 @@ final class Frames
     }
 
     /**
+     * @param array<string, mixed> $frame
+     *
+     * @return array<string, mixed>
+     */
+    public function convert(array $frame): array
+    {
+        return $this->frame($frame);
+    }
+
+    /**
      * @param list<array<string, mixed>> $backtrace
      *
      * @return array{source: array<string, mixed>|null, trace: list<array<string, mixed>>}

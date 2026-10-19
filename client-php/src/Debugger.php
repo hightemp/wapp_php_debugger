@@ -15,6 +15,8 @@ final class Debugger
     private const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
         | JSON_PRESERVE_ZERO_FRACTION | JSON_PARTIAL_OUTPUT_ON_ERROR;
 
+    private static ?self $instance = null;
+
     private Clock $clock;
     private Serializer $serializer;
     private Frames $frames;
@@ -63,6 +65,32 @@ final class Debugger
         return $debugger;
     }
 
+    /**
+     * Reads the config next to the project and, when the debugger is on, starts the request,
+     * registers the error handlers and finishes the request at shutdown. Off, it costs one is_file().
+     */
+    public static function boot(string $configPath): self
+    {
+        $config = Config::fromFile($configPath);
+        if (!$config->enabled()) {
+            return self::$instance = self::start($config, RequestInfo::cli([]));
+        }
+        $debugger = self::start($config, RequestInfo::fromGlobals($_SERVER));
+        (new ErrorHandler($debugger, static function (): ?int {
+            $code = http_response_code();
+
+            return is_int($code) ? $code : null;
+        }))->register();
+
+        return self::$instance = $debugger;
+    }
+
+    /** The debugger started by boot(); a disabled one before that. */
+    public static function instance(): self
+    {
+        return self::$instance ??= self::start(Config::fromArray([]), RequestInfo::cli([]));
+    }
+
     public function enabled(): bool
     {
         return $this->writer !== null && !$this->finished;
@@ -98,6 +126,65 @@ final class Debugger
             $fields['trace'] = array_slice($stack['trace'], 0, $this->traceFrames);
         }
         $this->emit('message', $fields);
+    }
+
+    public function isCli(): bool
+    {
+        return $this->cli;
+    }
+
+    /** Writes an exception (with its chain of previous ones) as an error event with the full trace. */
+    public function exception(\Throwable $exception): void
+    {
+        if (!$this->enabled()) {
+            return;
+        }
+        $frames = $this->frames->ofThrowable($exception);
+        $previous = [];
+        for ($inner = $exception->getPrevious(); $inner !== null && count($previous) < 10; $inner = $inner->getPrevious()) {
+            $previous[] = [
+                'exception_class' => get_class($inner),
+                'message' => $this->serializer->normalize($inner->getMessage()),
+                'code' => $inner->getCode(),
+                'source' => $this->frames->ofThrowable($inner)['source'],
+            ];
+        }
+        $fields = [
+            'kind' => 'exception',
+            'level' => Level::ERROR,
+            'message' => $this->serializer->normalize($exception->getMessage()),
+            'exception_class' => get_class($exception),
+            'code' => $exception->getCode(),
+            'source' => $frames['source'],
+            'trace' => $frames['trace'],
+        ];
+        if ($previous !== []) {
+            $fields['previous'] = $previous;
+        }
+        $this->emit('error', $fields);
+    }
+
+    /**
+     * Writes an error event; used by ErrorHandler.
+     *
+     * @internal
+     *
+     * @param array<string, mixed>       $fields kind, level, message, error_type
+     * @param array{file: string, line: int} $source
+     * @param list<array<string, mixed>> $backtrace
+     */
+    public function error(array $fields, array $source, array $backtrace): void
+    {
+        if (!$this->enabled()) {
+            return;
+        }
+        $fields['message'] = $this->serializer->normalize($fields['message']);
+        $fields['source'] = $this->frames->convert($source);
+        $trace = array_map([$this->frames, 'convert'], $backtrace);
+        if ($trace !== []) {
+            $fields['trace'] = $trace;
+        }
+        $this->emit('error', $fields);
     }
 
     public function startTimer(string $name): void
