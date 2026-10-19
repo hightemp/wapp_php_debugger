@@ -16,6 +16,8 @@ var (
 	ErrInvalidName = errors.New("invalid log file name")
 	// ErrOffsetBeyondEnd — смещение больше размера файла: файл усекли или подменили.
 	ErrOffsetBeyondEnd = errors.New("offset beyond end of file")
+	// ErrNoConfig — у проекта нет конфига отладчика, включать нечего.
+	ErrNoConfig = errors.New("debugger config not found")
 )
 
 // FileInfo — файл лога в папке логов проекта.
