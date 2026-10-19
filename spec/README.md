@@ -1,12 +1,12 @@
 # spec
 
-Общие контракты для PHP-библиотеки (`client-php/`), Go-сервера (`server/`) и UI (`ui/`). Всё здесь проверяется тестами `server/internal/spec`.
+Shared contracts for the PHP library (`client-php/`), the Go server (`server/`) and the UI (`ui/`). Everything here is checked by the tests in `server/internal/spec`.
 
-| Путь | Что |
+| Path | What |
 |---|---|
-| [`logformat/`](logformat/README.md) | Форматы логов v1 и v2: описание и JSON Schema |
-| [`fixtures/v1/`](fixtures/v1/README.md) | Настоящие логи v1 и `manifest.json` с их эталонными свойствами |
-| [`fixtures/v2/`](fixtures/v2/README.md) | Эталонные логи v2, неверные события и потоки |
-| [`openapi.yaml`](openapi.yaml) | API просмотрщика v1 |
-| [`library-http.yaml`](library-http.yaml) | Опциональный HTTP-режим PHP-библиотеки 2.x |
-| [`db/`](db/README.md) | Схема БД просмотрщика |
+| [`logformat/`](logformat/README.md) | Log formats v1 and v2: description and JSON Schema |
+| [`fixtures/v1/`](fixtures/v1/README.md) | Real v1 logs and `manifest.json` with their reference properties |
+| [`fixtures/v2/`](fixtures/v2/README.md) | Reference v2 logs, invalid events and invalid streams |
+| [`openapi.yaml`](openapi.yaml) | Viewer API v1 |
+| [`library-http.yaml`](library-http.yaml) | Optional HTTP mode of the PHP library 2.x |
+| [`db/`](db/README.md) | Viewer database schema |

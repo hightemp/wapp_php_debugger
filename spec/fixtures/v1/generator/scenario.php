@@ -1,7 +1,7 @@
 <?php
-// Один сценарий = один запрос/процесс со старой библиотекой.
-// CLI: php scenario.php <name> [args...]; веб: заголовок X-Fixture-Scenario (сервер php -S, см. web-driver.php).
-// Каталог /var/www/app — как в реальных проектах, чтобы пути в бэктрейсах выглядели правдоподобно.
+// One scenario = one request/process with the legacy library.
+// CLI: php scenario.php <name> [args...]; web: X-Fixture-Scenario header (php -S server, see web-driver.php).
+// /var/www/app as in real projects, so backtrace paths look realistic. The Cyrillic messages below are fixture data.
 
 $scenario = PHP_SAPI === 'cli' ? $argv[1] : $_SERVER['HTTP_X_FIXTURE_SCENARIO'];
 
@@ -18,7 +18,7 @@ fnDebugAddFoundField('price');
 fnDebugAddNotFoundField('discount');
 
 if ($scenario === 'killed') {
-    // Процесс убит до shutdown-функций (как при OOM killer): заголовок остаётся с bFinished=false
+    // The process is killed before shutdown functions run (like the OOM killer): the header keeps bFinished=false
     exec('kill -9 '.getmypid());
     sleep(5);
 }

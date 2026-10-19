@@ -1,23 +1,23 @@
-// Package logformat разбирает файлы логов PHP-библиотеки (v1 и v2) в общую модель,
-// соответствующую формату v2 (spec/logformat/README.md).
+// Package logformat parses PHP library log files (v1 and v2) into a common model
+// that follows the v2 format (spec/logformat/README.md).
 package logformat
 
 import "encoding/json"
 
-// Значения Request.Sapi.
+// Values of Request.Sapi.
 const (
 	SapiWeb = "web"
 	SapiCLI = "cli"
 )
 
-// Значения Event.Type: события запроса, кроме request_start и request_end.
+// Values of Event.Type: request events other than request_start and request_end.
 const (
 	TypeMessage = "message"
 	TypeTimer   = "timer"
 	TypeError   = "error"
 )
 
-// Request — данные запроса: request_start и request_end формата v2 или заголовок v1.
+// Request is the request data: request_start and request_end of v2 or the v1 header.
 type Request struct {
 	Key             string
 	ParentKey       string
@@ -47,7 +47,7 @@ type Request struct {
 	Finished        bool
 }
 
-// Frame — место в коде.
+// Frame is a location in code.
 type Frame struct {
 	File     string `json:"file,omitempty"`
 	Line     int    `json:"line,omitempty"`
@@ -56,15 +56,15 @@ type Frame struct {
 	CallType string `json:"call_type,omitempty"`
 }
 
-// Event — сообщение, таймер или ошибка внутри запроса.
+// Event is a message, a timer or an error inside a request.
 type Event struct {
 	Seq            int
 	TS             int64
 	Type           string
 	Level          string
-	Message        string // для таймера — его имя
+	Message        string // for a timer, its name
 	Tags           []string
-	Context        json.RawMessage // JSON-объект или nil
+	Context        json.RawMessage // a JSON object or nil
 	Source         *Frame
 	Trace          []Frame
 	DurationMs     *float64
@@ -72,13 +72,13 @@ type Event struct {
 	ErrorType      string
 	ExceptionClass string
 	Code           string
-	Previous       json.RawMessage // JSON-массив или nil
-	Size           int             // размер исходной строки, байт
+	Previous       json.RawMessage // a JSON array or nil
+	Size           int             // size of the source line, bytes
 }
 
-// Parsed — результат разбора одного файла лога.
+// Parsed is the result of parsing one log file.
 type Parsed struct {
 	Request     Request
 	Events      []Event
-	BrokenLines int // строки, которые не удалось разобрать (оборванные, затёртые)
+	BrokenLines int // lines that could not be parsed (truncated, overwritten)
 }

@@ -1,5 +1,5 @@
-// Package sourcetest — общий набор тестов контракта source.Source. Его обязана проходить каждая
-// реализация: память, локальная папка, SSH, HTTP-режим библиотеки.
+// Package sourcetest is the shared contract test suite for source.Source. Every implementation
+// must pass it: memory, local directory, SSH, library HTTP mode.
 package sourcetest
 
 import (
@@ -11,10 +11,10 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 )
 
-// Factory создаёт источник, в папке логов которого лежат files (имя → содержимое), отладчик выключен.
+// Factory creates a source whose logs directory holds files (name → content), with the debugger off.
 type Factory func(t *testing.T, files map[string][]byte) source.Source
 
-// Run проверяет контракт source.Source.
+// Run checks the source.Source contract.
 func Run(t *testing.T, newSource Factory) {
 	ctx := context.Background()
 	files := map[string][]byte{

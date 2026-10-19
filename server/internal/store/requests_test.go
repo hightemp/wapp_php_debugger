@@ -64,8 +64,8 @@ func TestSaveFileCreatesRequestWithCounters(t *testing.T) {
 	}
 }
 
-// v1 перезаписывает заголовок и дописывает строки, поэтому файл перечитывается целиком,
-// а сообщения запроса заменяются, а не дублируются.
+// v1 rewrites the header and appends lines, so the file is re-read as a whole
+// and the request messages are replaced, not duplicated.
 func TestSaveFileAgainReplacesMessages(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -130,7 +130,7 @@ func TestListRequestsNewestFirstWithCursor(t *testing.T) {
 		}
 		cursor = page.NextCursor
 	}
-	// Одинаковое started_at упорядочивается по id, чтобы страницы не теряли и не повторяли запросы
+	// Equal started_at values are ordered by id so pages neither lose nor repeat requests
 	if got := len(keys); got != 4 || keys[0] != "a" || keys[3] != "b" || keys[1] == keys[2] {
 		t.Fatalf("keys = %v", keys)
 	}

@@ -18,7 +18,7 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// openEmptyDB — база без миграций, для тестов самого механизма миграций.
+// openEmptyDB opens a database without migrations, for testing the migration mechanism itself.
 func openEmptyDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := openDB(filepath.Join(t.TempDir(), "empty.db"))

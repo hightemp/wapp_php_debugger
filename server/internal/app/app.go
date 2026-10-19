@@ -1,4 +1,4 @@
-// Package app собирает просмотрщик: база, импорт логов, поток событий и HTTP-сервер.
+// Package app assembles the viewer: database, log import, event stream and HTTP server.
 package app
 
 import (
@@ -17,21 +17,21 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
-// Config — параметры запуска.
+// Config holds launch settings.
 type Config struct {
-	Addr         string // адрес HTTP; по умолчанию слушаем только 127.0.0.1
+	Addr         string // HTTP address; only 127.0.0.1 is listened on by default
 	DBPath       string
 	ProjectName  string
 	RootPath     string
-	LogsDir      string // пусто — без локального проекта
-	ConfigPath   string // dws_debugger.json библиотеки
+	LogsDir      string // empty means no local project
+	ConfigPath   string // library dws_debugger.json
 	ScanInterval time.Duration
 	UI           fs.FS
 	Logger       *slog.Logger
 }
 
-// Core — работающее ядро просмотрщика: база, фоновый импорт и HTTP-обработчик.
-// Сервер (Run) вешает обработчик на сетевой порт, десктоп — в asset handler Wails.
+// Core is the running viewer core: database, background import and HTTP handler.
+// The server (Run) puts the handler on a network port, the desktop into the Wails asset handler.
 type Core struct {
 	db       interface{ Close() error }
 	handler  http.Handler
@@ -40,7 +40,7 @@ type Core struct {
 	scanDone chan struct{}
 }
 
-// Start открывает базу и запускает фоновый импорт; Close останавливает их.
+// Start opens the database and starts the background import; Close stops them.
 func Start(ctx context.Context, cfg Config) (*Core, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
@@ -73,20 +73,20 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	return core, nil
 }
 
-// Handler — /api/v1/*, SSE и UI.
+// Handler serves /api/v1/*, SSE and the UI.
 func (c *Core) Handler() http.Handler { return c.handler }
 
-// Broker — поток событий: десктоп публикует в него свои события (самопроверка).
+// Broker is the event stream: the desktop publishes its own events into it (self-test).
 func (c *Core) Broker() *events.Broker { return c.broker }
 
-// Close останавливает импорт, отменяет потоки SSE и закрывает базу.
+// Close stops the import, cancels SSE streams and closes the database.
 func (c *Core) Close() {
 	c.cancel()
 	<-c.scanDone
 	_ = c.db.Close()
 }
 
-// Run работает до отмены ctx; ready вызывается с фактическим адресом, когда сервер принимает соединения.
+// Run serves until ctx is canceled; ready is called with the actual address once the server accepts connections.
 func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
@@ -103,7 +103,7 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	defer core.Close()
 
 	httpServer := &http.Server{Handler: core.Handler(), ReadHeaderTimeout: 10 * time.Second}
-	// Потоки SSE держат соединения: при остановке их закрывает отмена ядра
+	// SSE streams hold connections open: canceling the core closes them on shutdown
 	httpServer.RegisterOnShutdown(core.cancel)
 
 	serveErr := make(chan error, 1)

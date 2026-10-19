@@ -48,8 +48,8 @@ type v1Message struct {
 	Timestamp int64 `json:"iTimestamp"`
 }
 
-// ParseV1 разбирает файл лога v1: заголовок фиксированной длины и строки сообщений.
-// Битые строки (оборванные, затёртые длинным заголовком) пропускаются и считаются в BrokenLines.
+// ParseV1 parses a v1 log file: a fixed-size header followed by message lines.
+// Broken lines (truncated, overwritten by a long header) are skipped and counted in BrokenLines.
 func ParseV1(name string, data []byte) (Parsed, error) {
 	headerLine, rest, _ := bytes.Cut(data, []byte("\n"))
 
@@ -75,7 +75,7 @@ func ParseV1(name string, data []byte) (Parsed, error) {
 
 func v1Request(name string, h v1Header) Request {
 	r := Request{
-		Key:           name, // уникально в папке логов; у настоящих файлов совпадает с iRequestTimestamp
+		Key:           name, // unique within the logs directory; equals iRequestTimestamp for real files
 		FormatVersion: 1,
 		Sapi:          SapiWeb,
 		Lang:          h.Lang,
@@ -111,7 +111,7 @@ func v1Request(name string, h v1Header) Request {
 	return r
 }
 
-// v1 пишет время таймера в тексте: "#timediff #name 12 мс"
+// v1 writes the timer duration into the text: "#timediff #name 12 мс" (мс is the legacy library output)
 var v1TimerPattern = regexp.MustCompile(`^#timediff #(\S+) (\d+(?:\.\d+)?) мс$`)
 
 func v1Event(m v1Message, seq, size int) Event {
@@ -146,7 +146,7 @@ func v1Event(m v1Message, seq, size int) Event {
 	return e
 }
 
-// v1Level сводит sType v1 к уровням v2: неизвестные типы (functions_debug и любые из __d()) — message.
+// v1Level maps v1 sType to v2 levels: unknown types (functions_debug and anything passed to __d()) become message.
 func v1Level(sType string) string {
 	switch sType {
 	case "error", "warning", "info", "message":
@@ -156,7 +156,7 @@ func v1Level(sType string) string {
 	}
 }
 
-// messageText приводит sMessage (любой скаляр в v1) к строке.
+// messageText converts sMessage (any scalar in v1) to a string.
 func messageText(raw json.RawMessage) string {
 	var text string
 	if err := json.Unmarshal(raw, &text); err == nil {
@@ -171,11 +171,11 @@ func messageText(raw json.RawMessage) string {
 
 var v1TagPattern = regexp.MustCompile(`(?:^|\s)#(\S+)`)
 
-// v2TagPattern — допустимый тег v2 (spec/logformat/v2/event.schema.json).
+// v2TagPattern is a valid v2 tag (spec/logformat/v2/event.schema.json).
 var v2TagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.:-]*$`)
 
-// extractTags достаёт теги "#tag" из текста v1. Теги, которые нельзя записать в v2
-// (например, кириллические), остаются только в тексте.
+// extractTags pulls "#tag" tags out of v1 text. Tags that v2 cannot store
+// (for example, Cyrillic ones) stay in the text only.
 func extractTags(text string) []string {
 	var tags []string
 	seen := map[string]bool{}

@@ -23,17 +23,17 @@ func newServeFlags(cfg *app.Config, output io.Writer) *flag.FlagSet {
 		fmt.Fprint(output, "Usage: wapp-debugger serve [flags]\n\nFlags:\n")
 		flags.PrintDefaults()
 	}
-	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8820", "адрес HTTP; 0.0.0.0 открывает просмотрщик в сеть")
-	flags.StringVar(&cfg.DBPath, "db", "", "файл базы (по умолчанию в каталоге настроек пользователя)")
-	flags.StringVar(&cfg.LogsDir, "logs-dir", "", "папка логов локального проекта")
-	flags.StringVar(&cfg.RootPath, "root", "", "корень проекта (по умолчанию — родитель --logs-dir)")
-	flags.StringVar(&cfg.ProjectName, "project", "", "имя проекта (по умолчанию — имя каталога --root)")
-	flags.StringVar(&cfg.ConfigPath, "config", "", "dws_debugger.json библиотеки (по умолчанию — в --root)")
-	flags.DurationVar(&cfg.ScanInterval, "scan-interval", time.Second, "как часто проверять папку логов")
+	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8820", "HTTP address; 0.0.0.0 exposes the viewer to the network")
+	flags.StringVar(&cfg.DBPath, "db", "", "database file (default: in the user config directory)")
+	flags.StringVar(&cfg.LogsDir, "logs-dir", "", "logs directory of a local project")
+	flags.StringVar(&cfg.RootPath, "root", "", "project root (default: parent of --logs-dir)")
+	flags.StringVar(&cfg.ProjectName, "project", "", "project name (default: name of the --root directory)")
+	flags.StringVar(&cfg.ConfigPath, "config", "", "library dws_debugger.json (default: inside --root)")
+	flags.DurationVar(&cfg.ScanInterval, "scan-interval", time.Second, "how often to check the logs directory")
 	return flags
 }
 
-// parseServe разбирает флаги serve и заполняет значения по умолчанию.
+// parseServe parses serve flags and fills in defaults.
 func parseServe(args []string, userConfigDir func() (string, error)) (app.Config, error) {
 	var cfg app.Config
 	flags := newServeFlags(&cfg, io.Discard)

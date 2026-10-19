@@ -10,7 +10,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-// specDir возвращает путь к каталогу spec/ в корне репозитория.
+// specDir returns the path to the spec/ directory at the repository root.
 func specDir(t *testing.T) string {
 	t.Helper()
 	dir, err := filepath.Abs(".")
@@ -41,7 +41,7 @@ func compileSchema(t *testing.T, relPath string) *jsonschema.Schema {
 	return schema
 }
 
-// decodeJSON разбирает JSON так, как ожидает валидатор (числа — json.Number).
+// decodeJSON parses JSON the way the validator expects (numbers as json.Number).
 func decodeJSON(data []byte) (any, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()

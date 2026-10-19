@@ -71,7 +71,7 @@ func TestSlowSubscriberDoesNotBlockPublisher(t *testing.T) {
 	b := NewBroker(4)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := b.Subscribe(ctx, 0) // никто не читает
+	ch := b.Subscribe(ctx, 0) // nobody reads
 
 	done := make(chan struct{})
 	go func() {
@@ -85,7 +85,7 @@ func TestSlowSubscriberDoesNotBlockPublisher(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("publisher blocked by a slow subscriber")
 	}
-	// Отставший подписчик получает resync и дальше снова живые события
+	// The lagging subscriber gets resync and then live events again
 	for e := range ch {
 		if e.Name == "resync" {
 			return

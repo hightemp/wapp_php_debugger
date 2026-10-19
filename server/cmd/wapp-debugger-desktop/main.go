@@ -1,9 +1,9 @@
 //go:build desktop
 
-// Команда wapp-debugger-desktop — десктоп-версия просмотрщика на Wails v3 (п. 7.8 плана).
-// Ядро и UI те же, что у сервера; HTTP-обработчик отдаётся через asset handler Wails без сетевого порта.
+// Command wapp-debugger-desktop is the desktop viewer built on Wails v3 (plan 7.8).
+// It runs the same core and UI as the server; the HTTP handler is mounted into the Wails asset handler, no network port.
 //
-// Сборка: make desktop-build. Самопроверка (REST и SSE внутри окна, п. 10.27): wapp-debugger-desktop --self-test
+// Build: make desktop-build. Self-test (REST and the event stream inside the window, plan 10.27): wapp-debugger-desktop --self-test
 package main
 
 import (
@@ -30,9 +30,9 @@ func main() {
 }
 
 func run() int {
-	selfTest := flag.Bool("self-test", false, "проверить REST и SSE внутри окна и выйти")
-	logsDir := flag.String("logs-dir", "", "папка логов локального проекта")
-	dbPath := flag.String("db", "", "файл базы (по умолчанию в каталоге настроек пользователя)")
+	selfTest := flag.Bool("self-test", false, "check REST and the event stream inside the window, then exit")
+	logsDir := flag.String("logs-dir", "", "logs directory of a local project")
+	dbPath := flag.String("db", "", "database file (default: in the user config directory)")
 	flag.Parse()
 
 	cfg := app.Config{LogsDir: *logsDir, DBPath: *dbPath, UI: web.UI()}
@@ -45,7 +45,7 @@ func run() int {
 		cfg.DBPath = filepath.Join(dir, "wapp-debugger", "desktop.db")
 	}
 	if *selfTest {
-		// Самопроверка не трогает настоящую базу пользователя
+		// The self-test never touches the user's real database
 		dir, err := os.MkdirTemp("", "wapp-debugger-self-test-")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -84,12 +84,12 @@ func run() int {
 
 	wails := application.New(application.Options{
 		Name:        "wapp-debugger",
-		Description: "Просмотрщик логов PHP-отладчика " + version.String(),
+		Description: "Log viewer for the PHP debugger " + version.String(),
 		Assets:      application.AssetOptions{Handler: handler, DisableLogging: true},
 		LogLevel:    slog.LevelWarn,
 		Mac:         application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
-	// Поток событий для UI: SSE через asset handler не доходит до окна (буферизуется), поэтому — Wails Stream
+	// Event stream for the UI: SSE through the asset handler never reaches the window (it is buffered), so Wails Stream is used
 	wails.HandleStream(desktop.StreamName, func(conn *application.StreamConn) {
 		defer func() { _ = conn.Close() }()
 		_ = desktop.ServeEvents(conn, core.Broker())

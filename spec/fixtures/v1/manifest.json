@@ -3,7 +3,7 @@
     "fixtures": [
         {
             "file": "cli.log",
-            "description": "CLI-запуск с аргументами (bIsCli=true, aArgv заполнен)",
+            "description": "CLI run with arguments (bIsCli=true, aArgv filled)",
             "size": 8672,
             "header_valid": true,
             "header_length": 1000,
@@ -23,7 +23,7 @@
         },
         {
             "file": "killed.log",
-            "description": "Процесс убит SIGKILL до shutdown: bFinished=false, нет итоговых сообщений",
+            "description": "Process killed with SIGKILL before shutdown: bFinished=false, no final messages",
             "size": 8112,
             "header_valid": true,
             "header_length": 1000,
@@ -43,7 +43,7 @@
         },
         {
             "file": "long-url.log",
-            "description": "URL длиннее 1000 байт: hotfix-версия укорачивает sURL до 300 байт, заголовок ровно 1000 байт",
+            "description": "URL longer than 1000 bytes: the hotfix version shortens sURL to 300 bytes, the header is exactly 1000 bytes",
             "size": 96790,
             "header_valid": true,
             "header_length": 1000,
@@ -63,7 +63,7 @@
         },
         {
             "file": "pre-hotfix-long-header.log",
-            "description": "Библиотека до hotfix: заголовок длиннее 1000 байт затёр начало первого сообщения",
+            "description": "Library before the hotfix: a header longer than 1000 bytes overwrote the start of the first message",
             "size": 18884,
             "header_valid": true,
             "header_length": 2714,
@@ -83,7 +83,7 @@
         },
         {
             "file": "truncated-last-line.log",
-            "description": "Копия web-get, последняя строка оборвана посередине (сбой во время записи)",
+            "description": "Copy of web-get with the last line cut in the middle (crash during a write)",
             "size": 7490,
             "header_valid": true,
             "header_length": 1000,
@@ -103,7 +103,7 @@
         },
         {
             "file": "web-ajax-post.log",
-            "description": "AJAX POST с паролем в $_POST (замаскирован hotfix-версией)",
+            "description": "AJAX POST with a password in $_POST (masked by the hotfix version)",
             "size": 7946,
             "header_valid": true,
             "header_length": 1000,
@@ -123,7 +123,7 @@
         },
         {
             "file": "web-get.log",
-            "description": "Обычный GET-запрос: все типы сообщений, таймер, __log, E_USER_ERROR, поля найдено/не найдено",
+            "description": "Plain GET request: all message types, a timer, __log, E_USER_ERROR, found/not found fields",
             "size": 7530,
             "header_valid": true,
             "header_length": 1000,

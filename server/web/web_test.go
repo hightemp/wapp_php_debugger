@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Без тега embedui (тесты, go vet) вместо собранного UI отдаётся заглушка с подсказкой.
+// Without the embedui tag (tests, go vet) a placeholder with a hint is served instead of the built UI.
 func TestUIHasIndex(t *testing.T) {
 	data, err := fs.ReadFile(UI(), "index.html")
 	if err != nil || len(data) == 0 {

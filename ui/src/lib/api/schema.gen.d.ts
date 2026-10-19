@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Версия просмотрщика */
+        /** Viewer version */
         get: operations["getVersion"];
         put?: never;
         post?: never;
@@ -28,10 +28,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Список серверов */
+        /** List servers */
         get: operations["listServers"];
         put?: never;
-        /** Добавить сервер */
+        /** Add a server */
         post: operations["createServer"];
         delete?: never;
         options?: never;
@@ -46,18 +46,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Сервер */
+        /** Get a server */
         get: operations["getServer"];
         put?: never;
         post?: never;
         /**
-         * Удалить сервер вместе с его проектами из просмотрщика
-         * @description Удаляет только данные просмотрщика; файлы логов на сервере не трогаются.
+         * Remove a server and its projects from the viewer
+         * @description Removes viewer data only; log files on the server are not touched.
          */
         delete: operations["deleteServer"];
         options?: never;
         head?: never;
-        /** Изменить сервер */
+        /** Update a server */
         patch: operations["updateServer"];
         trace?: never;
     };
@@ -70,7 +70,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Проверить подключение к серверу */
+        /** Check the server connection */
         post: operations["checkServer"];
         delete?: never;
         options?: never;
@@ -85,10 +85,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Список проектов */
+        /** List projects */
         get: operations["listProjects"];
         put?: never;
-        /** Добавить проект */
+        /** Add a project */
         post: operations["createProject"];
         delete?: never;
         options?: never;
@@ -103,18 +103,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Проект */
+        /** Get a project */
         get: operations["getProject"];
         put?: never;
         post?: never;
         /**
-         * Удалить проект из просмотрщика
-         * @description Удаляет только данные просмотрщика; файлы логов на сервере не трогаются.
+         * Remove a project from the viewer
+         * @description Removes viewer data only; log files on the server are not touched.
          */
         delete: operations["deleteProject"];
         options?: never;
         head?: never;
-        /** Изменить проект */
+        /** Update a project */
         patch: operations["updateProject"];
         trace?: never;
     };
@@ -125,11 +125,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Включён ли отладчик в проекте */
+        /** Whether the debugger is on in the project */
         get: operations["getDebuggerState"];
         /**
-         * Включить или выключить отладчик в проекте
-         * @description Запрещено, если у сервера allow_control=false или read_only=true (403).
+         * Turn the debugger on or off in the project
+         * @description Forbidden (403) if the server has allow_control=false or read_only=true.
          */
         put: operations["setDebuggerState"];
         post?: never;
@@ -150,8 +150,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Удалить файлы логов проекта на сервере и их данные в просмотрщике
-         * @description Запрещено, если у сервера allow_delete=false или read_only=true (403).
+         * Delete the project log files on the server and their data in the viewer
+         * @description Forbidden (403) if the server has allow_delete=false or read_only=true.
          */
         delete: operations["clearProjectLogs"];
         options?: never;
@@ -167,8 +167,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Лента запросов, новые сверху
-         * @description Без project_id и server_id — сводная лента по всем проектам (п. 7.5).
+         * Request feed, newest first
+         * @description Without project_id and server_id it is a combined feed of all projects.
          */
         get: operations["listRequests"];
         put?: never;
@@ -186,13 +186,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Запрос целиком (без сообщений) */
+        /** Get a request (without messages) */
         get: operations["getRequest"];
         put?: never;
         post?: never;
         /**
-         * Удалить запрос и его файл лога
-         * @description Запрещено, если у сервера allow_delete=false или read_only=true (403).
+         * Delete a request and its log file
+         * @description Forbidden (403) if the server has allow_delete=false or read_only=true.
          */
         delete: operations["deleteRequest"];
         options?: never;
@@ -207,7 +207,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Сообщения запроса по порядку seq */
+        /** Request messages in seq order */
         get: operations["listMessages"];
         put?: never;
         post?: never;
@@ -224,7 +224,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Сообщение с контекстом и бэктрейсом */
+        /** Get a message with context and backtrace */
         get: operations["getMessage"];
         put?: never;
         post?: never;
@@ -242,11 +242,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Поток изменений (Server-Sent Events)
-         * @description Каждое событие SSE: `id` — монотонный номер, `event` — поле `event` из StreamEvent,
-         *     `data` — StreamEvent в JSON. Heartbeat — комментарий раз в 15 секунд.
-         *     После переподключения клиент передаёт Last-Event-ID и получает пропущенные события,
-         *     если они ещё в буфере; иначе приходит событие resync.
+         * Change stream (Server-Sent Events)
+         * @description Each SSE event: `id` is a monotonic number, `event` is the `event` field of StreamEvent,
+         *     `data` is StreamEvent as JSON. A heartbeat comment is sent every 15 seconds.
+         *     After a reconnect the client sends Last-Event-ID and receives the missed events
+         *     if they are still buffered; otherwise it gets a resync event.
          */
         get: operations["streamEvents"];
         put?: never;
@@ -264,9 +264,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Настройки интерфейса */
+        /** Get UI settings */
         get: operations["getSettings"];
-        /** Сохранить настройки интерфейса */
+        /** Save UI settings */
         put: operations["updateSettings"];
         post?: never;
         delete?: never;
@@ -294,7 +294,7 @@ export interface components {
             status: number;
             detail?: string;
             instance?: string;
-            /** @description Ошибки валидации по полям */
+            /** @description Validation errors per field */
             errors?: {
                 field: string;
                 message: string;
@@ -314,7 +314,7 @@ export interface components {
         Environment: "local" | "dev" | "stage" | "prod";
         /** @enum {string} */
         ConnectionState: "unknown" | "connecting" | "online" | "offline";
-        /** @description Параметры подключения без секретов. ssh — host (или алиас из ~/.ssh/config), port, user, jump_hosts; http — base_url. */
+        /** @description Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url. */
         ServerConfig: {
             host?: string;
             port?: number;
@@ -323,10 +323,10 @@ export interface components {
             base_url?: string;
         };
         ServerPermissions: {
-            /** @description Запрещает любые изменения на сервере */
+            /** @description Forbids any change on the server */
             read_only: boolean;
             allow_delete: boolean;
-            /** @description Включение и выключение отладчика */
+            /** @description Turning the debugger on and off */
             allow_control: boolean;
         };
         ServerInput: {
@@ -384,7 +384,7 @@ export interface components {
             state: components["schemas"]["ConnectionState"];
             /** Format: double */
             latency_ms?: number;
-            /** @description Насколько часы сервера отстают (минус) или спешат относительно просмотрщика */
+            /** @description How far the server clock is behind (negative) or ahead of the viewer clock */
             clock_offset_ms?: number;
             error?: string;
             /** Format: int64 */
@@ -408,13 +408,13 @@ export interface components {
          */
         ServerCheck: {
             ok: boolean;
-            /** @description Шаги проверки по порядку (подключение, ключ хоста, права на папку логов и т. д.) */
+            /** @description Check steps in order (connect, host key, logs directory permissions and so on) */
             steps: {
                 name: string;
                 ok: boolean;
                 detail?: string;
             }[];
-            /** @description Для нового SSH-хоста — отпечаток ключа, который нужно подтвердить в UI */
+            /** @description For a new SSH host, the key fingerprint to confirm in the UI */
             host_key_fingerprint?: string;
         };
         ProjectInput: {
@@ -423,7 +423,7 @@ export interface components {
             name: string;
             root_path: string;
             logs_dir: string;
-            /** @description Локальная копия проекта для ссылок в IDE */
+            /** @description Local copy of the project for IDE links */
             local_path?: string | null;
             editor?: components["schemas"]["Editor"];
             retention?: components["schemas"]["Retention"];
@@ -447,7 +447,7 @@ export interface components {
             local_path: string | null;
             editor: components["schemas"]["Editor"];
             retention: components["schemas"]["Retention"];
-            /** @description Файлы логов, ещё не импортированные полностью */
+            /** @description Log files that are not fully imported yet */
             pending_files: number;
             /** Format: int64 */
             created_at: number;
@@ -471,7 +471,7 @@ export interface components {
         /** @enum {string} */
         MessageType: "message" | "timer" | "error";
         /**
-         * @description Запрос в ленте
+         * @description A request in the feed
          * @example {
          *       "id": 42,
          *       "project_id": 1,
@@ -501,7 +501,7 @@ export interface components {
             project_id: number;
             /** Format: int64 */
             server_id: number;
-            /** @description v2: request_id (ULID); v1: имя файла лога */
+            /** @description v2: request_id (ULID); v1: log file name */
             request_key: string;
             parent_request_key?: string | null;
             /** @enum {integer} */
@@ -516,7 +516,7 @@ export interface components {
             started_at: number;
             /** Format: double */
             duration_ms?: number | null;
-            /** @description false — запрос выполняется или процесс был убит */
+            /** @description false means the request is still running or the process was killed */
             finished: boolean;
             message_count: number;
             error_count: number;
@@ -542,7 +542,7 @@ export interface components {
             ended_at?: number | null;
             /** Format: int64 */
             memory_peak_bytes?: number | null;
-            /** @description Дочерние запросы (AJAX, подпроцессы) по parent_request_key */
+            /** @description Child requests (AJAX, subprocesses) by parent_request_key */
             children?: components["schemas"]["Request"][];
         };
         RequestPage: {
@@ -556,11 +556,11 @@ export interface components {
             class?: string;
             /** @enum {string} */
             call_type?: "->" | "::";
-            /** @description Ссылка для открытия в IDE с учётом local_path проекта */
+            /** @description Link that opens the file in the IDE, using the project local_path */
             editor_url?: string;
         };
         /**
-         * @description Сообщение в списке (без контекста и бэктрейса)
+         * @description A message in a list (without context and backtrace)
          * @example {
          *       "id": 1001,
          *       "request_id": 42,
@@ -568,7 +568,7 @@ export interface components {
          *       "ts": 1792400000005,
          *       "type": "message",
          *       "level": "info",
-         *       "message": "Загрузка товара",
+         *       "message": "Loading item",
          *       "tags": [],
          *       "source": {
          *         "file": "app/Controller/ItemController.php",
@@ -594,7 +594,7 @@ export interface components {
             ts: number;
             type: components["schemas"]["MessageType"];
             level: components["schemas"]["Level"];
-            /** @description Для таймера — его имя */
+            /** @description For a timer, its name */
             message: string;
             tags: string[];
             source?: components["schemas"]["Frame"];
@@ -625,7 +625,7 @@ export interface components {
             next_cursor: string | null;
         };
         /**
-         * @description Полезная нагрузка события SSE. Поле event совпадает с именем события SSE.
+         * @description Payload of an SSE event. The event field equals the SSE event name.
          * @example {
          *       "event": "messages_added",
          *       "request_id": 42,
@@ -634,8 +634,8 @@ export interface components {
          */
         StreamEvent: {
             /**
-             * @description request_created / request_updated — request; messages_added — request_id и count;
-             *     server_status — server_id и connection; resync — клиент перечитывает данные целиком.
+             * @description request_created / request_updated carry request; messages_added carries request_id and count;
+             *     server_status carries server_id and connection; resync tells the client to reload everything.
              * @enum {string}
              */
             event: "request_created" | "request_updated" | "messages_added" | "server_status" | "resync";
@@ -648,7 +648,7 @@ export interface components {
             connection?: components["schemas"]["ServerConnection"];
         };
         /**
-         * @description Настройки UI (п. 6.4, 10.25). Хранятся в просмотрщике, localStorage — только кэш.
+         * @description UI settings. Stored by the viewer; localStorage is only a cache.
          * @example {
          *       "theme": "system",
          *       "accent_color": null,
@@ -673,7 +673,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Ошибка */
+        /** @description Error */
         Problem: {
             headers: {
                 [name: string]: unknown;
@@ -688,7 +688,7 @@ export interface components {
         ProjectId: number;
         RequestId: number;
         MessageId: number;
-        /** @description next_cursor из предыдущей страницы */
+        /** @description next_cursor of the previous page */
         Cursor: string;
         Limit: number;
     };
@@ -707,7 +707,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Версия сборки */
+            /** @description Build version */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -728,7 +728,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Серверы со статусом подключения */
+            /** @description Servers with connection status */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -755,7 +755,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Сервер добавлен */
+            /** @description Server added */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -778,7 +778,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Сервер */
+            /** @description Server */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -801,7 +801,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Удалён */
+            /** @description Deleted */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -826,7 +826,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Сервер изменён */
+            /** @description Server updated */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -849,7 +849,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Результат проверки (неудачная проверка — тоже 200 с ok=false) */
+            /** @description Check result (a failed check is also 200 with ok=false) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -864,7 +864,7 @@ export interface operations {
     listProjects: {
         parameters: {
             query?: {
-                /** @description Только проекты сервера */
+                /** @description Only projects of this server */
                 server_id?: number;
             };
             header?: never;
@@ -873,7 +873,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Проекты */
+            /** @description Projects */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -900,7 +900,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Проект добавлен */
+            /** @description Project added */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -923,7 +923,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Проект */
+            /** @description Project */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -946,7 +946,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Удалён */
+            /** @description Deleted */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -971,7 +971,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Проект изменён */
+            /** @description Project updated */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -994,7 +994,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Состояние */
+            /** @description State */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1021,7 +1021,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Новое состояние */
+            /** @description New state */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1044,7 +1044,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Сколько файлов удалено */
+            /** @description Number of removed files */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1065,15 +1065,15 @@ export interface operations {
                 server_id?: number;
                 environment?: components["schemas"]["Environment"];
                 sapi?: components["schemas"]["Sapi"];
-                /** @description Только запросы с ошибками */
+                /** @description Only requests with errors */
                 has_errors?: boolean;
-                /** @description Полнотекстовый поиск по сообщениям и контексту, плюс подстрока URL */
+                /** @description Full-text search over messages and context, plus a URL substring */
                 q?: string;
-                /** @description started_at не раньше, мс */
+                /** @description started_at at or after, ms */
                 since?: number;
-                /** @description started_at раньше, мс */
+                /** @description started_at before, ms */
                 until?: number;
-                /** @description next_cursor из предыдущей страницы */
+                /** @description next_cursor of the previous page */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
             };
@@ -1083,7 +1083,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Страница запросов */
+            /** @description Page of requests */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1106,7 +1106,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Запрос */
+            /** @description Request */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1129,7 +1129,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Удалён */
+            /** @description Deleted */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1142,13 +1142,13 @@ export interface operations {
     listMessages: {
         parameters: {
             query?: {
-                /** @description Только эти уровни */
+                /** @description Only these levels */
                 level?: components["schemas"]["Level"][];
                 type?: components["schemas"]["MessageType"];
                 tag?: string;
-                /** @description Полнотекстовый поиск по сообщению и контексту */
+                /** @description Full-text search over the message and context */
                 q?: string;
-                /** @description next_cursor из предыдущей страницы */
+                /** @description next_cursor of the previous page */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
             };
@@ -1160,7 +1160,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Страница сообщений */
+            /** @description Page of messages */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1183,7 +1183,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Сообщение */
+            /** @description Message */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1198,7 +1198,7 @@ export interface operations {
     streamEvents: {
         parameters: {
             query?: {
-                /** @description Только события проекта (статусы серверов приходят всегда) */
+                /** @description Only events of this project (server status events always arrive) */
                 project_id?: number;
             };
             header?: {
@@ -1209,7 +1209,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Поток событий */
+            /** @description Event stream */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1230,7 +1230,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Настройки */
+            /** @description Settings */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1255,7 +1255,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Сохранённые настройки */
+            /** @description Saved settings */
             200: {
                 headers: {
                     [name: string]: unknown;

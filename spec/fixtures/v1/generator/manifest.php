@@ -1,15 +1,15 @@
 <?php
-// Описывает сгенерированные фикстуры: эталон для тестов парсера v1 (Go, фаза 4).
-// Запуск: php manifest.php <dir> > manifest.json
+// Describes the generated fixtures: the reference for v1 parser tests.
+// Usage: php manifest.php <dir> > manifest.json
 
 $descriptions = [
-    'web-get' => 'Обычный GET-запрос: все типы сообщений, таймер, __log, E_USER_ERROR, поля найдено/не найдено',
-    'web-ajax-post' => 'AJAX POST с паролем в $_POST (замаскирован hotfix-версией)',
-    'cli' => 'CLI-запуск с аргументами (bIsCli=true, aArgv заполнен)',
-    'long-url' => 'URL длиннее 1000 байт: hotfix-версия укорачивает sURL до 300 байт, заголовок ровно 1000 байт',
-    'killed' => 'Процесс убит SIGKILL до shutdown: bFinished=false, нет итоговых сообщений',
-    'truncated-last-line' => 'Копия web-get, последняя строка оборвана посередине (сбой во время записи)',
-    'pre-hotfix-long-header' => 'Библиотека до hotfix: заголовок длиннее 1000 байт затёр начало первого сообщения',
+    'web-get' => 'Plain GET request: all message types, a timer, __log, E_USER_ERROR, found/not found fields',
+    'web-ajax-post' => 'AJAX POST with a password in $_POST (masked by the hotfix version)',
+    'cli' => 'CLI run with arguments (bIsCli=true, aArgv filled)',
+    'long-url' => 'URL longer than 1000 bytes: the hotfix version shortens sURL to 300 bytes, the header is exactly 1000 bytes',
+    'killed' => 'Process killed with SIGKILL before shutdown: bFinished=false, no final messages',
+    'truncated-last-line' => 'Copy of web-get with the last line cut in the middle (crash during a write)',
+    'pre-hotfix-long-header' => 'Library before the hotfix: a header longer than 1000 bytes overwrote the start of the first message',
 ];
 
 $fixtures = [];

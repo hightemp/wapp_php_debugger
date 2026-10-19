@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Memory — источник в памяти для тестов импорта и API.
+// Memory is an in-memory source for importer and API tests.
 type Memory struct {
 	mu       sync.Mutex
 	files    map[string][]byte
@@ -17,7 +17,7 @@ type Memory struct {
 
 var _ Source = (*Memory)(nil)
 
-// NewMemory создаёт источник с копией files; отладчик выключен.
+// NewMemory creates a source with a copy of files; the debugger is off.
 func NewMemory(files map[string][]byte) *Memory {
 	m := &Memory{files: make(map[string][]byte, len(files)), modTimes: make(map[string]time.Time, len(files))}
 	created := time.Now()
@@ -28,7 +28,7 @@ func NewMemory(files map[string][]byte) *Memory {
 	return m
 }
 
-// Append дописывает данные в файл (создаёт его при необходимости), как это делает PHP-библиотека.
+// Append appends data to a file (creating it if needed), the way the PHP library does.
 func (m *Memory) Append(name string, data []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -36,7 +36,7 @@ func (m *Memory) Append(name string, data []byte) {
 	m.modTimes[name] = time.Now()
 }
 
-// List возвращает файлы, отсортированные по имени.
+// List returns files sorted by name.
 func (m *Memory) List(ctx context.Context) ([]FileInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (m *Memory) List(ctx context.Context) ([]FileInfo, error) {
 	return list, nil
 }
 
-// ReadAt возвращает копию до limit байт с offset.
+// ReadAt returns a copy of up to limit bytes from offset.
 func (m *Memory) ReadAt(ctx context.Context, name string, offset int64, limit int) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (m *Memory) ReadAt(ctx context.Context, name string, offset int64, limit in
 	return append([]byte(nil), data[offset:end]...), nil
 }
 
-// Remove удаляет файл.
+// Remove deletes a file.
 func (m *Memory) Remove(ctx context.Context, name string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -90,7 +90,7 @@ func (m *Memory) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-// Enabled сообщает, включён ли отладчик.
+// Enabled reports whether the debugger is on.
 func (m *Memory) Enabled(ctx context.Context) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
@@ -100,7 +100,7 @@ func (m *Memory) Enabled(ctx context.Context) (bool, error) {
 	return m.enabled, nil
 }
 
-// SetEnabled включает или выключает отладчик.
+// SetEnabled turns the debugger on or off.
 func (m *Memory) SetEnabled(ctx context.Context, enabled bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -111,5 +111,5 @@ func (m *Memory) SetEnabled(ctx context.Context, enabled bool) error {
 	return nil
 }
 
-// Close ничего не делает.
+// Close does nothing.
 func (m *Memory) Close() error { return nil }

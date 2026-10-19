@@ -12,7 +12,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/source/sourcetest"
 )
 
-// newLocal создаёт папку логов и конфиг библиотеки v1 рядом, как в реальном проекте.
+// newLocal creates a logs directory with a v1 library config next to it, like in a real project.
 func newLocal(t *testing.T, files map[string][]byte, config string) (*source.Local, string) {
 	t.Helper()
 	root := t.TempDir()
@@ -97,7 +97,7 @@ func TestLocalWithoutConfig(t *testing.T) {
 	if enabled, err := src.Enabled(context.Background()); err != nil || enabled {
 		t.Fatalf("missing config means the debugger is off: %v, %v", enabled, err)
 	}
-	// Конфиг с путями создаёт разработчик; просмотрщик не придумывает его за него
+	// The developer creates the config with paths; the viewer does not invent it for them
 	if err := src.SetEnabled(context.Background(), true); !errors.Is(err, source.ErrNoConfig) {
 		t.Fatalf("SetEnabled err = %v, want ErrNoConfig", err)
 	}

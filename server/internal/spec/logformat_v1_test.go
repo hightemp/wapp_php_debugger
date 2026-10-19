@@ -16,8 +16,8 @@ type v1Manifest struct {
 	} `json:"fixtures"`
 }
 
-// Все реальные строки логов v1 должны проходить схему, а битые — не разбираться как JSON:
-// так схема описывает формат как он есть, а не как хотелось бы.
+// Every real v1 log line must pass the schema and broken lines must not parse as JSON:
+// the schema describes the format as it is, not as we would like it to be.
 func TestV1FixturesMatchSchemaAndManifest(t *testing.T) {
 	header := compileSchema(t, "logformat/v1/header.schema.json")
 	message := compileSchema(t, "logformat/v1/message.schema.json")

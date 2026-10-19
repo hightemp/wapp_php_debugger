@@ -1,3 +1,3 @@
-// Package spec проверяет контракты из каталога spec/ репозитория: JSON Schema форматов логов,
-// фикстуры и OpenAPI. Сам пакет кода не содержит — только тесты и помощники для них.
+// Package spec checks the contracts in the repository spec/ directory: log format JSON Schemas,
+// fixtures and OpenAPI. The package has no code of its own, only tests and their helpers.
 package spec

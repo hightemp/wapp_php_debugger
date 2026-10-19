@@ -10,7 +10,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 )
 
-// fakeConn — соединение Wails Stream в памяти: Receive отдаёт заранее заданные сообщения клиента.
+// fakeConn is an in-memory Wails Stream connection: Receive returns client messages queued in advance.
 type fakeConn struct {
 	ctx      context.Context
 	incoming chan []byte
@@ -61,7 +61,7 @@ func TestServeEventsForwardsBrokerEventsAsFrames(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- ServeEvents(conn, broker) }()
 
-	// Подписка появляется после hello клиента; публикуем, пока не дойдёт
+	// The subscription appears after the client hello; keep publishing until a frame arrives
 	deadline := time.After(time.Second)
 	for {
 		broker.Publish("request_created", map[string]int{"request_id": 7})

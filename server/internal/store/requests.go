@@ -14,26 +14,26 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/logformat"
 )
 
-// ErrInvalidCursor — курсор страницы повреждён или получен не от ListRequests.
+// ErrInvalidCursor means the page cursor is corrupted or did not come from ListRequests.
 var ErrInvalidCursor = errors.New("invalid cursor")
 
-// Store — запросы к базе просмотрщика.
+// Store runs queries against the viewer database.
 type Store struct {
 	db *sql.DB
 }
 
-// New оборачивает открытую базу (см. Open).
+// New wraps an open database (see Open).
 func New(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
-// LocalProject — идентификаторы локального сервера и проекта.
+// LocalProject holds the ids of the local server and project.
 type LocalProject struct {
 	ServerID  int64
 	ProjectID int64
 }
 
-// EnsureLocalProject создаёт (или находит) сервер "local" и проект на нём.
+// EnsureLocalProject creates (or finds) the "local" server and a project on it.
 func (s *Store) EnsureLocalProject(ctx context.Context, name, rootPath, logsDir string) (LocalProject, error) {
 	now := time.Now().UnixMilli()
 	var ids LocalProject
@@ -51,14 +51,14 @@ func (s *Store) EnsureLocalProject(ctx context.Context, name, rootPath, logsDir 
 	return ids, err
 }
 
-// FileState — что известно о файле лога: по размеру и времени изменения видно, надо ли его перечитать.
+// FileState is what is known about a log file: size and mtime tell whether it must be re-read.
 type FileState struct {
 	Name    string
 	Size    int64
 	ModTime time.Time
 }
 
-// FileState возвращает сохранённое состояние файла лога проекта.
+// FileState returns the stored state of a project log file.
 func (s *Store) FileState(ctx context.Context, projectID int64, name string) (FileState, bool, error) {
 	state := FileState{Name: name}
 	var mtime int64
@@ -70,14 +70,14 @@ func (s *Store) FileState(ctx context.Context, projectID int64, name string) (Fi
 	return state, err == nil, err
 }
 
-// SaveResult — итог сохранения файла.
+// SaveResult is the outcome of saving a file.
 type SaveResult struct {
 	RequestID int64
 	Created   bool
 }
 
-// SaveFile сохраняет разобранный файл лога: состояние файла, запрос и его сообщения.
-// Повторное сохранение того же запроса заменяет сообщения целиком (файл v1 перечитывается полностью).
+// SaveFile saves a parsed log file: file state, the request and its messages.
+// Saving the same request again replaces its messages (a v1 file is re-read as a whole).
 func (s *Store) SaveFile(ctx context.Context, projectID int64, file FileState, parsed logformat.Parsed) (SaveResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -201,7 +201,7 @@ func insertEvent(ctx context.Context, tx *sql.Tx, requestID int64, e logformat.E
 	return err
 }
 
-// RequestRow — запрос в ленте.
+// RequestRow is a request in the feed.
 type RequestRow struct {
 	ID            int64
 	ProjectID     int64
@@ -224,20 +224,20 @@ type RequestRow struct {
 	ReceivedAt    int64
 }
 
-// RequestFilter — параметры ленты. ProjectID = 0 — все проекты.
+// RequestFilter holds feed parameters. ProjectID = 0 means all projects.
 type RequestFilter struct {
 	ProjectID int64
 	Limit     int
 	Cursor    string
 }
 
-// RequestPage — страница ленты; NextCursor пустой на последней странице.
+// RequestPage is a feed page; NextCursor is empty on the last page.
 type RequestPage struct {
 	Items      []RequestRow
 	NextCursor string
 }
 
-// ListRequests возвращает запросы, новые сверху; одинаковое время упорядочивается по id.
+// ListRequests returns requests newest first; equal times are ordered by id.
 func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (RequestPage, error) {
 	where, args := []string{"1 = 1"}, []any{}
 	if filter.ProjectID != 0 {
@@ -301,7 +301,7 @@ func scanRequestRow(row rowScanner) (RequestRow, error) {
 	return r, err
 }
 
-// GetRequest возвращает запрос ленты по id.
+// GetRequest returns a feed request by id.
 func (s *Store) GetRequest(ctx context.Context, id int64) (RequestRow, bool, error) {
 	r, err := scanRequestRow(s.db.QueryRowContext(ctx, selectRequestRows+` WHERE r.id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {

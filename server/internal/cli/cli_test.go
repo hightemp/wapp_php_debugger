@@ -66,7 +66,7 @@ func TestParseServeLocalProject(t *testing.T) {
 	if cfg.LogsDir != "/var/www/shop/tmp/logs" || cfg.RootPath != "/var/www/shop" || cfg.Addr != "127.0.0.1:9000" || cfg.DBPath != "/tmp/x.db" {
 		t.Fatalf("cfg = %+v", cfg)
 	}
-	// Имя проекта и конфиг библиотеки по умолчанию выводятся из корня проекта
+	// The project name and the library config default to values derived from the project root
 	if cfg.ProjectName != "shop" || cfg.ConfigPath != "/var/www/shop/dws_debugger.json" {
 		t.Fatalf("derived = %+v", cfg)
 	}

@@ -33,7 +33,7 @@ func (e StatusFormatVersion) Valid() bool {
 
 // LogFile Example: {"modified_at":1792400000040,"name":"1792400000000-01JAZ7Q5X0K4M8T2V6N9P3R5S7.jsonl","size":2048}
 type LogFile struct {
-	// ModifiedAt мс от эпохи
+	// ModifiedAt ms since the epoch
 	ModifiedAt int64  `json:"modified_at"`
 	Name       string `json:"name"`
 	Size       int64  `json:"size"`
@@ -151,50 +151,50 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
-	// SetEnabledWithBody Включить или выключить запись логов
+	// SetEnabledWithBody Turn logging on or off
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /__wapp_debugger/v1/enabled (the `SetEnabled` operationId).
 	SetEnabledWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetEnabled Включить или выключить запись логов
+	// SetEnabled Turn logging on or off
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /__wapp_debugger/v1/enabled (the `SetEnabled` operationId).
 	SetEnabled(ctx context.Context, body SetEnabledJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ClearLogs Удалить все файлы логов
+	// ClearLogs Delete all log files
 	//
 	// Corresponds with DELETE /__wapp_debugger/v1/logs (the `ClearLogs` operationId).
 	ClearLogs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListLogs Файлы логов, отсортированные по имени
+	// ListLogs Log files sorted by name
 	//
 	// Corresponds with GET /__wapp_debugger/v1/logs (the `ListLogs` operationId).
 	ListLogs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RemoveLog Удалить файл лога
+	// RemoveLog Delete a log file
 	//
 	// Corresponds with DELETE /__wapp_debugger/v1/logs/{name} (the `RemoveLog` operationId).
 	RemoveLog(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadLog Прочитать часть файла лога
+	// ReadLog Read part of a log file
 	//
-	// Возвращает до limit байт начиная с offset. Пустое тело — конец файла.
-	// 416 — offset больше размера файла (файл усекли или подменили).
+	// Returns up to limit bytes starting at offset. An empty body means end of file.
+	// 416 means offset is past the end of the file (it was truncated or replaced).
 	//
 	// Corresponds with GET /__wapp_debugger/v1/logs/{name} (the `ReadLog` operationId).
 	ReadLog(ctx context.Context, name Name, params *ReadLogParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetStatus Состояние отладчика в проекте
+	// GetStatus Debugger state in the project
 	//
 	// Corresponds with GET /__wapp_debugger/v1/status (the `GetStatus` operationId).
 	GetStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-// SetEnabledWithBody Включить или выключить запись логов
+// SetEnabledWithBody Turn logging on or off
 //
 // Takes any type of body and a specified content type.
 //
@@ -211,7 +211,7 @@ func (c *Client) SetEnabledWithBody(ctx context.Context, contentType string, bod
 	return c.Client.Do(req)
 }
 
-// SetEnabled Включить или выключить запись логов
+// SetEnabled Turn logging on or off
 //
 // Takes a body of the `application/json` content type.
 //
@@ -228,7 +228,7 @@ func (c *Client) SetEnabled(ctx context.Context, body SetEnabledJSONRequestBody,
 	return c.Client.Do(req)
 }
 
-// ClearLogs Удалить все файлы логов
+// ClearLogs Delete all log files
 //
 // Corresponds with DELETE /__wapp_debugger/v1/logs (the `ClearLogs` operationId).
 func (c *Client) ClearLogs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -243,7 +243,7 @@ func (c *Client) ClearLogs(ctx context.Context, reqEditors ...RequestEditorFn) (
 	return c.Client.Do(req)
 }
 
-// ListLogs Файлы логов, отсортированные по имени
+// ListLogs Log files sorted by name
 //
 // Corresponds with GET /__wapp_debugger/v1/logs (the `ListLogs` operationId).
 func (c *Client) ListLogs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -258,7 +258,7 @@ func (c *Client) ListLogs(ctx context.Context, reqEditors ...RequestEditorFn) (*
 	return c.Client.Do(req)
 }
 
-// RemoveLog Удалить файл лога
+// RemoveLog Delete a log file
 //
 // Corresponds with DELETE /__wapp_debugger/v1/logs/{name} (the `RemoveLog` operationId).
 func (c *Client) RemoveLog(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -273,10 +273,10 @@ func (c *Client) RemoveLog(ctx context.Context, name Name, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
-// ReadLog Прочитать часть файла лога
+// ReadLog Read part of a log file
 //
-// Возвращает до limit байт начиная с offset. Пустое тело — конец файла.
-// 416 — offset больше размера файла (файл усекли или подменили).
+// Returns up to limit bytes starting at offset. An empty body means end of file.
+// 416 means offset is past the end of the file (it was truncated or replaced).
 //
 // Corresponds with GET /__wapp_debugger/v1/logs/{name} (the `ReadLog` operationId).
 func (c *Client) ReadLog(ctx context.Context, name Name, params *ReadLogParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -291,7 +291,7 @@ func (c *Client) ReadLog(ctx context.Context, name Name, params *ReadLogParams, 
 	return c.Client.Do(req)
 }
 
-// GetStatus Состояние отладчика в проекте
+// GetStatus Debugger state in the project
 //
 // Corresponds with GET /__wapp_debugger/v1/status (the `GetStatus` operationId).
 func (c *Client) GetStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -578,52 +578,52 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
-	// SetEnabledWithBodyWithResponse Включить или выключить запись логов
+	// SetEnabledWithBodyWithResponse Turn logging on or off
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /__wapp_debugger/v1/enabled (the `SetEnabled` operationId).
 	SetEnabledWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEnabledResponse, error)
 
-	// SetEnabledWithResponse Включить или выключить запись логов
+	// SetEnabledWithResponse Turn logging on or off
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /__wapp_debugger/v1/enabled (the `SetEnabled` operationId).
 	SetEnabledWithResponse(ctx context.Context, body SetEnabledJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEnabledResponse, error)
 
-	// ClearLogsWithResponse Удалить все файлы логов
+	// ClearLogsWithResponse Delete all log files
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /__wapp_debugger/v1/logs (the `ClearLogs` operationId).
 	ClearLogsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ClearLogsResponse, error)
 
-	// ListLogsWithResponse Файлы логов, отсортированные по имени
+	// ListLogsWithResponse Log files sorted by name
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /__wapp_debugger/v1/logs (the `ListLogs` operationId).
 	ListLogsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListLogsResponse, error)
 
-	// RemoveLogWithResponse Удалить файл лога
+	// RemoveLogWithResponse Delete a log file
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /__wapp_debugger/v1/logs/{name} (the `RemoveLog` operationId).
 	RemoveLogWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*RemoveLogResponse, error)
 
-	// ReadLogWithResponse Прочитать часть файла лога
+	// ReadLogWithResponse Read part of a log file
 	//
-	// Возвращает до limit байт начиная с offset. Пустое тело — конец файла.
-	// 416 — offset больше размера файла (файл усекли или подменили).
+	// Returns up to limit bytes starting at offset. An empty body means end of file.
+	// 416 means offset is past the end of the file (it was truncated or replaced).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /__wapp_debugger/v1/logs/{name} (the `ReadLog` operationId).
 	ReadLogWithResponse(ctx context.Context, name Name, params *ReadLogParams, reqEditors ...RequestEditorFn) (*ReadLogResponse, error)
 
-	// GetStatusWithResponse Состояние отладчика в проекте
+	// GetStatusWithResponse Debugger state in the project
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -920,7 +920,7 @@ func (r GetStatusResponse) ContentType() string {
 	return ""
 }
 
-// SetEnabledWithBodyWithResponse Включить или выключить запись логов
+// SetEnabledWithBodyWithResponse Turn logging on or off
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -933,7 +933,7 @@ func (c *ClientWithResponses) SetEnabledWithBodyWithResponse(ctx context.Context
 	return ParseSetEnabledResponse(rsp)
 }
 
-// SetEnabledWithResponse Включить или выключить запись логов
+// SetEnabledWithResponse Turn logging on or off
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -946,7 +946,7 @@ func (c *ClientWithResponses) SetEnabledWithResponse(ctx context.Context, body S
 	return ParseSetEnabledResponse(rsp)
 }
 
-// ClearLogsWithResponse Удалить все файлы логов
+// ClearLogsWithResponse Delete all log files
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -959,7 +959,7 @@ func (c *ClientWithResponses) ClearLogsWithResponse(ctx context.Context, reqEdit
 	return ParseClearLogsResponse(rsp)
 }
 
-// ListLogsWithResponse Файлы логов, отсортированные по имени
+// ListLogsWithResponse Log files sorted by name
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -972,7 +972,7 @@ func (c *ClientWithResponses) ListLogsWithResponse(ctx context.Context, reqEdito
 	return ParseListLogsResponse(rsp)
 }
 
-// RemoveLogWithResponse Удалить файл лога
+// RemoveLogWithResponse Delete a log file
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -985,10 +985,10 @@ func (c *ClientWithResponses) RemoveLogWithResponse(ctx context.Context, name Na
 	return ParseRemoveLogResponse(rsp)
 }
 
-// ReadLogWithResponse Прочитать часть файла лога
+// ReadLogWithResponse Read part of a log file
 //
-// Возвращает до limit байт начиная с offset. Пустое тело — конец файла.
-// 416 — offset больше размера файла (файл усекли или подменили).
+// Returns up to limit bytes starting at offset. An empty body means end of file.
+// 416 means offset is past the end of the file (it was truncated or replaced).
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -1001,7 +1001,7 @@ func (c *ClientWithResponses) ReadLogWithResponse(ctx context.Context, name Name
 	return ParseReadLogResponse(rsp)
 }
 
-// GetStatusWithResponse Состояние отладчика в проекте
+// GetStatusWithResponse Debugger state in the project
 //
 // Returns a wrapper object for the known response body format(s).
 //

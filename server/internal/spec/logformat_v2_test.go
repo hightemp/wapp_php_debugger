@@ -35,7 +35,7 @@ type v2Event struct {
 	TS        int64  `json:"ts"`
 }
 
-// checkV2Stream проверяет правила потока событий одного запроса, которые не выражаются JSON Schema.
+// checkV2Stream checks the per-request stream rules that JSON Schema cannot express.
 func checkV2Stream(data []byte) error {
 	lines := bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n"))
 	var first v2Event
@@ -95,7 +95,7 @@ func TestV2ValidFixtures(t *testing.T) {
 	}
 }
 
-// Каждый файл invalid/*.json — одно событие, которое схема обязана отклонить; причина — в имени файла.
+// Each invalid/*.json file is one event the schema must reject; the file name says why.
 func TestV2SchemaRejectsInvalidEvents(t *testing.T) {
 	schema := v2Schema(t)
 	for _, file := range globFixtures(t, "fixtures/v2/invalid/*.json") {
@@ -111,7 +111,7 @@ func TestV2SchemaRejectsInvalidEvents(t *testing.T) {
 	}
 }
 
-// Каждый файл invalid-streams/*.jsonl состоит из корректных событий, но нарушает правила потока.
+// Each invalid-streams/*.jsonl file consists of valid events but breaks the stream rules.
 func TestV2StreamRulesRejectInvalidStreams(t *testing.T) {
 	schema := v2Schema(t)
 	for _, file := range globFixtures(t, "fixtures/v2/invalid-streams/*.jsonl") {

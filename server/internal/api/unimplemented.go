@@ -1,112 +1,112 @@
-// Заглушки пишутся по списку StrictServerInterface; заглушка заменяется, когда операция реализована.
+// Stubs follow StrictServerInterface; a stub is replaced once its operation is implemented.
 
 package api
 
 import "context"
 
-// Заглушки операций, которые ещё не реализованы: 501 в формате Problem Details.
+// Operations that are not implemented yet: 501 as Problem Details.
 
-// CheckServer ещё не реализована.
+// CheckServer is not implemented yet.
 func (s *server) CheckServer(context.Context, CheckServerRequestObject) (CheckServerResponseObject, error) {
 	return CheckServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// ClearProjectLogs ещё не реализована.
+// ClearProjectLogs is not implemented yet.
 func (s *server) ClearProjectLogs(context.Context, ClearProjectLogsRequestObject) (ClearProjectLogsResponseObject, error) {
 	return ClearProjectLogsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// CreateProject ещё не реализована.
+// CreateProject is not implemented yet.
 func (s *server) CreateProject(context.Context, CreateProjectRequestObject) (CreateProjectResponseObject, error) {
 	return CreateProjectdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// CreateServer ещё не реализована.
+// CreateServer is not implemented yet.
 func (s *server) CreateServer(context.Context, CreateServerRequestObject) (CreateServerResponseObject, error) {
 	return CreateServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// DeleteProject ещё не реализована.
+// DeleteProject is not implemented yet.
 func (s *server) DeleteProject(context.Context, DeleteProjectRequestObject) (DeleteProjectResponseObject, error) {
 	return DeleteProjectdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// DeleteRequest ещё не реализована.
+// DeleteRequest is not implemented yet.
 func (s *server) DeleteRequest(context.Context, DeleteRequestRequestObject) (DeleteRequestResponseObject, error) {
 	return DeleteRequestdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// DeleteServer ещё не реализована.
+// DeleteServer is not implemented yet.
 func (s *server) DeleteServer(context.Context, DeleteServerRequestObject) (DeleteServerResponseObject, error) {
 	return DeleteServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetDebuggerState ещё не реализована.
+// GetDebuggerState is not implemented yet.
 func (s *server) GetDebuggerState(context.Context, GetDebuggerStateRequestObject) (GetDebuggerStateResponseObject, error) {
 	return GetDebuggerStatedefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetMessage ещё не реализована.
+// GetMessage is not implemented yet.
 func (s *server) GetMessage(context.Context, GetMessageRequestObject) (GetMessageResponseObject, error) {
 	return GetMessagedefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetProject ещё не реализована.
+// GetProject is not implemented yet.
 func (s *server) GetProject(context.Context, GetProjectRequestObject) (GetProjectResponseObject, error) {
 	return GetProjectdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetRequest ещё не реализована.
+// GetRequest is not implemented yet.
 func (s *server) GetRequest(context.Context, GetRequestRequestObject) (GetRequestResponseObject, error) {
 	return GetRequestdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetServer ещё не реализована.
+// GetServer is not implemented yet.
 func (s *server) GetServer(context.Context, GetServerRequestObject) (GetServerResponseObject, error) {
 	return GetServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetSettings ещё не реализована.
+// GetSettings is not implemented yet.
 func (s *server) GetSettings(context.Context, GetSettingsRequestObject) (GetSettingsResponseObject, error) {
 	return GetSettingsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// ListMessages ещё не реализована.
+// ListMessages is not implemented yet.
 func (s *server) ListMessages(context.Context, ListMessagesRequestObject) (ListMessagesResponseObject, error) {
 	return ListMessagesdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// ListProjects ещё не реализована.
+// ListProjects is not implemented yet.
 func (s *server) ListProjects(context.Context, ListProjectsRequestObject) (ListProjectsResponseObject, error) {
 	return ListProjectsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// ListServers ещё не реализована.
+// ListServers is not implemented yet.
 func (s *server) ListServers(context.Context, ListServersRequestObject) (ListServersResponseObject, error) {
 	return ListServersdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// SetDebuggerState ещё не реализована.
+// SetDebuggerState is not implemented yet.
 func (s *server) SetDebuggerState(context.Context, SetDebuggerStateRequestObject) (SetDebuggerStateResponseObject, error) {
 	return SetDebuggerStatedefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// StreamEvents ещё не реализована.
+// StreamEvents is not implemented yet.
 func (s *server) StreamEvents(context.Context, StreamEventsRequestObject) (StreamEventsResponseObject, error) {
 	return StreamEventsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// UpdateProject ещё не реализована.
+// UpdateProject is not implemented yet.
 func (s *server) UpdateProject(context.Context, UpdateProjectRequestObject) (UpdateProjectResponseObject, error) {
 	return UpdateProjectdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// UpdateServer ещё не реализована.
+// UpdateServer is not implemented yet.
 func (s *server) UpdateServer(context.Context, UpdateServerRequestObject) (UpdateServerResponseObject, error) {
 	return UpdateServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// UpdateSettings ещё не реализована.
+// UpdateSettings is not implemented yet.
 func (s *server) UpdateSettings(context.Context, UpdateSettingsRequestObject) (UpdateSettingsResponseObject, error) {
 	return UpdateSettingsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }

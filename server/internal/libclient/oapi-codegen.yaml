@@ -1,4 +1,4 @@
-# Генерация из spec/library-http.yaml: make generate
+# Generated from spec/library-http.yaml: make generate
 package: libclient
 output: client.gen.go
 generate:

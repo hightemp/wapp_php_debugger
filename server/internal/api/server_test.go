@@ -153,7 +153,7 @@ func TestServesUIWithSPAFallback(t *testing.T) {
 	}
 }
 
-// readSSE читает поток до первого события с данными (комментарии-heartbeat пропускаются и считаются).
+// readSSE reads the stream up to the first event with data (heartbeat comments are skipped and counted).
 func readSSE(t *testing.T, reader *bufio.Reader) (id, name, data string, pings int) {
 	t.Helper()
 	for {
@@ -199,7 +199,7 @@ func openStream(t *testing.T, url, lastEventID string) *bufio.Reader {
 func TestStreamDeliversEventsAndHeartbeats(t *testing.T) {
 	e := newTestEnv(t)
 	reader := openStream(t, e.server.URL+"/api/v1/stream", "")
-	time.Sleep(60 * time.Millisecond) // несколько heartbeat до первого события
+	time.Sleep(60 * time.Millisecond) // a few heartbeats before the first event
 	e.broker.Publish("request_created", map[string]any{"event": "request_created", "request_id": 7})
 
 	id, name, data, pings := readSSE(t, reader)

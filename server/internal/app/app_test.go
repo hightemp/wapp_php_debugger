@@ -26,7 +26,7 @@ func fixture(t *testing.T, name string) []byte {
 	return data
 }
 
-// Сквозной сценарий walking skeleton: лог в папке → импорт → API → событие SSE о новом логе.
+// End-to-end walking skeleton: a log in the directory → import → API → SSE event about the new log.
 func TestRunServesImportedLogsAndStreamsNewOnes(t *testing.T) {
 	dir := t.TempDir()
 	logsDir := filepath.Join(dir, "logs")
@@ -180,7 +180,7 @@ func TestRunFailsOnBusyAddress(t *testing.T) {
 	}
 }
 
-// Десктоп монтирует обработчик в Wails без сетевого порта: ядро должно запускаться отдельно от HTTP-сервера.
+// The desktop mounts the handler into Wails without a network port, so the core must start without the HTTP server.
 func TestStartGivesHandlerWithoutListening(t *testing.T) {
 	dir := t.TempDir()
 	core, err := Start(context.Background(), Config{DBPath: filepath.Join(dir, "viewer.db"), UI: fstest.MapFS{"index.html": {Data: []byte("ui")}}})

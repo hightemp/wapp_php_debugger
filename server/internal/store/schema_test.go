@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// Схема из п. 7.5 плана: servers → projects → requests → messages, плюс log_files (состояние чтения)
-// и settings. Тесты фиксируют ограничения, на которые будет опираться код импорта и API.
+// Schema from plan 7.5: servers → projects → requests → messages, plus log_files (read state)
+// and settings. The tests pin down the constraints that the importer and the API rely on.
 
 func mustExec(t *testing.T, db *sql.DB, query string, args ...any) sql.Result {
 	t.Helper()
@@ -77,7 +77,7 @@ func TestDeletingServerCascadesToEverything(t *testing.T) {
 			t.Errorf("%s: %d rows left after deleting the server", table, n)
 		}
 	}
-	// Для FTS с внешним содержимым count(*) читает таблицу messages, поэтому проверяем сам индекс
+	// For external-content FTS count(*) reads the messages table, so query the index itself
 	var stale int
 	if err := db.QueryRow(`SELECT count(*) FROM messages_fts WHERE messages_fts MATCH 'кеша'`).Scan(&stale); err != nil {
 		t.Fatal(err)

@@ -180,7 +180,7 @@ func TestParseV1RejectsNonJSONHeader(t *testing.T) {
 	}
 }
 
-// Ключ запроса v1 — имя файла: оно уникально в папке логов, а iRequestTimestamp у копий файла совпадает.
+// The v1 request key is the file name: it is unique in the logs directory, while copies of a file share iRequestTimestamp.
 func TestParseV1KeyIsFileName(t *testing.T) {
 	web, truncated := loadV1(t, "web-get.log").Request, loadV1(t, "truncated-last-line.log").Request
 	if web.Key != "web-get.log" || truncated.Key != "truncated-last-line.log" {

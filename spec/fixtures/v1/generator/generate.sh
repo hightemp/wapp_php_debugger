@@ -1,6 +1,6 @@
 #!/bin/bash
-# Генерирует фикстуры формата v1 старой библиотекой (legacy/Debugger.class.php) на PHP 7.4.
-# Запуск из корня репозитория: make fixtures-v1
+# Generates v1 format fixtures with the legacy library (legacy/Debugger.class.php) on PHP 7.4.
+# Run from the repository root: make fixtures-v1
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
@@ -15,7 +15,7 @@ cat > "$WORK/app/dws_debugger.json" <<JSON
 {"sProjectRootPath":"/var/www/app","sTempPath":"/var/www/app/tmp","sMessagesFilesPath":"/var/www/app/tmp/logs","bIsOnFlag":true}
 JSON
 
-# Библиотека до hotfix (коммит ecf8962): длинный заголовок затирает первые сообщения
+# Library before the hotfix (commit ecf8962): a long header overwrites the first messages
 git -C "$ROOT" show ecf8962:Debugger.class.php > "$WORK/app/Debugger.pre-hotfix.php"
 sed -i "s|^define('DA_CONFIG_FILE_NAME'|define('DA_FLAG', true); define('DA_ROOT_DIR', __DIR__);\ndefine('DA_CONFIG_FILE_NAME'|" "$WORK/app/Debugger.pre-hotfix.php"
 sed -i "s|define('DA_CONFIG_FILE_PATH', __DIR__.\"/\".DA_CONFIG_FILE_NAME);|define('DA_CONFIG_FILE_PATH', __DIR__.'/dws_debugger.json');|" "$WORK/app/Debugger.pre-hotfix.php"
@@ -23,7 +23,7 @@ sed -i "s|define('DA_CONFIG_FILE_PATH', __DIR__.\"/\".DA_CONFIG_FILE_NAME);|defi
 IN_DOCKER=(docker run --rm --init --hostname fixture -u "$(id -u):$(id -g)" -e TZ=UTC
   -v "$WORK/app:/var/www/app" -v "$OUT:/out" -v "$OUT/generator:/generator:ro" -w /var/www/app)
 
-# Веб-запросы через встроенный сервер: SAPI cli-server, как у настоящего веб-запроса
+# Web requests through the built-in server: SAPI cli-server, like a real web request
 "${IN_DOCKER[@]}" "$IMAGE" bash -c '
   cp /generator/scenario.php /var/www/app/
   php -S 127.0.0.1:8080 -t /var/www/app >/dev/null 2>&1 & sleep 1
@@ -43,10 +43,10 @@ cli() { # cli <name> [docker-args...] -- [script-args...]
 
 cli cli -- --queue=emails --verbose
 cli killed
-# 100 аргументов по ~25 байт: заголовок старой библиотеки вырастает далеко за 1000 байт
+# 100 arguments of ~25 bytes each: the legacy library header grows far beyond 1000 bytes
 cli pre-hotfix-long-header -e FIXTURE_LIB=/var/www/app/Debugger.pre-hotfix.php -- $(printf -- '--argument-number=%03d ' $(seq 1 100))
 
-# Обрыв записи посередине последней строки
+# The write is cut off in the middle of the last line
 cp "$OUT/web-get.log" "$OUT/truncated-last-line.log"
 size=$(stat -c %s "$OUT/truncated-last-line.log")
 truncate -s $((size - 40)) "$OUT/truncated-last-line.log"

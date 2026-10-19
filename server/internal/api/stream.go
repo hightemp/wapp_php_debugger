@@ -9,7 +9,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 )
 
-// streamHandler — GET /api/v1/stream: Server-Sent Events с повтором пропущенного по Last-Event-ID.
+// streamHandler serves GET /api/v1/stream: Server-Sent Events with replay after Last-Event-ID.
 type streamHandler struct {
 	broker    *events.Broker
 	heartbeat time.Duration
@@ -25,7 +25,7 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("X-Accel-Buffering", "no") // nginx перед просмотрщиком не должен буферизовать поток
+	w.Header().Set("X-Accel-Buffering", "no") // nginx in front of the viewer must not buffer the stream
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 

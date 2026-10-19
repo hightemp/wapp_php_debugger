@@ -1,6 +1,6 @@
 <?php
-// Выполняет веб-сценарии через запущенный php -S и складывает лог каждого запроса в <out>/<name>.log
-// Запуск: php web-driver.php <logs-dir> <out-dir>
+// Runs web scenarios through a running php -S and stores the log of each request as <out-dir>/<name>.log
+// Usage: php web-driver.php <logs-dir> <out-dir>
 
 [, $logsDir, $outDir] = $argv;
 
@@ -18,7 +18,7 @@ foreach ($scenarios as $name => [$method, $uri, $headers, $body]) {
         'ignore_errors' => true,
     ]]);
     $response = file_get_contents('http://127.0.0.1:8080'.$uri, false, $context);
-    usleep(300000); // shutdown-функция дописывает лог после ответа
+    usleep(300000); // the shutdown function appends to the log after the response
 
     $files = glob($logsDir.'/*');
     if (count($files) !== 1) {

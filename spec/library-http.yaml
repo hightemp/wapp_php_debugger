@@ -3,24 +3,24 @@ info:
   title: wapp-debugger PHP library HTTP mode
   version: 1.0.0
   description: |
-    Опциональный HTTP-режим PHP-библиотеки 2.x для серверов без SSH (п. 4.1, 7.4a плана).
-    Основной способ работы — SSH; этот режим выключен по умолчанию.
+    Optional HTTP mode of the PHP library 2.x for servers without SSH access.
+    SSH is the primary way to work; this mode is off by default.
 
-    Правила безопасности:
-    - режим включается только при заданном в конфиге токене длиной не меньше 32 символов;
-    - токен передаётся только в заголовке `X-Debugger-Token` и сравнивается через `hash_equals`;
-    - **без верного токена библиотека не отвечает вообще**: запрос уходит в приложение как обычный
-      (поэтому в спецификации нет ответа 401 — клиент получает то, что вернёт приложение, обычно 404);
-    - опциональный allowlist IP и ограничение частоты запросов;
-    - доступа к исходникам и к путям конфига нет, все имена файлов — только внутри папки логов.
+    Security rules:
+    - the mode turns on only when the config sets a token of at least 32 characters;
+    - the token is sent only in the `X-Debugger-Token` header and compared with `hash_equals`;
+    - **without a valid token the library does not answer at all**: the request goes to the application as usual
+      (so there is no 401 in this spec — the client gets whatever the application returns, usually 404);
+    - optional IP allowlist and rate limiting;
+    - no access to source files or config paths; every file name stays inside the logs directory.
 
-    Пути обрабатываются библиотекой до приложения по префиксу `/__wapp_debugger/v1/`.
+    The library handles paths under the `/__wapp_debugger/v1/` prefix before the application.
 servers:
   - url: '{base_url}'
     variables:
       base_url:
         default: https://shop.example.test
-        description: Адрес приложения, в которое подключена библиотека
+        description: Address of the application the library is installed in
 security:
   - debugger_token: []
 
@@ -28,10 +28,10 @@ paths:
   /__wapp_debugger/v1/status:
     get:
       operationId: getStatus
-      summary: Состояние отладчика в проекте
+      summary: Debugger state in the project
       responses:
         '200':
-          description: Состояние
+          description: State
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Status' }
@@ -40,7 +40,7 @@ paths:
   /__wapp_debugger/v1/enabled:
     put:
       operationId: setEnabled
-      summary: Включить или выключить запись логов
+      summary: Turn logging on or off
       requestBody:
         required: true
         content:
@@ -53,7 +53,7 @@ paths:
                 enabled: { type: boolean }
       responses:
         '200':
-          description: Новое состояние
+          description: New state
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Status' }
@@ -62,10 +62,10 @@ paths:
   /__wapp_debugger/v1/logs:
     get:
       operationId: listLogs
-      summary: Файлы логов, отсортированные по имени
+      summary: Log files sorted by name
       responses:
         '200':
-          description: Файлы
+          description: Files
           content:
             application/json:
               schema:
@@ -78,10 +78,10 @@ paths:
         default: { $ref: '#/components/responses/Problem' }
     delete:
       operationId: clearLogs
-      summary: Удалить все файлы логов
+      summary: Delete all log files
       responses:
         '200':
-          description: Сколько файлов удалено
+          description: Number of removed files
           content:
             application/json:
               schema:
@@ -94,10 +94,10 @@ paths:
   /__wapp_debugger/v1/logs/{name}:
     get:
       operationId: readLog
-      summary: Прочитать часть файла лога
+      summary: Read part of a log file
       description: |
-        Возвращает до limit байт начиная с offset. Пустое тело — конец файла.
-        416 — offset больше размера файла (файл усекли или подменили).
+        Returns up to limit bytes starting at offset. An empty body means end of file.
+        416 means offset is past the end of the file (it was truncated or replaced).
       parameters:
         - { $ref: '#/components/parameters/Name' }
         - name: offset
@@ -108,10 +108,10 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 8388608, default: 1048576 }
       responses:
         '200':
-          description: Байты файла
+          description: File bytes
           headers:
             X-File-Size:
-              description: Полный размер файла
+              description: Full file size
               schema: { type: integer, format: int64 }
           content:
             application/octet-stream:
@@ -119,10 +119,10 @@ paths:
         default: { $ref: '#/components/responses/Problem' }
     delete:
       operationId: removeLog
-      summary: Удалить файл лога
+      summary: Delete a log file
       parameters: [{ $ref: '#/components/parameters/Name' }]
       responses:
-        '204': { description: Удалён }
+        '204': { description: Deleted }
         default: { $ref: '#/components/responses/Problem' }
 
 components:
@@ -137,14 +137,14 @@ components:
       name: name
       in: path
       required: true
-      description: Имя файла без пути (как в listLogs)
+      description: File name without a path (as in listLogs)
       schema:
         type: string
         pattern: '^[^/\\]+$'
 
   responses:
     Problem:
-      description: Ошибка (только для запросов с верным токеном)
+      description: Error (only for requests with a valid token)
       content:
         application/problem+json:
           schema:
@@ -175,5 +175,5 @@ components:
       properties:
         name: { type: string }
         size: { type: integer, format: int64, minimum: 0 }
-        modified_at: { type: integer, format: int64, description: мс от эпохи }
+        modified_at: { type: integer, format: int64, description: ms since the epoch }
       example: { name: 1792400000000-01JAZ7Q5X0K4M8T2V6N9P3R5S7.jsonl, size: 2048, modified_at: 1792400000040 }

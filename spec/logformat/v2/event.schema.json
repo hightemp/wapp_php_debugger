@@ -1,16 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/hightemp/wapp_php_debugger/spec/logformat/v2/event.schema.json",
-  "title": "Событие лога v2",
-  "description": "Одна строка файла лога v2. Схема строгая (неизвестные поля запрещены), чтобы ловить ошибки писателя; просмотрщик при чтении неизвестные поля игнорирует. Правила потока (seq, порядок событий) описаны в README.md.",
+  "title": "v2 log event",
+  "description": "One line of a v2 log file. The schema is strict (unknown fields are rejected) to catch writer bugs; the viewer ignores unknown fields when reading. Stream rules (seq, event order) are described in README.md.",
   "type": "object",
   "required": ["v", "type", "request_id", "seq", "ts"],
   "properties": {
-    "v": { "const": 2, "description": "Версия формата" },
+    "v": { "const": 2, "description": "Format version" },
     "type": { "enum": ["request_start", "message", "timer", "error", "request_end"] },
     "request_id": { "$ref": "#/$defs/ulid" },
-    "seq": { "type": "integer", "minimum": 1, "description": "Номер события в запросе, с 1 и без пропусков" },
-    "ts": { "type": "integer", "minimum": 0, "description": "Время события, мс от эпохи (часы сервера)" }
+    "seq": { "type": "integer", "minimum": 1, "description": "Event number within the request, starting at 1 without gaps" },
+    "ts": { "type": "integer", "minimum": 0, "description": "Event time, ms since the epoch (server clock)" }
   },
   "oneOf": [
     { "$ref": "#/$defs/request_start" },
@@ -24,22 +24,22 @@
     "ulid": {
       "type": "string",
       "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-      "description": "ULID: сортируется по времени, генерируется без координации"
+      "description": "ULID: sorts by time, generated without coordination"
     },
     "level": {
       "enum": ["error", "warning", "info", "message", "debug"],
-      "description": "message — нейтральная запись (как DWS_MESSAGE в v1); уровни PSR-3 сводятся к этим пяти"
+      "description": "message is a neutral entry (like DWS_MESSAGE in v1); PSR-3 levels map onto these five"
     },
     "tags": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.:-]*$", "maxLength": 64 },
       "uniqueItems": true,
-      "description": "Теги без #, например sql, timediff"
+      "description": "Tags without #, for example sql or timediff"
     },
     "frame": {
       "type": "object",
       "properties": {
-        "file": { "type": "string", "description": "Путь относительно корня проекта" },
+        "file": { "type": "string", "description": "Path relative to the project root" },
         "line": { "type": "integer", "minimum": 0 },
         "function": { "type": "string" },
         "class": { "type": "string" },
@@ -80,7 +80,7 @@
         "level": { "$ref": "#/$defs/level" },
         "message": { "type": "string" },
         "tags": { "$ref": "#/$defs/tags" },
-        "context": { "type": "object", "description": "Именованные переменные; значения — любой JSON" },
+        "context": { "type": "object", "description": "Named variables; values are any JSON" },
         "source": { "$ref": "#/$defs/frame" },
         "trace": { "$ref": "#/$defs/trace" }
       },
@@ -102,8 +102,8 @@
         "kind": { "enum": ["php_error", "exception", "fatal"] },
         "level": { "$ref": "#/$defs/level" },
         "message": { "type": "string" },
-        "error_type": { "type": "string", "pattern": "^E_[A-Z_]+$", "description": "Для php_error и fatal: E_WARNING, E_ERROR и т. п." },
-        "exception_class": { "type": "string", "description": "Для exception" },
+        "error_type": { "type": "string", "pattern": "^E_[A-Z_]+$", "description": "For php_error and fatal: E_WARNING, E_ERROR and so on" },
+        "exception_class": { "type": "string", "description": "For exception" },
         "code": { "type": ["integer", "string"] },
         "source": { "$ref": "#/$defs/frame" },
         "trace": { "$ref": "#/$defs/trace" },
@@ -132,8 +132,8 @@
       "properties": {
         "type": { "const": "request_end" },
         "duration_ms": { "type": "number", "minimum": 0 },
-        "status_code": { "type": "integer", "minimum": 100, "maximum": 599, "description": "Только для web" },
-        "exit_code": { "type": "integer", "description": "Только для cli, если известен" },
+        "status_code": { "type": "integer", "minimum": 100, "maximum": 599, "description": "web only" },
+        "exit_code": { "type": "integer", "description": "cli only, when known" },
         "memory_peak_bytes": { "type": "integer", "minimum": 0 }
       },
       "required": ["duration_ms"]

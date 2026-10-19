@@ -42,7 +42,7 @@ func operations(doc *openapi3.T) []operationRef {
 	return result
 }
 
-// collectPropertyNames обходит все схемы документа, включая вложенные, и возвращает имена свойств.
+// collectPropertyNames walks every schema of the document, including nested ones, and returns property names.
 func collectPropertyNames(doc *openapi3.T) map[string]string {
 	names := map[string]string{}
 	seen := map[*openapi3.Schema]bool{}
@@ -72,7 +72,7 @@ func collectPropertyNames(doc *openapi3.T) map[string]string {
 	}
 	for _, o := range operations(doc) {
 		for _, p := range o.op.Parameters {
-			// Заголовки называются по правилам HTTP (Last-Event-ID), snake_case — для query и path
+			// Headers follow HTTP naming (Last-Event-ID); snake_case applies to query and path parameters
 			if p.Value.In != openapi3.ParameterInHeader {
 				names[p.Value.Name] = o.method + " " + o.path + " parameter"
 			}
@@ -109,7 +109,7 @@ func checkCommonRules(t *testing.T, doc *openapi3.T) {
 	}
 	for name, where := range collectPropertyNames(doc) {
 		if !snakeCase.MatchString(name) {
-			t.Errorf("%s: name %q is not snake_case (п. 10.17)", where, name)
+			t.Errorf("%s: name %q is not snake_case (plan 10.17)", where, name)
 		}
 	}
 }
@@ -142,7 +142,7 @@ func TestLibraryHTTPOpenAPI(t *testing.T) {
 			security = *o.op.Security
 		}
 		if len(security) == 0 {
-			t.Errorf("%s %s: every library endpoint requires the token (п. 4.1)", o.method, o.path)
+			t.Errorf("%s %s: every library endpoint requires the token (plan 4.1)", o.method, o.path)
 		}
 	}
 	for name, scheme := range doc.Components.SecuritySchemes {

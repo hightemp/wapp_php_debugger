@@ -1,26 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/hightemp/wapp_php_debugger/spec/logformat/v1/message.schema.json",
-  "title": "Строка сообщения v1",
-  "description": "Каждая строка файла после заголовка. sMessage приходит как есть из __d(), поэтому допускается любой скаляр; объекты и массивы не допускаются (их не может показать ни один просмотрщик).",
+  "title": "v1 message line",
+  "description": "Every line after the header. sMessage comes from __d() as is, so any scalar is allowed; objects and arrays are not (no viewer can display them).",
   "type": "object",
   "required": ["sType", "sMessage", "iTimestamp"],
   "properties": {
     "sType": {
       "type": "string",
       "minLength": 1,
-      "description": "Обычно error, warning, info, message, functions_debug, но __d() принимает любую строку"
+      "description": "Usually error, warning, info, message or functions_debug, but __d() accepts any string"
     },
     "sMessage": { "type": ["string", "number", "boolean", "null"] },
     "oVars": {
       "type": "object",
-      "description": "Переменные; библиотека приводит их к объекту, поэтому списки приходят как {\"0\": ...}"
+      "description": "Variables; the library casts them to an object, so lists arrive as {\"0\": ...}"
     },
     "oBackTrace": {
       "type": "object",
-      "description": "Место вызова __d()",
+      "description": "Where __d() was called",
       "properties": {
-        "file": { "type": ["string", "null"], "description": "Путь без DA_ROOT_DIR" },
+        "file": { "type": ["string", "null"], "description": "Path without DA_ROOT_DIR" },
         "line": { "type": ["integer", "null"] },
         "function": { "type": ["string", "null"] }
       }
@@ -29,12 +29,12 @@
       "type": "array",
       "items": { "$ref": "#/$defs/frame" }
     },
-    "iTimestamp": { "type": "integer", "description": "Момент записи, мс от эпохи" }
+    "iTimestamp": { "type": "integer", "description": "Write time, ms since the epoch" }
   },
   "$defs": {
     "frame": {
       "type": "object",
-      "description": "Кадр debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)",
+      "description": "A debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) frame",
       "properties": {
         "file": { "type": "string" },
         "line": { "type": "integer" },

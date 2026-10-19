@@ -11,7 +11,7 @@ import (
 	"sort"
 )
 
-// Local — папка логов на этой машине (п. 7.3 плана).
+// Local is a logs directory on this machine (plan 7.3).
 type Local struct {
 	logsDir    string
 	configPath string
@@ -19,12 +19,12 @@ type Local struct {
 
 var _ Source = (*Local)(nil)
 
-// NewLocal создаёт источник: logsDir — папка с файлами логов, configPath — dws_debugger.json библиотеки.
+// NewLocal creates a source: logsDir holds the log files, configPath is the library dws_debugger.json.
 func NewLocal(logsDir, configPath string) *Local {
 	return &Local{logsDir: logsDir, configPath: configPath}
 }
 
-// List возвращает обычные файлы папки логов; каталоги и символические ссылки пропускаются.
+// List returns regular files of the logs directory; directories and symlinks are skipped.
 func (l *Local) List(ctx context.Context) ([]FileInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (l *Local) List(ctx context.Context) ([]FileInfo, error) {
 		}
 		info, err := entry.Info()
 		if err != nil {
-			continue // файл удалили между ReadDir и Info
+			continue // the file was removed between ReadDir and Info
 		}
 		list = append(list, FileInfo{Name: entry.Name(), Size: info.Size(), ModTime: info.ModTime()})
 	}
@@ -48,7 +48,7 @@ func (l *Local) List(ctx context.Context) ([]FileInfo, error) {
 	return list, nil
 }
 
-// path проверяет имя и возвращает путь к обычному файлу внутри папки логов.
+// path validates the name and returns the path of a regular file inside the logs directory.
 func (l *Local) path(name string) (string, os.FileInfo, error) {
 	if err := ValidateName(name); err != nil {
 		return "", nil, err
@@ -61,7 +61,7 @@ func (l *Local) path(name string) (string, os.FileInfo, error) {
 	return path, info, err
 }
 
-// ReadAt читает до limit байт с offset.
+// ReadAt reads up to limit bytes from offset.
 func (l *Local) ReadAt(ctx context.Context, name string, offset int64, limit int) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (l *Local) ReadAt(ctx context.Context, name string, offset int64, limit int
 	return buffer[:n], nil
 }
 
-// Remove удаляет файл лога.
+// Remove deletes a log file.
 func (l *Local) Remove(ctx context.Context, name string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -99,7 +99,7 @@ func (l *Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(path)
 }
 
-// enabledKey — ключ флага в конфиге: bIsOnFlag у библиотеки v1, enabled у v2.
+// enabledKey is the flag key in the config: bIsOnFlag for library v1, enabled for v2.
 func enabledKey(config map[string]json.RawMessage) string {
 	if _, ok := config["bIsOnFlag"]; ok {
 		return "bIsOnFlag"
@@ -122,7 +122,7 @@ func (l *Local) readConfig() (map[string]json.RawMessage, error) {
 	return config, nil
 }
 
-// Enabled читает флаг из конфига; нет конфига — отладчик выключен.
+// Enabled reads the flag from the config; no config means the debugger is off.
 func (l *Local) Enabled(ctx context.Context) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
@@ -141,7 +141,7 @@ func (l *Local) Enabled(ctx context.Context) (bool, error) {
 	return enabled, nil
 }
 
-// SetEnabled меняет только флаг, остальные ключи и права файла сохраняются; запись атомарная.
+// SetEnabled changes only the flag, keeping other keys and the file mode; the write is atomic.
 func (l *Local) SetEnabled(ctx context.Context, enabled bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -179,5 +179,5 @@ func (l *Local) SetEnabled(ctx context.Context, enabled bool) error {
 	return os.Rename(temp.Name(), l.configPath)
 }
 
-// Close ничего не делает.
+// Close does nothing.
 func (l *Local) Close() error { return nil }

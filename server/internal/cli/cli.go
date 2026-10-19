@@ -1,4 +1,4 @@
-// Package cli разбирает аргументы командной строки wapp-debugger.
+// Package cli parses wapp-debugger command line arguments.
 package cli
 
 import (
@@ -16,7 +16,7 @@ Commands:
   help      print this help
 `
 
-// Run выполняет команду и возвращает код выхода: 0 — успех, 2 — ошибка в аргументах.
+// Run executes a command and returns the exit code: 0 on success, 2 on invalid arguments.
 func Run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)

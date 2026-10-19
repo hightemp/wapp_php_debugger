@@ -1,4 +1,4 @@
-// Package desktop — части десктоп-версии, не зависящие от Wails (их можно проверить обычными тестами).
+// Package desktop holds the parts of the desktop app that do not depend on Wails, so plain tests cover them.
 package desktop
 
 import (
@@ -9,36 +9,36 @@ import (
 	"time"
 )
 
-// PagePath — страница самопроверки, которую открывает окно в режиме --self-test.
+// PagePath is the self-test page the window opens in --self-test mode.
 const PagePath = "/__selftest"
 
-// Result — что страница самопроверки смогла сделать через asset handler Wails.
+// Result is what the self-test page managed to do through the Wails asset handler.
 type Result struct {
-	Version   string   `json:"version"`    // ответ /api/v1/version
-	Stream    bool     `json:"stream"`     // событие из потока Wails дошло до страницы
-	Origin    string   `json:"origin"`     // location.origin окна: у Wails он свой на каждой ОС
-	Errors    []string `json:"errors"`     // ошибки на стороне страницы
-	ElapsedMs int      `json:"elapsed_ms"` // время проверки
+	Version   string   `json:"version"`    // /api/v1/version response
+	Stream    bool     `json:"stream"`     // an event from the Wails stream reached the page
+	Origin    string   `json:"origin"`     // location.origin of the window: Wails uses its own on each OS
+	Errors    []string `json:"errors"`     // errors on the page side
+	ElapsedMs int      `json:"elapsed_ms"` // how long the check took
 }
 
-// OK — REST и поток событий работают внутри окна (п. 10.27 плана).
+// OK reports that REST and the event stream work inside the window (plan 10.27).
 func (r Result) OK() bool {
 	return r.Version != "" && r.Stream && len(r.Errors) == 0
 }
 
-// SelfTest отдаёт страницу проверки и принимает от неё результат.
+// SelfTest serves the check page and receives its result.
 type SelfTest struct {
 	onStreamOpen func()
 	once         sync.Once
 	result       chan Result
 }
 
-// NewSelfTest создаёт проверку; onStreamOpen публикует пробное событие в поток.
+// NewSelfTest creates a check; onStreamOpen publishes a probe event into the stream.
 func NewSelfTest(onStreamOpen func()) *SelfTest {
 	return &SelfTest{onStreamOpen: onStreamOpen, result: make(chan Result, 1)}
 }
 
-// Wrap добавляет служебные пути самопроверки перед основным обработчиком.
+// Wrap adds the self-test endpoints in front of the real handler.
 func (s *SelfTest) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -61,7 +61,7 @@ func (s *SelfTest) Wrap(next http.Handler) http.Handler {
 	})
 }
 
-// Wait ждёт результат страницы.
+// Wait waits for the page result.
 func (s *SelfTest) Wait(timeout time.Duration) (Result, error) {
 	select {
 	case result := <-s.result:
@@ -71,10 +71,10 @@ func (s *SelfTest) Wait(timeout time.Duration) (Result, error) {
 	}
 }
 
-// Страница проверяет тот же путь, что и UI в десктопе: fetch к API через asset handler
-// и поток событий через Wails Stream (SSE через asset handler не доходит, см. stream.go).
+// The page checks the same path the desktop UI uses: fetch to the API through the asset handler
+// and the event stream through Wails Stream (SSE does not get through the asset handler, see stream.go).
 const page = `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><title>wapp-debugger self-test</title></head>
+<html lang="en"><head><meta charset="utf-8"><title>wapp-debugger self-test</title></head>
 <body><p id="status">self-test…</p>
 <script type="module">
 import { JSONStream } from "/wails/runtime.js";
@@ -105,7 +105,7 @@ const timer = setTimeout(() => finish("stream: no event within 10s"), 10000);
 stream = JSONStream("` + StreamName + `");
 stream.onopen = () => {
   stream.send({ last_event_id: 0 });
-  // Пробное событие публикуется, когда Go уже подписан на брокер
+  // The probe event is published once Go has subscribed to the broker
   setTimeout(() => fetch("/__selftest/stream-open", { method: "POST" }), 200);
 };
 stream.onmessage = (event) => {

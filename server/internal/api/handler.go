@@ -12,15 +12,15 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
-// Deps — зависимости HTTP-слоя.
+// Deps are the dependencies of the HTTP layer.
 type Deps struct {
 	Store     *store.Store
 	Broker    *events.Broker
-	UI        fs.FS         // собранный Svelte-UI (index.html и assets/)
-	Heartbeat time.Duration // период комментариев-heartbeat в SSE; 0 — 15 секунд
+	UI        fs.FS         // built Svelte UI (index.html and assets/)
+	Heartbeat time.Duration // SSE heartbeat comment period; 0 means 15 seconds
 }
 
-// NewHandler собирает HTTP-обработчик: /api/v1/* по spec/openapi.yaml, SSE-поток и UI.
+// NewHandler builds the HTTP handler: /api/v1/* per spec/openapi.yaml, the SSE stream and the UI.
 func NewHandler(deps Deps) http.Handler {
 	if deps.Heartbeat == 0 {
 		deps.Heartbeat = 15 * time.Second
@@ -37,7 +37,7 @@ func NewHandler(deps Deps) http.Handler {
 	})
 
 	mux := http.NewServeMux()
-	// SSE не укладывается в strict-обработчики (нужен flush после каждого события)
+	// SSE does not fit strict handlers (it needs a flush after every event)
 	mux.Handle("GET /api/v1/stream", &streamHandler{broker: deps.Broker, heartbeat: deps.Heartbeat})
 	mux.Handle("/api/", apiMux)
 	mux.Handle("/", spaHandler(deps.UI))
@@ -66,14 +66,14 @@ func notImplemented() Problem {
 	return problem(http.StatusNotImplemented, "Not Implemented", "this operation is not implemented yet")
 }
 
-// spaHandler отдаёт файлы UI, а для путей без расширения — index.html (маршруты клиентского роутера).
+// spaHandler serves UI files and falls back to index.html for paths without an extension (client-side routes).
 func spaHandler(ui fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if name != "" {
 			if info, err := fs.Stat(ui, name); err == nil && !info.IsDir() {
 				if strings.HasPrefix(name, "assets/") {
-					// Имена файлов Vite содержат хеш содержимого
+					// Vite file names contain a content hash
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 				}
 				http.ServeFileFS(w, r, ui, name)

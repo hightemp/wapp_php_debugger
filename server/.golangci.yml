@@ -1,4 +1,4 @@
-# golangci-lint v2 (версия закреплена в Makefile: GOLANGCI_LINT_VERSION)
+# golangci-lint v2 (version pinned in the Makefile: GOLANGCI_LINT_VERSION)
 version: "2"
 
 linters:
@@ -12,7 +12,7 @@ linters:
     - unused
   settings:
     errcheck:
-      # Ошибки записи в stdout/stderr CLI обрабатывать некуда
+      # A CLI has nowhere to report failed writes to stdout/stderr
       exclude-functions:
         - fmt.Fprint
         - fmt.Fprintf

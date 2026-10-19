@@ -1,4 +1,4 @@
-// Package events — рассылка изменений подписчикам SSE (п. 4.3 плана, /api/v1/stream).
+// Package events fans out changes to SSE subscribers (plan 4.3, /api/v1/stream).
 package events
 
 import (
@@ -7,12 +7,12 @@ import (
 	"sync"
 )
 
-// ResyncName — событие «данные пропущены, перечитайте всё».
+// ResyncName is the "events were missed, reload everything" event.
 const ResyncName = "resync"
 
 const subscriberBuffer = 64
 
-// Event — событие потока: монотонный ID (для Last-Event-ID), имя и JSON-данные.
+// Event is a stream event: a monotonic ID (for Last-Event-ID), a name and JSON data.
 type Event struct {
 	ID   int64
 	Name string
@@ -23,22 +23,22 @@ type subscriber struct {
 	ch chan Event
 }
 
-// Broker хранит последние события для переподключившихся клиентов и рассылает новые.
-// Публикация никогда не ждёт подписчиков: отставшему вместо пропущенных событий приходит resync.
+// Broker keeps recent events for reconnecting clients and fans out new ones.
+// Publishing never waits for subscribers: a lagging one gets resync instead of the missed events.
 type Broker struct {
 	mu          sync.Mutex
 	lastID      int64
-	buffer      []Event // последние события по возрастанию ID, не больше capacity
+	buffer      []Event // recent events in ascending ID order, at most capacity
 	capacity    int
 	subscribers map[*subscriber]struct{}
 }
 
-// NewBroker создаёт брокер, который помнит capacity последних событий.
+// NewBroker creates a broker that remembers the last capacity events.
 func NewBroker(capacity int) *Broker {
 	return &Broker{capacity: capacity, subscribers: map[*subscriber]struct{}{}}
 }
 
-// Publish рассылает событие; data кодируется в JSON.
+// Publish fans out an event; data is encoded as JSON.
 func (b *Broker) Publish(name string, data any) {
 	encoded, err := json.Marshal(data)
 	if err != nil {
@@ -58,7 +58,7 @@ func (b *Broker) Publish(name string, data any) {
 	}
 }
 
-// deliver отправляет событие без ожидания; если буфер подписчика полон, заменяет его содержимое на resync.
+// deliver sends an event without waiting; if the subscriber buffer is full, its contents are replaced with resync.
 func (b *Broker) deliver(sub *subscriber, event Event) {
 	select {
 	case sub.ch <- event:
@@ -78,8 +78,8 @@ func (b *Broker) resync() Event {
 	return Event{ID: b.lastID, Name: ResyncName, Data: json.RawMessage(`{"event":"resync"}`)}
 }
 
-// Subscribe подписывает до отмены ctx. lastEventID > 0 — продолжение после переподключения:
-// сначала приходят пропущенные события из буфера, а если их уже нет — resync.
+// Subscribe subscribes until ctx is canceled. lastEventID > 0 resumes after a reconnect:
+// missed events come from the buffer first, or resync if they are gone.
 func (b *Broker) Subscribe(ctx context.Context, lastEventID int64) <-chan Event {
 	sub := &subscriber{ch: make(chan Event, subscriberBuffer)}
 
@@ -107,7 +107,7 @@ func (b *Broker) Subscribe(ctx context.Context, lastEventID int64) <-chan Event 
 	return sub.ch
 }
 
-// missedSince возвращает события с ID > lastEventID или nil, если часть из них уже вытеснена из буфера.
+// missedSince returns events with ID > lastEventID, or nil if some of them were evicted from the buffer.
 func (b *Broker) missedSince(lastEventID int64) []Event {
 	if len(b.buffer) == 0 || b.buffer[0].ID > lastEventID+1 {
 		return nil

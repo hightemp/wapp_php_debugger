@@ -411,7 +411,7 @@ type Frame struct {
 	CallType *FrameCallType `json:"call_type,omitempty"`
 	Class    *string        `json:"class,omitempty"`
 
-	// EditorUrl Ссылка для открытия в IDE с учётом local_path проекта
+	// EditorUrl Link that opens the file in the IDE, using the project local_path
 	EditorUrl *string `json:"editor_url,omitempty"`
 	File      *string `json:"file,omitempty"`
 	Function  *string `json:"function,omitempty"`
@@ -424,9 +424,9 @@ type FrameCallType string
 // Level defines model for Level.
 type Level string
 
-// Message Сообщение в списке (без контекста и бэктрейса)
+// Message A message in a list (without context and backtrace)
 //
-// Example: {"duration_ms":null,"error_kind":null,"has_context":true,"id":1001,"level":"info","message":"Загрузка товара","request_id":42,"seq":3,"size_bytes":214,"source":{"call_type":"-\u003e","class":"App\\Controller\\ItemController","editor_url":"vscode://file/home/dev/shop/app/Controller/ItemController.php:31","file":"app/Controller/ItemController.php","function":"show","line":31},"tags":[],"ts":1792400000005,"type":"message"}
+// Example: {"duration_ms":null,"error_kind":null,"has_context":true,"id":1001,"level":"info","message":"Loading item","request_id":42,"seq":3,"size_bytes":214,"source":{"call_type":"-\u003e","class":"App\\Controller\\ItemController","editor_url":"vscode://file/home/dev/shop/app/Controller/ItemController.php:31","file":"app/Controller/ItemController.php","function":"show","line":31},"tags":[],"ts":1792400000005,"type":"message"}
 type Message struct {
 	DurationMs *float64          `json:"duration_ms,omitempty"`
 	ErrorKind  *MessageErrorKind `json:"error_kind,omitempty"`
@@ -434,7 +434,7 @@ type Message struct {
 	Id         int64             `json:"id"`
 	Level      Level             `json:"level"`
 
-	// Message Для таймера — его имя
+	// Message For a timer, its name
 	Message   string      `json:"message"`
 	RequestId int64       `json:"request_id"`
 	Seq       int         `json:"seq"`
@@ -460,7 +460,7 @@ type MessageDetail struct {
 	Id             int64                   `json:"id"`
 	Level          Level                   `json:"level"`
 
-	// Message Для таймера — его имя
+	// Message For a timer, its name
 	Message  string `json:"message"`
 	Previous *[]struct {
 		Code           *string `json:"code,omitempty"`
@@ -496,7 +496,7 @@ type MessageType string
 type Problem struct {
 	Detail *string `json:"detail,omitempty"`
 
-	// Errors Ошибки валидации по полям
+	// Errors Validation errors per field
 	Errors *[]struct {
 		Field   string `json:"field"`
 		Message string `json:"message"`
@@ -516,7 +516,7 @@ type Project struct {
 	LogsDir   string  `json:"logs_dir"`
 	Name      string  `json:"name"`
 
-	// PendingFiles Файлы логов, ещё не импортированные полностью
+	// PendingFiles Log files that are not fully imported yet
 	PendingFiles int       `json:"pending_files"`
 	Retention    Retention `json:"retention"`
 	RootPath     string    `json:"root_path"`
@@ -528,7 +528,7 @@ type Project struct {
 type ProjectInput struct {
 	Editor *Editor `json:"editor,omitempty"`
 
-	// LocalPath Локальная копия проекта для ссылок в IDE
+	// LocalPath Local copy of the project for IDE links
 	LocalPath *string    `json:"local_path,omitempty"`
 	LogsDir   string     `json:"logs_dir"`
 	Name      string     `json:"name"`
@@ -547,7 +547,7 @@ type ProjectPatch struct {
 	RootPath  *string    `json:"root_path,omitempty"`
 }
 
-// Request Запрос в ленте
+// Request A request in the feed
 //
 // Example: {"duration_ms":40.2,"error_count":0,"exit_code":null,"finished":true,"format_version":2,"id":42,"is_ajax":false,"message_count":6,"method":"GET","parent_request_key":null,"project_id":1,"received_at":1792400000310,"request_key":"01JAZ7Q5X0K4M8T2V6N9P3R5S7","sapi":"web","server_id":1,"started_at":1792400000000,"status_code":200,"url":"https://shop.example.test/catalog/item?id=42","warning_count":2}
 type Request struct {
@@ -555,7 +555,7 @@ type Request struct {
 	ErrorCount int      `json:"error_count"`
 	ExitCode   *int     `json:"exit_code,omitempty"`
 
-	// Finished false — запрос выполняется или процесс был убит
+	// Finished false means the request is still running or the process was killed
 	Finished         bool                 `json:"finished"`
 	FormatVersion    RequestFormatVersion `json:"format_version"`
 	Id               int64                `json:"id"`
@@ -566,7 +566,7 @@ type Request struct {
 	ProjectId        int64                `json:"project_id"`
 	ReceivedAt       int64                `json:"received_at"`
 
-	// RequestKey v2: request_id (ULID); v1: имя файла лога
+	// RequestKey v2: request_id (ULID); v1: log file name
 	RequestKey   string  `json:"request_key"`
 	Sapi         Sapi    `json:"sapi"`
 	ServerId     int64   `json:"server_id"`
@@ -584,14 +584,14 @@ type RequestDetail struct {
 	AppUser *string   `json:"app_user,omitempty"`
 	Argv    *[]string `json:"argv,omitempty"`
 
-	// Children Дочерние запросы (AJAX, подпроцессы) по parent_request_key
+	// Children Child requests (AJAX, subprocesses) by parent_request_key
 	Children   *[]Request `json:"children,omitempty"`
 	DurationMs *float64   `json:"duration_ms,omitempty"`
 	EndedAt    *int64     `json:"ended_at,omitempty"`
 	ErrorCount int        `json:"error_count"`
 	ExitCode   *int       `json:"exit_code,omitempty"`
 
-	// Finished false — запрос выполняется или процесс был убит
+	// Finished false means the request is still running or the process was killed
 	Finished         bool                       `json:"finished"`
 	FormatVersion    RequestDetailFormatVersion `json:"format_version"`
 	Hostname         *string                    `json:"hostname,omitempty"`
@@ -610,7 +610,7 @@ type RequestDetail struct {
 	ProjectId        int64                      `json:"project_id"`
 	ReceivedAt       int64                      `json:"received_at"`
 
-	// RequestKey v2: request_id (ULID); v1: имя файла лога
+	// RequestKey v2: request_id (ULID); v1: log file name
 	RequestKey   string  `json:"request_key"`
 	Sapi         Sapi    `json:"sapi"`
 	ServerId     int64   `json:"server_id"`
@@ -646,7 +646,7 @@ type Sapi string
 
 // Server Example: {"config":{"host":"stage-web","user":"deploy"},"connection":{"clock_offset_ms":-120,"latency_ms":38,"state":"online"},"created_at":1792400000000,"environment":"stage","id":2,"kind":"ssh","name":"stage","permissions":{"allow_control":false,"allow_delete":false,"read_only":true},"updated_at":1792400000000}
 type Server struct {
-	// Config Параметры подключения без секретов. ssh — host (или алиас из ~/.ssh/config), port, user, jump_hosts; http — base_url.
+	// Config Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url.
 	Config      ServerConfig      `json:"config"`
 	Connection  ServerConnection  `json:"connection"`
 	CreatedAt   int64             `json:"created_at"`
@@ -660,11 +660,11 @@ type Server struct {
 
 // ServerCheck Example: {"ok":false,"steps":[{"name":"connect","ok":true},{"detail":"permission denied: /var/www/shop/tmp/logs","name":"logs_dir_readable","ok":false}]}
 type ServerCheck struct {
-	// HostKeyFingerprint Для нового SSH-хоста — отпечаток ключа, который нужно подтвердить в UI
+	// HostKeyFingerprint For a new SSH host, the key fingerprint to confirm in the UI
 	HostKeyFingerprint *string `json:"host_key_fingerprint,omitempty"`
 	Ok                 bool    `json:"ok"`
 
-	// Steps Шаги проверки по порядку (подключение, ключ хоста, права на папку логов и т. д.)
+	// Steps Check steps in order (connect, host key, logs directory permissions and so on)
 	Steps []struct {
 		Detail *string `json:"detail,omitempty"`
 		Name   string  `json:"name"`
@@ -672,7 +672,7 @@ type ServerCheck struct {
 	} `json:"steps"`
 }
 
-// ServerConfig Параметры подключения без секретов. ssh — host (или алиас из ~/.ssh/config), port, user, jump_hosts; http — base_url.
+// ServerConfig Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url.
 type ServerConfig struct {
 	BaseUrl   *string   `json:"base_url,omitempty"`
 	Host      *string   `json:"host,omitempty"`
@@ -685,7 +685,7 @@ type ServerConfig struct {
 type ServerConnection struct {
 	CheckedAt *int64 `json:"checked_at,omitempty"`
 
-	// ClockOffsetMs Насколько часы сервера отстают (минус) или спешат относительно просмотрщика
+	// ClockOffsetMs How far the server clock is behind (negative) or ahead of the viewer clock
 	ClockOffsetMs *int            `json:"clock_offset_ms,omitempty"`
 	Error         *string         `json:"error,omitempty"`
 	LatencyMs     *float64        `json:"latency_ms,omitempty"`
@@ -694,7 +694,7 @@ type ServerConnection struct {
 
 // ServerInput defines model for ServerInput.
 type ServerInput struct {
-	// Config Параметры подключения без секретов. ssh — host (или алиас из ~/.ssh/config), port, user, jump_hosts; http — base_url.
+	// Config Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url.
 	Config      *ServerConfig      `json:"config,omitempty"`
 	Environment *Environment       `json:"environment,omitempty"`
 	Kind        ServerKind         `json:"kind"`
@@ -707,7 +707,7 @@ type ServerKind string
 
 // ServerPatch defines model for ServerPatch.
 type ServerPatch struct {
-	// Config Параметры подключения без секретов. ssh — host (или алиас из ~/.ssh/config), port, user, jump_hosts; http — base_url.
+	// Config Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url.
 	Config      *ServerConfig      `json:"config,omitempty"`
 	Environment *Environment       `json:"environment,omitempty"`
 	Name        *string            `json:"name,omitempty"`
@@ -716,15 +716,15 @@ type ServerPatch struct {
 
 // ServerPermissions defines model for ServerPermissions.
 type ServerPermissions struct {
-	// AllowControl Включение и выключение отладчика
+	// AllowControl Turning the debugger on and off
 	AllowControl bool `json:"allow_control"`
 	AllowDelete  bool `json:"allow_delete"`
 
-	// ReadOnly Запрещает любые изменения на сервере
+	// ReadOnly Forbids any change on the server
 	ReadOnly bool `json:"read_only"`
 }
 
-// Settings Настройки UI (п. 6.4, 10.25). Хранятся в просмотрщике, localStorage — только кэш.
+// Settings UI settings. Stored by the viewer; localStorage is only a cache.
 //
 // Example: {"accent_color":null,"density":"comfortable","editor":"vscode","locale":"ru","mono_font":null,"theme":"system","ui_font_size":14}
 type Settings struct {
@@ -746,18 +746,18 @@ type SettingsLocale string
 // SettingsTheme defines model for Settings.Theme.
 type SettingsTheme string
 
-// StreamEvent Полезная нагрузка события SSE. Поле event совпадает с именем события SSE.
+// StreamEvent Payload of an SSE event. The event field equals the SSE event name.
 //
 // Example: {"count":3,"event":"messages_added","request_id":42}
 type StreamEvent struct {
 	Connection *ServerConnection `json:"connection,omitempty"`
 	Count      *int              `json:"count,omitempty"`
 
-	// Event request_created / request_updated — request; messages_added — request_id и count;
-	// server_status — server_id и connection; resync — клиент перечитывает данные целиком.
+	// Event request_created / request_updated carry request; messages_added carries request_id and count;
+	// server_status carries server_id and connection; resync tells the client to reload everything.
 	Event StreamEventEvent `json:"event"`
 
-	// Request Запрос в ленте
+	// Request A request in the feed
 	//
 	// Example: {"duration_ms":40.2,"error_count":0,"exit_code":null,"finished":true,"format_version":2,"id":42,"is_ajax":false,"message_count":6,"method":"GET","parent_request_key":null,"project_id":1,"received_at":1792400000310,"request_key":"01JAZ7Q5X0K4M8T2V6N9P3R5S7","sapi":"web","server_id":1,"started_at":1792400000000,"status_code":200,"url":"https://shop.example.test/catalog/item?id=42","warning_count":2}
 	Request   *Request `json:"request,omitempty"`
@@ -765,8 +765,8 @@ type StreamEvent struct {
 	ServerId  *int64   `json:"server_id,omitempty"`
 }
 
-// StreamEventEvent request_created / request_updated — request; messages_added — request_id и count;
-// server_status — server_id и connection; resync — клиент перечитывает данные целиком.
+// StreamEventEvent request_created / request_updated carry request; messages_added carries request_id and count;
+// server_status carries server_id and connection; resync tells the client to reload everything.
 type StreamEventEvent string
 
 // Version defines model for Version.
@@ -801,7 +801,7 @@ type ServerId = int64
 
 // ListProjectsParams defines parameters for ListProjects.
 type ListProjectsParams struct {
-	// ServerId Только проекты сервера
+	// ServerId Only projects of this server
 	ServerId *int64 `form:"server_id,omitempty" json:"server_id,omitempty"`
 }
 
@@ -812,41 +812,41 @@ type ListRequestsParams struct {
 	Environment *Environment `form:"environment,omitempty" json:"environment,omitempty"`
 	Sapi        *Sapi        `form:"sapi,omitempty" json:"sapi,omitempty"`
 
-	// HasErrors Только запросы с ошибками
+	// HasErrors Only requests with errors
 	HasErrors *bool `form:"has_errors,omitempty" json:"has_errors,omitempty"`
 
-	// Q Полнотекстовый поиск по сообщениям и контексту, плюс подстрока URL
+	// Q Full-text search over messages and context, plus a URL substring
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
-	// Since started_at не раньше, мс
+	// Since started_at at or after, ms
 	Since *int64 `form:"since,omitempty" json:"since,omitempty"`
 
-	// Until started_at раньше, мс
+	// Until started_at before, ms
 	Until *int64 `form:"until,omitempty" json:"until,omitempty"`
 
-	// Cursor next_cursor из предыдущей страницы
+	// Cursor next_cursor of the previous page
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ListMessagesParams defines parameters for ListMessages.
 type ListMessagesParams struct {
-	// Level Только эти уровни
+	// Level Only these levels
 	Level *[]Level     `form:"level,omitempty" json:"level,omitempty"`
 	Type  *MessageType `form:"type,omitempty" json:"type,omitempty"`
 	Tag   *string      `form:"tag,omitempty" json:"tag,omitempty"`
 
-	// Q Полнотекстовый поиск по сообщению и контексту
+	// Q Full-text search over the message and context
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
-	// Cursor next_cursor из предыдущей страницы
+	// Cursor next_cursor of the previous page
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // StreamEventsParams defines parameters for StreamEvents.
 type StreamEventsParams struct {
-	// ProjectId Только события проекта (статусы серверов приходят всегда)
+	// ProjectId Only events of this project (server status events always arrive)
 	ProjectId   *int64  `form:"project_id,omitempty" json:"project_id,omitempty"`
 	LastEventID *string `json:"Last-Event-ID,omitempty"`
 }
@@ -871,73 +871,73 @@ type UpdateSettingsJSONRequestBody = Settings
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// GetMessage Сообщение с контекстом и бэктрейсом
+	// GetMessage Get a message with context and backtrace
 	// (GET /api/v1/messages/{message_id})
 	GetMessage(w http.ResponseWriter, r *http.Request, messageId MessageId)
-	// ListProjects Список проектов
+	// ListProjects List projects
 	// (GET /api/v1/projects)
 	ListProjects(w http.ResponseWriter, r *http.Request, params ListProjectsParams)
-	// CreateProject Добавить проект
+	// CreateProject Add a project
 	// (POST /api/v1/projects)
 	CreateProject(w http.ResponseWriter, r *http.Request)
-	// DeleteProject Удалить проект из просмотрщика
+	// DeleteProject Remove a project from the viewer
 	// (DELETE /api/v1/projects/{project_id})
 	DeleteProject(w http.ResponseWriter, r *http.Request, projectId ProjectId)
-	// GetProject Проект
+	// GetProject Get a project
 	// (GET /api/v1/projects/{project_id})
 	GetProject(w http.ResponseWriter, r *http.Request, projectId ProjectId)
-	// UpdateProject Изменить проект
+	// UpdateProject Update a project
 	// (PATCH /api/v1/projects/{project_id})
 	UpdateProject(w http.ResponseWriter, r *http.Request, projectId ProjectId)
-	// GetDebuggerState Включён ли отладчик в проекте
+	// GetDebuggerState Whether the debugger is on in the project
 	// (GET /api/v1/projects/{project_id}/debugger)
 	GetDebuggerState(w http.ResponseWriter, r *http.Request, projectId ProjectId)
-	// SetDebuggerState Включить или выключить отладчик в проекте
+	// SetDebuggerState Turn the debugger on or off in the project
 	// (PUT /api/v1/projects/{project_id}/debugger)
 	SetDebuggerState(w http.ResponseWriter, r *http.Request, projectId ProjectId)
-	// ClearProjectLogs Удалить файлы логов проекта на сервере и их данные в просмотрщике
+	// ClearProjectLogs Delete the project log files on the server and their data in the viewer
 	// (DELETE /api/v1/projects/{project_id}/logs)
 	ClearProjectLogs(w http.ResponseWriter, r *http.Request, projectId ProjectId)
-	// ListRequests Лента запросов, новые сверху
+	// ListRequests Request feed, newest first
 	// (GET /api/v1/requests)
 	ListRequests(w http.ResponseWriter, r *http.Request, params ListRequestsParams)
-	// DeleteRequest Удалить запрос и его файл лога
+	// DeleteRequest Delete a request and its log file
 	// (DELETE /api/v1/requests/{request_id})
 	DeleteRequest(w http.ResponseWriter, r *http.Request, requestId RequestId)
-	// GetRequest Запрос целиком (без сообщений)
+	// GetRequest Get a request (without messages)
 	// (GET /api/v1/requests/{request_id})
 	GetRequest(w http.ResponseWriter, r *http.Request, requestId RequestId)
-	// ListMessages Сообщения запроса по порядку seq
+	// ListMessages Request messages in seq order
 	// (GET /api/v1/requests/{request_id}/messages)
 	ListMessages(w http.ResponseWriter, r *http.Request, requestId RequestId, params ListMessagesParams)
-	// ListServers Список серверов
+	// ListServers List servers
 	// (GET /api/v1/servers)
 	ListServers(w http.ResponseWriter, r *http.Request)
-	// CreateServer Добавить сервер
+	// CreateServer Add a server
 	// (POST /api/v1/servers)
 	CreateServer(w http.ResponseWriter, r *http.Request)
-	// DeleteServer Удалить сервер вместе с его проектами из просмотрщика
+	// DeleteServer Remove a server and its projects from the viewer
 	// (DELETE /api/v1/servers/{server_id})
 	DeleteServer(w http.ResponseWriter, r *http.Request, serverId ServerId)
-	// GetServer Сервер
+	// GetServer Get a server
 	// (GET /api/v1/servers/{server_id})
 	GetServer(w http.ResponseWriter, r *http.Request, serverId ServerId)
-	// UpdateServer Изменить сервер
+	// UpdateServer Update a server
 	// (PATCH /api/v1/servers/{server_id})
 	UpdateServer(w http.ResponseWriter, r *http.Request, serverId ServerId)
-	// CheckServer Проверить подключение к серверу
+	// CheckServer Check the server connection
 	// (POST /api/v1/servers/{server_id}/check)
 	CheckServer(w http.ResponseWriter, r *http.Request, serverId ServerId)
-	// GetSettings Настройки интерфейса
+	// GetSettings Get UI settings
 	// (GET /api/v1/settings)
 	GetSettings(w http.ResponseWriter, r *http.Request)
-	// UpdateSettings Сохранить настройки интерфейса
+	// UpdateSettings Save UI settings
 	// (PUT /api/v1/settings)
 	UpdateSettings(w http.ResponseWriter, r *http.Request)
-	// StreamEvents Поток изменений (Server-Sent Events)
+	// StreamEvents Change stream (Server-Sent Events)
 	// (GET /api/v1/stream)
 	StreamEvents(w http.ResponseWriter, r *http.Request, params StreamEventsParams)
-	// GetVersion Версия просмотрщика
+	// GetVersion Viewer version
 	// (GET /api/v1/version)
 	GetVersion(w http.ResponseWriter, r *http.Request)
 }
@@ -2783,73 +2783,73 @@ func (response GetVersiondefaultApplicationProblemPlusJSONResponse) VisitGetVers
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// GetMessage Сообщение с контекстом и бэктрейсом
+	// GetMessage Get a message with context and backtrace
 	// (GET /api/v1/messages/{message_id})
 	GetMessage(ctx context.Context, request GetMessageRequestObject) (GetMessageResponseObject, error)
-	// ListProjects Список проектов
+	// ListProjects List projects
 	// (GET /api/v1/projects)
 	ListProjects(ctx context.Context, request ListProjectsRequestObject) (ListProjectsResponseObject, error)
-	// CreateProject Добавить проект
+	// CreateProject Add a project
 	// (POST /api/v1/projects)
 	CreateProject(ctx context.Context, request CreateProjectRequestObject) (CreateProjectResponseObject, error)
-	// DeleteProject Удалить проект из просмотрщика
+	// DeleteProject Remove a project from the viewer
 	// (DELETE /api/v1/projects/{project_id})
 	DeleteProject(ctx context.Context, request DeleteProjectRequestObject) (DeleteProjectResponseObject, error)
-	// GetProject Проект
+	// GetProject Get a project
 	// (GET /api/v1/projects/{project_id})
 	GetProject(ctx context.Context, request GetProjectRequestObject) (GetProjectResponseObject, error)
-	// UpdateProject Изменить проект
+	// UpdateProject Update a project
 	// (PATCH /api/v1/projects/{project_id})
 	UpdateProject(ctx context.Context, request UpdateProjectRequestObject) (UpdateProjectResponseObject, error)
-	// GetDebuggerState Включён ли отладчик в проекте
+	// GetDebuggerState Whether the debugger is on in the project
 	// (GET /api/v1/projects/{project_id}/debugger)
 	GetDebuggerState(ctx context.Context, request GetDebuggerStateRequestObject) (GetDebuggerStateResponseObject, error)
-	// SetDebuggerState Включить или выключить отладчик в проекте
+	// SetDebuggerState Turn the debugger on or off in the project
 	// (PUT /api/v1/projects/{project_id}/debugger)
 	SetDebuggerState(ctx context.Context, request SetDebuggerStateRequestObject) (SetDebuggerStateResponseObject, error)
-	// ClearProjectLogs Удалить файлы логов проекта на сервере и их данные в просмотрщике
+	// ClearProjectLogs Delete the project log files on the server and their data in the viewer
 	// (DELETE /api/v1/projects/{project_id}/logs)
 	ClearProjectLogs(ctx context.Context, request ClearProjectLogsRequestObject) (ClearProjectLogsResponseObject, error)
-	// ListRequests Лента запросов, новые сверху
+	// ListRequests Request feed, newest first
 	// (GET /api/v1/requests)
 	ListRequests(ctx context.Context, request ListRequestsRequestObject) (ListRequestsResponseObject, error)
-	// DeleteRequest Удалить запрос и его файл лога
+	// DeleteRequest Delete a request and its log file
 	// (DELETE /api/v1/requests/{request_id})
 	DeleteRequest(ctx context.Context, request DeleteRequestRequestObject) (DeleteRequestResponseObject, error)
-	// GetRequest Запрос целиком (без сообщений)
+	// GetRequest Get a request (without messages)
 	// (GET /api/v1/requests/{request_id})
 	GetRequest(ctx context.Context, request GetRequestRequestObject) (GetRequestResponseObject, error)
-	// ListMessages Сообщения запроса по порядку seq
+	// ListMessages Request messages in seq order
 	// (GET /api/v1/requests/{request_id}/messages)
 	ListMessages(ctx context.Context, request ListMessagesRequestObject) (ListMessagesResponseObject, error)
-	// ListServers Список серверов
+	// ListServers List servers
 	// (GET /api/v1/servers)
 	ListServers(ctx context.Context, request ListServersRequestObject) (ListServersResponseObject, error)
-	// CreateServer Добавить сервер
+	// CreateServer Add a server
 	// (POST /api/v1/servers)
 	CreateServer(ctx context.Context, request CreateServerRequestObject) (CreateServerResponseObject, error)
-	// DeleteServer Удалить сервер вместе с его проектами из просмотрщика
+	// DeleteServer Remove a server and its projects from the viewer
 	// (DELETE /api/v1/servers/{server_id})
 	DeleteServer(ctx context.Context, request DeleteServerRequestObject) (DeleteServerResponseObject, error)
-	// GetServer Сервер
+	// GetServer Get a server
 	// (GET /api/v1/servers/{server_id})
 	GetServer(ctx context.Context, request GetServerRequestObject) (GetServerResponseObject, error)
-	// UpdateServer Изменить сервер
+	// UpdateServer Update a server
 	// (PATCH /api/v1/servers/{server_id})
 	UpdateServer(ctx context.Context, request UpdateServerRequestObject) (UpdateServerResponseObject, error)
-	// CheckServer Проверить подключение к серверу
+	// CheckServer Check the server connection
 	// (POST /api/v1/servers/{server_id}/check)
 	CheckServer(ctx context.Context, request CheckServerRequestObject) (CheckServerResponseObject, error)
-	// GetSettings Настройки интерфейса
+	// GetSettings Get UI settings
 	// (GET /api/v1/settings)
 	GetSettings(ctx context.Context, request GetSettingsRequestObject) (GetSettingsResponseObject, error)
-	// UpdateSettings Сохранить настройки интерфейса
+	// UpdateSettings Save UI settings
 	// (PUT /api/v1/settings)
 	UpdateSettings(ctx context.Context, request UpdateSettingsRequestObject) (UpdateSettingsResponseObject, error)
-	// StreamEvents Поток изменений (Server-Sent Events)
+	// StreamEvents Change stream (Server-Sent Events)
 	// (GET /api/v1/stream)
 	StreamEvents(ctx context.Context, request StreamEventsRequestObject) (StreamEventsResponseObject, error)
-	// GetVersion Версия просмотрщика
+	// GetVersion Viewer version
 	// (GET /api/v1/version)
 	GetVersion(ctx context.Context, request GetVersionRequestObject) (GetVersionResponseObject, error)
 }
@@ -3527,110 +3527,95 @@ func (sh *strictHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"/w==",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -1,4 +1,4 @@
-// Package store хранит данные просмотрщика в SQLite: схему, миграции и запросы.
+// Package store keeps viewer data in SQLite: schema, migrations and queries.
 package store
 
 import (
@@ -13,13 +13,13 @@ import (
 	"strconv"
 	"strings"
 
-	_ "modernc.org/sqlite" // драйвер "sqlite" без CGO (п. 10.6)
+	_ "modernc.org/sqlite" // the "sqlite" driver without CGO (plan 10.6)
 )
 
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-// Open открывает (или создаёт) базу и применяет миграции.
+// Open opens (or creates) the database and applies migrations.
 func Open(ctx context.Context, file string) (*sql.DB, error) {
 	db, err := openDB(file)
 	if err != nil {
@@ -37,7 +37,7 @@ func Open(ctx context.Context, file string) (*sql.DB, error) {
 	return db, nil
 }
 
-// openDB открывает базу без миграций. Внешние ключи включаются для каждого соединения пула через DSN.
+// openDB opens the database without migrations. Foreign keys are enabled for every pooled connection via the DSN.
 func openDB(file string) (*sql.DB, error) {
 	query := url.Values{}
 	query.Add("_pragma", "foreign_keys(1)")
@@ -52,7 +52,7 @@ type migration struct {
 	name    string
 }
 
-// migrate применяет файлы NNNN_описание.sql по возрастанию версии, каждый в своей транзакции.
+// migrate applies NNNN_description.sql files in version order, each in its own transaction.
 func migrate(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version INTEGER PRIMARY KEY,

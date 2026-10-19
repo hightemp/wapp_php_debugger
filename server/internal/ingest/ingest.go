@@ -1,4 +1,4 @@
-// Package ingest импортирует файлы логов из источника в базу просмотрщика.
+// Package ingest imports log files from a source into the viewer database.
 package ingest
 
 import (
@@ -11,27 +11,27 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
-// Importer перечитывает изменившиеся файлы логов проекта.
+// Importer re-reads log files of a project that changed.
 type Importer struct {
 	store *store.Store
 }
 
-// New создаёт импортёр.
+// New creates an importer.
 func New(s *store.Store) *Importer {
 	return &Importer{store: s}
 }
 
-// ScanResult — итог одного прохода по папке логов.
+// ScanResult is the outcome of one pass over the logs directory.
 type ScanResult struct {
-	Created     []int64          // id новых запросов
-	Updated     []int64          // id запросов, файл которых изменился
-	Unchanged   int              // файлы без изменений с прошлого прохода
-	Unsupported int              // файлы v2: парсер появится в фазе 5
-	Failed      map[string]error // файлы, которые не удалось разобрать
+	Created     []int64          // ids of new requests
+	Updated     []int64          // ids of requests whose file changed
+	Unchanged   int              // files unchanged since the last pass
+	Unsupported int              // v2 files: the parser arrives in phase 5
+	Failed      map[string]error // files that could not be parsed
 }
 
-// Scan проходит по файлам источника и сохраняет новые и изменившиеся.
-// Ошибка разбора одного файла не останавливает проход: она попадает в Failed.
+// Scan walks the source files and saves new and changed ones.
+// A parse error in one file does not stop the pass: it goes to Failed.
 func (i *Importer) Scan(ctx context.Context, projectID int64, src source.Source) (ScanResult, error) {
 	result := ScanResult{Failed: map[string]error{}}
 	files, err := src.List(ctx)
@@ -53,7 +53,7 @@ func (i *Importer) Scan(ctx context.Context, projectID int64, src source.Source)
 			continue
 		}
 
-		// Файл v1 перечитывается целиком: заголовок перезаписывается на месте
+		// A v1 file is re-read as a whole: its header is rewritten in place
 		data, err := src.ReadAt(ctx, file.Name, 0, int(file.Size))
 		if err != nil {
 			result.Failed[file.Name] = err

@@ -1,6 +1,6 @@
 //go:build embedui
 
-// Package web отдаёт собранный UI, встроенный в бинарник (сборка с тегом embedui).
+// Package web serves the built UI embedded into the binary (built with the embedui tag).
 package web
 
 import (
@@ -11,7 +11,7 @@ import (
 //go:embed all:dist
 var dist embed.FS
 
-// UI возвращает собранный Svelte-UI (make ui-build кладёт его в server/web/dist).
+// UI returns the built Svelte UI (make ui-build puts it into server/web/dist).
 func UI() fs.FS {
 	sub, err := fs.Sub(dist, "dist")
 	if err != nil {

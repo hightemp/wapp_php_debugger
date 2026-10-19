@@ -1,4 +1,4 @@
-// Команда wapp-debugger — просмотрщик логов PHP-отладчика.
+// Command wapp-debugger is the log viewer for the PHP debugger.
 package main
 
 import (

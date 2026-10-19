@@ -1,19 +1,21 @@
-# Фикстуры логов v1
+# v1 log fixtures
 
-Логи текущего формата (`legacy/Debugger.class.php`), записанные настоящей библиотекой на PHP 7.4. На них пишутся тесты парсера v1 в Go и e2e-тесты UI.
+Logs in the current format (`legacy/Debugger.class.php`), written by the real library on PHP 7.4. The v1 parser tests in Go and the UI e2e tests use them.
 
-Формат v1: первая строка — заголовок запроса фиксированной длины 1000 байт (JSON, дополненный пробелами, перезаписывается на месте при завершении запроса), затем по одной JSON-строке на сообщение (`sType`, `sMessage`, `oVars`, `oBackTrace`, `aBackTrace`, `iTimestamp`).
+v1 format: the first line is the request header with a fixed length of 1000 bytes (JSON padded with spaces, rewritten in place when the request finishes), then one JSON line per message (`sType`, `sMessage`, `oVars`, `oBackTrace`, `aBackTrace`, `iTimestamp`).
 
-`manifest.json` — эталонные свойства каждого файла (валидность заголовка, `bFinished`, `bIsCli`, `bIsAjax`, число целых и битых строк, уровни). Он вычисляется `generator/manifest.php` и проверяется глазами при перегенерации: тесты парсера сравнивают с ним свой результат.
+`manifest.json` holds the reference properties of every file (header validity, `bFinished`, `bIsCli`, `bIsAjax`, number of valid and broken lines, levels). `generator/manifest.php` computes it, and it is reviewed by hand after regeneration: the parser tests compare their results with it.
 
-| Файл | Сценарий |
+| File | Scenario |
 |---|---|
-| `web-get.log` | GET через `php -S` (SAPI cli-server): все уровни, таймер, `__log`, `E_USER_ERROR`, поля найдено/не найдено |
-| `web-ajax-post.log` | AJAX POST, пароль в `$_POST` замаскирован |
-| `cli.log` | CLI с аргументами |
-| `long-url.log` | URL длиннее 1000 байт: `sURL` укорочен до 300 байт, заголовок ровно 1000 байт |
-| `killed.log` | Процесс убит `SIGKILL` до shutdown: `bFinished=false`, нет итоговых сообщений |
-| `truncated-last-line.log` | Последняя строка оборвана посередине записи |
-| `pre-hotfix-long-header.log` | Библиотека до hotfix (`ecf8962`): заголовок 2714 байт затёр начало первого сообщения; секреты не замаскированы (значения синтетические) |
+| `web-get.log` | GET through `php -S` (SAPI cli-server): all levels, a timer, `__log`, `E_USER_ERROR`, found/not found fields |
+| `web-ajax-post.log` | AJAX POST, the password in `$_POST` is masked |
+| `cli.log` | CLI with arguments |
+| `long-url.log` | URL longer than 1000 bytes: `sURL` is shortened to 300 bytes, the header is exactly 1000 bytes |
+| `killed.log` | Process killed with `SIGKILL` before shutdown: `bFinished=false`, no final messages |
+| `truncated-last-line.log` | The last line is cut off in the middle of a write |
+| `pre-hotfix-long-header.log` | Library before the hotfix (`ecf8962`): a 2714-byte header overwrote the start of the first message; secrets are not masked (the values are synthetic) |
 
-Перегенерация (нужен Docker): `make fixtures-v1`. Временные метки и размеры при этом меняются, сценарии — нет.
+The log messages are partly in Russian on purpose: the fixtures exercise non-ASCII text.
+
+Regenerate (Docker required): `make fixtures-v1`. Timestamps and sizes change, the scenarios do not.

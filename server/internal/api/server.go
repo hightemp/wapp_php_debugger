@@ -9,14 +9,14 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/version"
 )
 
-// server реализует StrictServerInterface; нереализованные операции — в unimplemented.go.
+// server implements StrictServerInterface; operations that are not implemented yet live in unimplemented.go.
 type server struct {
 	deps Deps
 }
 
 var _ StrictServerInterface = (*server)(nil)
 
-// GetVersion возвращает версию сборки.
+// GetVersion returns the build version.
 func (s *server) GetVersion(context.Context, GetVersionRequestObject) (GetVersionResponseObject, error) {
 	return GetVersion200JSONResponse{Version: version.Version, Commit: version.Commit, Date: version.Date}, nil
 }
@@ -26,7 +26,7 @@ const (
 	maxLimit     = 500
 )
 
-// ListRequests возвращает ленту запросов.
+// ListRequests returns the request feed.
 func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestObject) (ListRequestsResponseObject, error) {
 	params := request.Params
 	limit := defaultLimit
@@ -62,7 +62,7 @@ func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestOb
 	return response, nil
 }
 
-// RequestDTO переводит строку ленты в DTO API.
+// RequestDTO converts a feed row to the API DTO.
 func RequestDTO(r store.RequestRow) Request {
 	return Request{
 		Id:               r.ID,

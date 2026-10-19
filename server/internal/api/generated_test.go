@@ -23,7 +23,7 @@ func operationIDs(doc *openapi3.T) string {
 	var ids []string
 	for _, item := range doc.Paths.Map() {
 		for _, op := range item.Operations() {
-			// oapi-codegen переводит operationId в CamelCase перед встраиванием
+			// oapi-codegen converts operationId to CamelCase before embedding the spec
 			ids = append(ids, strings.ToLower(op.OperationID))
 		}
 	}
@@ -31,8 +31,8 @@ func operationIDs(doc *openapi3.T) string {
 	return strings.Join(ids, ",")
 }
 
-// Сгенерированный код содержит копию спецификации: если она отличается от spec/openapi.yaml,
-// значит после правки спецификации забыли выполнить make generate.
+// The generated code embeds a copy of the spec: if it differs from spec/openapi.yaml,
+// someone changed the spec and forgot to run make generate.
 func TestGeneratedCodeMatchesSpec(t *testing.T) {
 	embedded, err := GetSwagger()
 	if err != nil {
@@ -50,7 +50,7 @@ func TestGeneratedCodeMatchesSpec(t *testing.T) {
 	}
 }
 
-// schemaFields — отпечаток схем: имя схемы и отсортированные имена её свойств.
+// schemaFields fingerprints the schemas: schema name plus its sorted property names.
 func schemaFields(doc *openapi3.T) string {
 	var parts []string
 	for name, ref := range doc.Components.Schemas {
