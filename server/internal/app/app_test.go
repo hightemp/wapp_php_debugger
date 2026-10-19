@@ -79,7 +79,6 @@ func TestRunServesImportedLogsAndStreamsNewOnes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(logsDir, "1792400000002"), fixture(t, "cli.log"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	payload := nextEvent(t, bufio.NewReader(response.Body), "request_created")
 	var event struct {
 		Event   string `json:"event"`
 		Request struct {
@@ -87,9 +86,20 @@ func TestRunServesImportedLogsAndStreamsNewOnes(t *testing.T) {
 			Sapi       string `json:"sapi"`
 		} `json:"request"`
 	}
-	if err := json.Unmarshal([]byte(payload), &event); err != nil || event.Event != "request_created" ||
-		event.Request.RequestKey != "1792400000002" || event.Request.Sapi != "cli" {
-		t.Fatalf("event = %s (%v)", payload, err)
+	// The event of the first file is published right after its row is visible, so a fresh
+	// subscriber may still get it: skip events of other requests
+	reader := bufio.NewReader(response.Body)
+	for {
+		payload := nextEvent(t, reader, "request_created")
+		if err := json.Unmarshal([]byte(payload), &event); err != nil {
+			t.Fatalf("event = %s (%v)", payload, err)
+		}
+		if event.Request.RequestKey != "1792400000001" {
+			break
+		}
+	}
+	if event.Event != "request_created" || event.Request.RequestKey != "1792400000002" || event.Request.Sapi != "cli" {
+		t.Fatalf("event = %+v", event)
 	}
 
 	cancel()
