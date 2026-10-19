@@ -29,6 +29,7 @@ type Server struct {
 	User          string
 	ClientKeyFile string // OpenSSH private key accepted by the server
 
+	root      string
 	execs     map[string]string
 	authKeys  []ssh.PublicKey
 	listener  net.Listener
@@ -36,6 +37,7 @@ type Server struct {
 	conns     map[*ssh.ServerConn]struct{}
 	forwards  atomic.Int64
 	keepalive atomic.Int64
+	accepts   atomic.Int64
 }
 
 // Option changes the server before it starts.
@@ -61,6 +63,7 @@ func Start(t *testing.T, options ...Option) *Server {
 		HostKey:       hostSigner.PublicKey(),
 		User:          "deploy",
 		ClientKeyFile: clientFile,
+		root:          t.TempDir(),
 		execs:         map[string]string{},
 		authKeys:      []ssh.PublicKey{clientSigner.PublicKey()},
 		conns:         map[*ssh.ServerConn]struct{}{},
@@ -97,6 +100,12 @@ func Start(t *testing.T, options ...Option) *Server {
 	t.Cleanup(s.Close)
 	return s
 }
+
+// Accepts counts SSH connections that passed the handshake.
+func (s *Server) Accepts() int64 { return s.accepts.Load() }
+
+// Root is a directory for files served over sftp (any absolute path works: sftp serves the file system).
+func (s *Server) Root() string { return s.root }
 
 // Forwards counts direct-tcpip channels: connections made through this server as a jump host.
 func (s *Server) Forwards() int64 { return s.forwards.Load() }
@@ -137,6 +146,7 @@ func (s *Server) serve(config *ssh.ServerConfig) {
 				_ = raw.Close()
 				return
 			}
+			s.accepts.Add(1)
 			s.mu.Lock()
 			s.conns[conn] = struct{}{}
 			s.mu.Unlock()
