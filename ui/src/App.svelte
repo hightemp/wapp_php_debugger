@@ -3,8 +3,15 @@
   import RequestList from './components/RequestList.svelte';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport } from './lib/api/client';
+  import { createWailsEventSource, isDesktop, openWailsStream } from './lib/api/wails-stream';
 
-  let { transport = createHttpTransport({ baseUrl: '' }) }: { transport?: Transport } = $props();
+  // В десктопе REST идёт тем же fetch через asset handler Wails, а события — через Wails Stream
+  let {
+    transport = createHttpTransport({
+      baseUrl: '',
+      createEventSource: isDesktop() ? createWailsEventSource(openWailsStream) : undefined,
+    }),
+  }: { transport?: Transport } = $props();
 
   let version = $state('');
 
