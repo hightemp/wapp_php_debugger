@@ -53,8 +53,9 @@ $(GOLANGCI_LINT):
 $(ACTIONLINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
+# GoReleaser needs a newer Go than the project; GOTOOLCHAIN=auto lets go fetch it just for this build
 $(GORELEASER):
-	GOBIN=$(TOOLS_BIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
+	GOTOOLCHAIN=auto GOBIN=$(TOOLS_BIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
 
 # --- Общие цели -------------------------------------------------------------
 

@@ -133,6 +133,11 @@ jobs:
       - name: Linux dependencies (GTK4, WebKitGTK 6.0, Xvfb)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev xvfb
+      # Ubuntu 24.04 restricts unprivileged user namespaces, which the WebKit sandbox (bubblewrap) needs;
+      # without this the web process cannot start. The sandbox itself stays on.
+      - name: Allow the WebKit sandbox on Ubuntu 24.04
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: GNU Make on Windows
         if: runner.os == 'Windows'
         run: command -v make || choco install make -y

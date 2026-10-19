@@ -30,6 +30,10 @@ func newLocal(t *testing.T, files map[string][]byte, config string) (*source.Loc
 		if err := os.WriteFile(configPath, []byte(config), 0o664); err != nil {
 			t.Fatal(err)
 		}
+		// WriteFile is subject to the umask (002 locally, 022 in CI); the tests need exactly 0664
+		if err := os.Chmod(configPath, 0o664); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return source.NewLocal(logsDir, configPath), configPath
 }
