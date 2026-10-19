@@ -24,16 +24,36 @@ final class HttpModeProcessTest extends TestCase
     {
         file_put_contents($this->tempDir() . '/dws_debugger.json', json_encode(['enabled' => false, 'logs_dir' => 'logs', 'http_token' => self::TOKEN]));
         mkdir($this->tempDir() . '/logs');
-        $this->port = random_int(20000, 40000);
+        $this->port = self::freePort();
         // index.php as the router: every request goes through the application, as behind nginx + FPM
         // (without a router php -S 7.4 answers 404 itself for a missing file with an extension, like *.jsonl)
         $command = sprintf('exec %s -S 127.0.0.1:%d %s', escapeshellarg(PHP_BINARY), $this->port, escapeshellarg(__DIR__ . '/scripts/web/index.php'));
         $server = proc_open($command, [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, ['WAPP_TEST_DIR' => $this->tempDir()] + getenv());
         self::assertIsResource($server);
         $this->server = $server;
-        for ($i = 0; $i < 50 && @fsockopen('127.0.0.1', $this->port) === false; ++$i) {
+        for ($i = 0; $i < 100; ++$i) {
+            $connection = @fsockopen('127.0.0.1', $this->port);
+            if ($connection !== false) {
+                fclose($connection);
+
+                return;
+            }
+            $status = proc_get_status($server);
+            self::assertTrue(is_array($status) && $status['running'], 'php -S exited before it started listening');
             usleep(100000);
         }
+        self::fail("php -S does not listen on port {$this->port} after 10 s");
+    }
+
+    /** A port the system has just handed out, so it is free (a random one may be taken). */
+    private static function freePort(): int
+    {
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        self::assertIsResource($socket);
+        $name = (string) stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        return (int) substr($name, (int) strrpos($name, ':') + 1);
     }
 
     protected function tearDown(): void
