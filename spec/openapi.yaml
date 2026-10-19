@@ -1,0 +1,881 @@
+openapi: 3.0.3
+info:
+  title: wapp-debugger viewer API
+  version: 1.0.0
+  description: |
+    API просмотрщика логов (Go-сервер и десктоп). Его использует Svelte-UI; в десктопе тот же API
+    отдаётся через asset handler Wails без сетевого порта (п. 7.8 плана).
+
+    Правила:
+    - имена полей и параметров — `snake_case` (п. 10.17);
+    - время — миллисекунды от эпохи; `started_at`, `ts` — часы сервера проекта, `received_at` — часы просмотрщика;
+    - ошибки — Problem Details (RFC 9457), `application/problem+json`;
+    - списки запросов и сообщений — курсорная пагинация: `next_cursor` передаётся в `cursor`, `null` — конец.
+servers:
+  - url: http://127.0.0.1:8820
+    description: Локальный запуск wapp-debugger serve
+security:
+  - bearer_auth: []
+  - {}
+tags:
+  - name: system
+  - name: servers
+  - name: projects
+  - name: requests
+  - name: stream
+  - name: settings
+
+paths:
+  /api/v1/version:
+    get:
+      tags: [system]
+      operationId: getVersion
+      summary: Версия просмотрщика
+      security: [{}]
+      responses:
+        '200':
+          description: Версия сборки
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Version' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers:
+    get:
+      tags: [servers]
+      operationId: listServers
+      summary: Список серверов
+      responses:
+        '200':
+          description: Серверы со статусом подключения
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [servers]
+      operationId: createServer
+      summary: Добавить сервер
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServerInput' }
+      responses:
+        '201':
+          description: Сервер добавлен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers/{server_id}:
+    get:
+      tags: [servers]
+      operationId: getServer
+      summary: Сервер
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      responses:
+        '200':
+          description: Сервер
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [servers]
+      operationId: updateServer
+      summary: Изменить сервер
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServerPatch' }
+      responses:
+        '200':
+          description: Сервер изменён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [servers]
+      operationId: deleteServer
+      summary: Удалить сервер вместе с его проектами из просмотрщика
+      description: Удаляет только данные просмотрщика; файлы логов на сервере не трогаются.
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      responses:
+        '204': { description: Удалён }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers/{server_id}/check:
+    post:
+      tags: [servers]
+      operationId: checkServer
+      summary: Проверить подключение к серверу
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      responses:
+        '200':
+          description: Результат проверки (неудачная проверка — тоже 200 с ok=false)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServerCheck' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects:
+    get:
+      tags: [projects]
+      operationId: listProjects
+      summary: Список проектов
+      parameters:
+        - name: server_id
+          in: query
+          description: Только проекты сервера
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Проекты
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [projects]
+      operationId: createProject
+      summary: Добавить проект
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectInput' }
+      responses:
+        '201':
+          description: Проект добавлен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}:
+    get:
+      tags: [projects]
+      operationId: getProject
+      summary: Проект
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: Проект
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [projects]
+      operationId: updateProject
+      summary: Изменить проект
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectPatch' }
+      responses:
+        '200':
+          description: Проект изменён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [projects]
+      operationId: deleteProject
+      summary: Удалить проект из просмотрщика
+      description: Удаляет только данные просмотрщика; файлы логов на сервере не трогаются.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '204': { description: Удалён }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}/debugger:
+    get:
+      tags: [projects]
+      operationId: getDebuggerState
+      summary: Включён ли отладчик в проекте
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: Состояние
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DebuggerState' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [projects]
+      operationId: setDebuggerState
+      summary: Включить или выключить отладчик в проекте
+      description: Запрещено, если у сервера allow_control=false или read_only=true (403).
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DebuggerState' }
+      responses:
+        '200':
+          description: Новое состояние
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DebuggerState' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}/logs:
+    delete:
+      tags: [projects]
+      operationId: clearProjectLogs
+      summary: Удалить файлы логов проекта на сервере и их данные в просмотрщике
+      description: Запрещено, если у сервера allow_delete=false или read_only=true (403).
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: Сколько файлов удалено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed_files]
+                properties:
+                  removed_files: { type: integer, minimum: 0 }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests:
+    get:
+      tags: [requests]
+      operationId: listRequests
+      summary: Лента запросов, новые сверху
+      description: Без project_id и server_id — сводная лента по всем проектам (п. 7.5).
+      parameters:
+        - name: project_id
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: server_id
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: environment
+          in: query
+          schema: { $ref: '#/components/schemas/Environment' }
+        - name: sapi
+          in: query
+          schema: { $ref: '#/components/schemas/Sapi' }
+        - name: has_errors
+          in: query
+          description: Только запросы с ошибками
+          schema: { type: boolean }
+        - name: q
+          in: query
+          description: Полнотекстовый поиск по сообщениям и контексту, плюс подстрока URL
+          schema: { type: string }
+        - name: since
+          in: query
+          description: started_at не раньше, мс
+          schema: { type: integer, format: int64 }
+        - name: until
+          in: query
+          description: started_at раньше, мс
+          schema: { type: integer, format: int64 }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Страница запросов
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestPage' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests/{request_id}:
+    get:
+      tags: [requests]
+      operationId: getRequest
+      summary: Запрос целиком (без сообщений)
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      responses:
+        '200':
+          description: Запрос
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestDetail' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [requests]
+      operationId: deleteRequest
+      summary: Удалить запрос и его файл лога
+      description: Запрещено, если у сервера allow_delete=false или read_only=true (403).
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      responses:
+        '204': { description: Удалён }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests/{request_id}/messages:
+    get:
+      tags: [requests]
+      operationId: listMessages
+      summary: Сообщения запроса по порядку seq
+      parameters:
+        - { $ref: '#/components/parameters/RequestId' }
+        - name: level
+          in: query
+          description: Только эти уровни
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/Level' }
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/MessageType' }
+        - name: tag
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          description: Полнотекстовый поиск по сообщению и контексту
+          schema: { type: string }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Страница сообщений
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePage' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/messages/{message_id}:
+    get:
+      tags: [requests]
+      operationId: getMessage
+      summary: Сообщение с контекстом и бэктрейсом
+      parameters: [{ $ref: '#/components/parameters/MessageId' }]
+      responses:
+        '200':
+          description: Сообщение
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageDetail' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/stream:
+    get:
+      tags: [stream]
+      operationId: streamEvents
+      summary: Поток изменений (Server-Sent Events)
+      description: |
+        Каждое событие SSE: `id` — монотонный номер, `event` — поле `event` из StreamEvent,
+        `data` — StreamEvent в JSON. Heartbeat — комментарий раз в 15 секунд.
+        После переподключения клиент передаёт Last-Event-ID и получает пропущенные события,
+        если они ещё в буфере; иначе приходит событие resync.
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          schema: { type: string }
+        - name: project_id
+          in: query
+          description: Только события проекта (статусы серверов приходят всегда)
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Поток событий
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/StreamEvent' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/settings:
+    get:
+      tags: [settings]
+      operationId: getSettings
+      summary: Настройки интерфейса
+      responses:
+        '200':
+          description: Настройки
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [settings]
+      operationId: updateSettings
+      summary: Сохранить настройки интерфейса
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settings' }
+      responses:
+        '200':
+          description: Сохранённые настройки
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        default: { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      description: Токен из конфига просмотрщика. Не нужен при прослушивании 127.0.0.1 без токена и в десктопе.
+
+  parameters:
+    ServerId:
+      name: server_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    RequestId:
+      name: request_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    MessageId:
+      name: message_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Cursor:
+      name: cursor
+      in: query
+      description: next_cursor из предыдущей страницы
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+
+  responses:
+    Problem:
+      description: Ошибка
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457
+      required: [title, status]
+      properties:
+        type: { type: string, default: about:blank }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          description: Ошибки валидации по полям
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string }
+              message: { type: string }
+      example: { title: Not Found, status: 404, detail: request 42 not found }
+
+    Version:
+      type: object
+      required: [version, commit, date]
+      properties:
+        version: { type: string, example: v0.1.0 }
+        commit: { type: string, example: abc1234 }
+        date: { type: string, example: '2026-10-19T14:00:00Z' }
+
+    ServerKind:
+      type: string
+      enum: [local, ssh, http]
+    Environment:
+      type: string
+      enum: [local, dev, stage, prod]
+    ConnectionState:
+      type: string
+      enum: [unknown, connecting, online, offline]
+
+    ServerConfig:
+      type: object
+      description: Параметры подключения без секретов. ssh — host (или алиас из ~/.ssh/config), port, user, jump_hosts; http — base_url.
+      additionalProperties: false
+      properties:
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        user: { type: string }
+        jump_hosts:
+          type: array
+          items: { type: string }
+        base_url: { type: string }
+
+    ServerPermissions:
+      type: object
+      required: [read_only, allow_delete, allow_control]
+      properties:
+        read_only: { type: boolean, description: Запрещает любые изменения на сервере }
+        allow_delete: { type: boolean }
+        allow_control: { type: boolean, description: Включение и выключение отладчика }
+
+    ServerInput:
+      type: object
+      required: [name, kind]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        kind: { $ref: '#/components/schemas/ServerKind' }
+        environment: { $ref: '#/components/schemas/Environment' }
+        config: { $ref: '#/components/schemas/ServerConfig' }
+        permissions: { $ref: '#/components/schemas/ServerPermissions' }
+
+    ServerPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        environment: { $ref: '#/components/schemas/Environment' }
+        config: { $ref: '#/components/schemas/ServerConfig' }
+        permissions: { $ref: '#/components/schemas/ServerPermissions' }
+
+    Server:
+      type: object
+      required: [id, name, kind, environment, config, permissions, connection, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        kind: { $ref: '#/components/schemas/ServerKind' }
+        environment: { $ref: '#/components/schemas/Environment' }
+        config: { $ref: '#/components/schemas/ServerConfig' }
+        permissions: { $ref: '#/components/schemas/ServerPermissions' }
+        connection: { $ref: '#/components/schemas/ServerConnection' }
+        created_at: { type: integer, format: int64 }
+        updated_at: { type: integer, format: int64 }
+      example:
+        id: 2
+        name: stage
+        kind: ssh
+        environment: stage
+        config: { host: stage-web, user: deploy }
+        permissions: { read_only: true, allow_delete: false, allow_control: false }
+        connection: { state: online, latency_ms: 38, clock_offset_ms: -120 }
+        created_at: 1792400000000
+        updated_at: 1792400000000
+
+    ServerConnection:
+      type: object
+      required: [state]
+      properties:
+        state: { $ref: '#/components/schemas/ConnectionState' }
+        latency_ms: { type: number, minimum: 0 }
+        clock_offset_ms:
+          type: integer
+          description: Насколько часы сервера отстают (минус) или спешат относительно просмотрщика
+        error: { type: string }
+        checked_at: { type: integer, format: int64 }
+
+    ServerCheck:
+      type: object
+      required: [ok, steps]
+      properties:
+        ok: { type: boolean }
+        steps:
+          type: array
+          description: Шаги проверки по порядку (подключение, ключ хоста, права на папку логов и т. д.)
+          items:
+            type: object
+            required: [name, ok]
+            properties:
+              name: { type: string }
+              ok: { type: boolean }
+              detail: { type: string }
+        host_key_fingerprint:
+          type: string
+          description: Для нового SSH-хоста — отпечаток ключа, который нужно подтвердить в UI
+      example:
+        ok: false
+        steps:
+          - { name: connect, ok: true }
+          - { name: logs_dir_readable, ok: false, detail: 'permission denied: /var/www/shop/tmp/logs' }
+
+    ProjectInput:
+      type: object
+      required: [server_id, name, root_path, logs_dir]
+      additionalProperties: false
+      properties:
+        server_id: { type: integer, format: int64 }
+        name: { type: string, minLength: 1 }
+        root_path: { type: string, minLength: 1 }
+        logs_dir: { type: string, minLength: 1 }
+        local_path: { type: string, nullable: true, description: Локальная копия проекта для ссылок в IDE }
+        editor: { $ref: '#/components/schemas/Editor' }
+        retention: { $ref: '#/components/schemas/Retention' }
+
+    ProjectPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        root_path: { type: string, minLength: 1 }
+        logs_dir: { type: string, minLength: 1 }
+        local_path: { type: string, nullable: true }
+        editor: { $ref: '#/components/schemas/Editor' }
+        retention: { $ref: '#/components/schemas/Retention' }
+
+    Project:
+      type: object
+      required: [id, server_id, name, root_path, logs_dir, local_path, editor, retention, pending_files, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        server_id: { type: integer, format: int64 }
+        name: { type: string }
+        root_path: { type: string }
+        logs_dir: { type: string }
+        local_path: { type: string, nullable: true }
+        editor: { $ref: '#/components/schemas/Editor' }
+        retention: { $ref: '#/components/schemas/Retention' }
+        pending_files: { type: integer, minimum: 0, description: 'Файлы логов, ещё не импортированные полностью' }
+        created_at: { type: integer, format: int64 }
+        updated_at: { type: integer, format: int64 }
+
+    Editor:
+      type: string
+      enum: [vscode, phpstorm, cursor, sublime, none]
+
+    Retention:
+      type: object
+      properties:
+        days: { type: integer, minimum: 1, nullable: true }
+        max_bytes: { type: integer, format: int64, minimum: 1, nullable: true }
+
+    DebuggerState:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+
+    Sapi:
+      type: string
+      enum: [web, cli]
+    Level:
+      type: string
+      enum: [error, warning, info, message, debug]
+    MessageType:
+      type: string
+      enum: [message, timer, error]
+
+    Request:
+      type: object
+      description: Запрос в ленте
+      required: [id, project_id, server_id, request_key, format_version, sapi, is_ajax, started_at, finished, message_count, error_count, warning_count, received_at]
+      properties:
+        id: { type: integer, format: int64 }
+        project_id: { type: integer, format: int64 }
+        server_id: { type: integer, format: int64 }
+        request_key: { type: string, description: 'v2: request_id (ULID); v1: iRequestTimestamp' }
+        parent_request_key: { type: string, nullable: true }
+        format_version: { type: integer, enum: [1, 2] }
+        sapi: { $ref: '#/components/schemas/Sapi' }
+        method: { type: string, nullable: true }
+        url: { type: string, nullable: true }
+        is_ajax: { type: boolean }
+        status_code: { type: integer, nullable: true }
+        exit_code: { type: integer, nullable: true }
+        started_at: { type: integer, format: int64 }
+        duration_ms: { type: number, nullable: true }
+        finished: { type: boolean, description: false — запрос выполняется или процесс был убит }
+        message_count: { type: integer, minimum: 0 }
+        error_count: { type: integer, minimum: 0 }
+        warning_count: { type: integer, minimum: 0 }
+        received_at: { type: integer, format: int64 }
+      example:
+        id: 42
+        project_id: 1
+        server_id: 1
+        request_key: 01JAZ7Q5X0K4M8T2V6N9P3R5S7
+        parent_request_key: null
+        format_version: 2
+        sapi: web
+        method: GET
+        url: https://shop.example.test/catalog/item?id=42
+        is_ajax: false
+        status_code: 200
+        exit_code: null
+        started_at: 1792400000000
+        duration_ms: 40.2
+        finished: true
+        message_count: 6
+        error_count: 0
+        warning_count: 2
+        received_at: 1792400000310
+
+    RequestDetail:
+      allOf:
+        - $ref: '#/components/schemas/Request'
+        - type: object
+          properties:
+            lang: { type: string, enum: [php, js] }
+            argv:
+              type: array
+              nullable: true
+              items: { type: string }
+            ip: { type: string, nullable: true }
+            server_ip: { type: string, nullable: true }
+            server_name: { type: string, nullable: true }
+            hostname: { type: string, nullable: true }
+            pid: { type: integer, nullable: true }
+            process_user: { type: string, nullable: true }
+            app_user: { type: string, nullable: true }
+            session_id: { type: string, nullable: true }
+            library_version: { type: string, nullable: true }
+            php_version: { type: string, nullable: true }
+            ended_at: { type: integer, format: int64, nullable: true }
+            memory_peak_bytes: { type: integer, format: int64, nullable: true }
+            children:
+              type: array
+              description: Дочерние запросы (AJAX, подпроцессы) по parent_request_key
+              items: { $ref: '#/components/schemas/Request' }
+
+    RequestPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Request' }
+        next_cursor: { type: string, nullable: true }
+
+    Frame:
+      type: object
+      properties:
+        file: { type: string }
+        line: { type: integer }
+        function: { type: string }
+        class: { type: string }
+        call_type: { type: string, enum: ['->', '::'] }
+        editor_url: { type: string, description: Ссылка для открытия в IDE с учётом local_path проекта }
+
+    Message:
+      type: object
+      description: Сообщение в списке (без контекста и бэктрейса)
+      required: [id, request_id, seq, ts, type, level, message, tags, has_context, size_bytes]
+      properties:
+        id: { type: integer, format: int64 }
+        request_id: { type: integer, format: int64 }
+        seq: { type: integer, minimum: 1 }
+        ts: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/MessageType' }
+        level: { $ref: '#/components/schemas/Level' }
+        message: { type: string, description: Для таймера — его имя }
+        tags:
+          type: array
+          items: { type: string }
+        source: { $ref: '#/components/schemas/Frame' }
+        duration_ms: { type: number, nullable: true }
+        error_kind: { type: string, nullable: true, enum: [php_error, exception, fatal, null] }
+        has_context: { type: boolean }
+        size_bytes: { type: integer, minimum: 0 }
+      example:
+        id: 1001
+        request_id: 42
+        seq: 3
+        ts: 1792400000005
+        type: message
+        level: info
+        message: Загрузка товара
+        tags: []
+        source: { file: app/Controller/ItemController.php, line: 31, function: show, class: App\Controller\ItemController, call_type: '->', editor_url: 'vscode://file/home/dev/shop/app/Controller/ItemController.php:31' }
+        duration_ms: null
+        error_kind: null
+        has_context: true
+        size_bytes: 214
+
+    MessageDetail:
+      allOf:
+        - $ref: '#/components/schemas/Message'
+        - type: object
+          properties:
+            context:
+              type: object
+              nullable: true
+              additionalProperties: true
+            trace:
+              type: array
+              nullable: true
+              items: { $ref: '#/components/schemas/Frame' }
+            error_type: { type: string, nullable: true }
+            exception_class: { type: string, nullable: true }
+            code: { type: string, nullable: true }
+            previous:
+              type: array
+              nullable: true
+              items:
+                type: object
+                required: [exception_class, message]
+                properties:
+                  exception_class: { type: string }
+                  message: { type: string }
+                  code: { type: string }
+                  source: { $ref: '#/components/schemas/Frame' }
+
+    MessagePage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+        next_cursor: { type: string, nullable: true }
+
+    StreamEvent:
+      type: object
+      description: Полезная нагрузка события SSE. Поле event совпадает с именем события SSE.
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [request_created, request_updated, messages_added, server_status, resync]
+          description: |
+            request_created / request_updated — request; messages_added — request_id и count;
+            server_status — server_id и connection; resync — клиент перечитывает данные целиком.
+        request: { $ref: '#/components/schemas/Request' }
+        request_id: { type: integer, format: int64 }
+        count: { type: integer, minimum: 1 }
+        server_id: { type: integer, format: int64 }
+        connection: { $ref: '#/components/schemas/ServerConnection' }
+      example: { event: messages_added, request_id: 42, count: 3 }
+
+    Settings:
+      type: object
+      description: Настройки UI (п. 6.4, 10.25). Хранятся в просмотрщике, localStorage — только кэш.
+      required: [theme, density, locale, editor]
+      additionalProperties: false
+      properties:
+        theme: { type: string, enum: [light, dark, system, high-contrast] }
+        accent_color: { type: string, pattern: '^#[0-9a-fA-F]{6}$', nullable: true }
+        density: { type: string, enum: [compact, comfortable] }
+        ui_font_size: { type: integer, minimum: 10, maximum: 24 }
+        mono_font: { type: string, nullable: true }
+        locale: { type: string, enum: [ru, en] }
+        editor: { $ref: '#/components/schemas/Editor' }
+      example: { theme: system, accent_color: null, density: comfortable, ui_font_size: 14, mono_font: null, locale: ru, editor: vscode }

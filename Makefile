@@ -107,8 +107,8 @@ server-lint: $(GOLANGCI_LINT) ## go vet и golangci-lint
 	cd server && $(GOLANGCI_LINT) run ./...
 
 .PHONY: server-test
-server-test: ## Тесты Go-сервера (с детектором гонок)
-	cd server && go test -race ./...
+server-test: ## Тесты Go-сервера (с детектором гонок, без кэша: тесты читают spec/ вне модуля)
+	cd server && go test -race -count=1 ./...
 
 .PHONY: server-build
 server-build: ui-build ## Собрать бинарник (UI встраивается с фазы 4)

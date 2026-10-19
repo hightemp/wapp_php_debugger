@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: wapp-debugger PHP library HTTP mode
+  version: 1.0.0
+  description: |
+    Опциональный HTTP-режим PHP-библиотеки 2.x для серверов без SSH (п. 4.1, 7.4a плана).
+    Основной способ работы — SSH; этот режим выключен по умолчанию.
+
+    Правила безопасности:
+    - режим включается только при заданном в конфиге токене длиной не меньше 32 символов;
+    - токен передаётся только в заголовке `X-Debugger-Token` и сравнивается через `hash_equals`;
+    - **без верного токена библиотека не отвечает вообще**: запрос уходит в приложение как обычный
+      (поэтому в спецификации нет ответа 401 — клиент получает то, что вернёт приложение, обычно 404);
+    - опциональный allowlist IP и ограничение частоты запросов;
+    - доступа к исходникам и к путям конфига нет, все имена файлов — только внутри папки логов.
+
+    Пути обрабатываются библиотекой до приложения по префиксу `/__wapp_debugger/v1/`.
+servers:
+  - url: '{base_url}'
+    variables:
+      base_url:
+        default: https://shop.example.test
+        description: Адрес приложения, в которое подключена библиотека
+security:
+  - debugger_token: []
+
+paths:
+  /__wapp_debugger/v1/status:
+    get:
+      operationId: getStatus
+      summary: Состояние отладчика в проекте
+      responses:
+        '200':
+          description: Состояние
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /__wapp_debugger/v1/enabled:
+    put:
+      operationId: setEnabled
+      summary: Включить или выключить запись логов
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              additionalProperties: false
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: Новое состояние
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /__wapp_debugger/v1/logs:
+    get:
+      operationId: listLogs
+      summary: Файлы логов, отсортированные по имени
+      responses:
+        '200':
+          description: Файлы
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files:
+                    type: array
+                    items: { $ref: '#/components/schemas/LogFile' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: clearLogs
+      summary: Удалить все файлы логов
+      responses:
+        '200':
+          description: Сколько файлов удалено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed_files]
+                properties:
+                  removed_files: { type: integer, minimum: 0 }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /__wapp_debugger/v1/logs/{name}:
+    get:
+      operationId: readLog
+      summary: Прочитать часть файла лога
+      description: |
+        Возвращает до limit байт начиная с offset. Пустое тело — конец файла.
+        416 — offset больше размера файла (файл усекли или подменили).
+      parameters:
+        - { $ref: '#/components/parameters/Name' }
+        - name: offset
+          in: query
+          schema: { type: integer, format: int64, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 8388608, default: 1048576 }
+      responses:
+        '200':
+          description: Байты файла
+          headers:
+            X-File-Size:
+              description: Полный размер файла
+              schema: { type: integer, format: int64 }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: removeLog
+      summary: Удалить файл лога
+      parameters: [{ $ref: '#/components/parameters/Name' }]
+      responses:
+        '204': { description: Удалён }
+        default: { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    debugger_token:
+      type: apiKey
+      in: header
+      name: X-Debugger-Token
+
+  parameters:
+    Name:
+      name: name
+      in: path
+      required: true
+      description: Имя файла без пути (как в listLogs)
+      schema:
+        type: string
+        pattern: '^[^/\\]+$'
+
+  responses:
+    Problem:
+      description: Ошибка (только для запросов с верным токеном)
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            required: [title, status]
+            properties:
+              type: { type: string }
+              title: { type: string }
+              status: { type: integer }
+              detail: { type: string }
+
+  schemas:
+    Status:
+      type: object
+      required: [enabled, library_version, format_version, logs_dir_writable]
+      properties:
+        enabled: { type: boolean }
+        library_version: { type: string }
+        format_version: { type: integer, enum: [2] }
+        php_version: { type: string }
+        logs_dir_writable: { type: boolean }
+        disk_free_bytes: { type: integer, format: int64, nullable: true }
+      example: { enabled: true, library_version: 2.0.0, format_version: 2, php_version: 7.4.33, logs_dir_writable: true, disk_free_bytes: 10737418240 }
+
+    LogFile:
+      type: object
+      required: [name, size, modified_at]
+      properties:
+        name: { type: string }
+        size: { type: integer, format: int64, minimum: 0 }
+        modified_at: { type: integer, format: int64, description: мс от эпохи }
+      example: { name: 1792400000000-01JAZ7Q5X0K4M8T2V6N9P3R5S7.jsonl, size: 2048, modified_at: 1792400000040 }
