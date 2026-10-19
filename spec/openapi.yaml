@@ -792,7 +792,7 @@ components:
           items: { type: string }
         source: { $ref: '#/components/schemas/Frame' }
         duration_ms: { type: number, format: double, nullable: true }
-        error_kind: { type: string, nullable: true, enum: [php_error, exception, fatal, null] }
+        error_kind: { type: string, nullable: true, enum: [php_error, exception, fatal] }
         has_context: { type: boolean }
         size_bytes: { type: integer, minimum: 0 }
       example:

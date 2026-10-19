@@ -46,19 +46,9 @@ func (s *server) GetDebuggerState(context.Context, GetDebuggerStateRequestObject
 	return GetDebuggerStatedefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
-// GetMessage is not implemented yet.
-func (s *server) GetMessage(context.Context, GetMessageRequestObject) (GetMessageResponseObject, error) {
-	return GetMessagedefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
-}
-
 // GetProject is not implemented yet.
 func (s *server) GetProject(context.Context, GetProjectRequestObject) (GetProjectResponseObject, error) {
 	return GetProjectdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
-}
-
-// GetRequest is not implemented yet.
-func (s *server) GetRequest(context.Context, GetRequestRequestObject) (GetRequestResponseObject, error) {
-	return GetRequestdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
 // GetServer is not implemented yet.
@@ -69,11 +59,6 @@ func (s *server) GetServer(context.Context, GetServerRequestObject) (GetServerRe
 // GetSettings is not implemented yet.
 func (s *server) GetSettings(context.Context, GetSettingsRequestObject) (GetSettingsResponseObject, error) {
 	return GetSettingsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
-}
-
-// ListMessages is not implemented yet.
-func (s *server) ListMessages(context.Context, ListMessagesRequestObject) (ListMessagesResponseObject, error) {
-	return ListMessagesdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
 // ListProjects is not implemented yet.

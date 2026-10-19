@@ -40,8 +40,9 @@ func newTestEnv(t *testing.T) testEnv {
 	}
 
 	paths, _ := filepath.Glob(filepath.Join(filepath.Dir(specPath(t)), "fixtures/v1/*.log"))
+	v2, _ := filepath.Glob(filepath.Join(filepath.Dir(specPath(t)), "fixtures/v2/*.jsonl"))
 	files := map[string][]byte{}
-	for _, path := range paths {
+	for _, path := range append(paths, v2...) {
 		data, _ := os.ReadFile(path)
 		files[filepath.Base(path)] = data
 	}
@@ -100,11 +101,11 @@ func TestListRequestsPaginatesNewestFirst(t *testing.T) {
 		}
 		url = e.server.URL + "/api/v1/requests?limit=3&cursor=" + *page.NextCursor
 	}
-	if len(keys) != 7 {
-		t.Fatalf("got %d requests over all pages, want 7: %v", len(keys), keys)
+	if len(keys) != 11 {
+		t.Fatalf("got %d requests over all pages, want 11 (7 v1 + 4 v2): %v", len(keys), keys)
 	}
 	_, body := get(t, e.server.URL+"/api/v1/requests?limit=1")
-	if !strings.Contains(body, `"request_key"`) || !strings.Contains(body, `"format_version":1`) {
+	if !strings.Contains(body, `"request_key"`) || !strings.Contains(body, `"format_version"`) {
 		t.Fatalf("fields must be snake_case per spec: %s", body)
 	}
 }
@@ -130,7 +131,7 @@ func TestListRequestsValidatesParameters(t *testing.T) {
 
 func TestNotImplementedAndUnknownAPI(t *testing.T) {
 	e := newTestEnv(t)
-	response, body := get(t, e.server.URL+"/api/v1/servers")
+	response, body := get(t, e.server.URL+"/api/v1/settings")
 	assertProblem(t, response, body, 501)
 	response, body = get(t, e.server.URL+"/api/v1/no-such-thing")
 	assertProblem(t, response, body, 404)
