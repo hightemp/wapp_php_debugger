@@ -32,6 +32,18 @@ dist/wapp-debugger serve --logs-dir /var/www/app/tmp/logs
 
 It listens on `127.0.0.1` only, imports new and changed log files in the background and pushes new requests to the page as they appear. The desktop app: `make desktop-build`, then `dist/wapp-debugger-desktop --logs-dir …`. The UI language (English or Russian) is switched in the header.
 
+### Network access
+
+By default the viewer answers only on `127.0.0.1` and only to loopback host names, which also blocks DNS rebinding. To open it to other machines, set a token; without one the viewer refuses to listen on a non-loopback address:
+
+```sh
+WAPP_DEBUGGER_TOKEN=$(openssl rand -hex 32) dist/wapp-debugger serve --addr 0.0.0.0:8820 --logs-dir …
+# open http://<host>:8820/?token=<token> once: the token moves to an HttpOnly cookie
+# API clients send Authorization: Bearer <token>
+```
+
+Prefer the environment variable over `--token`: it does not show up in the process list. The viewer sets a strict Content-Security-Policy, rejects cross-origin writes and limits request bodies to 1 MiB. It does not terminate TLS: across untrusted networks put it behind a TLS proxy or an SSH tunnel.
+
 ## Current version (legacy)
 
 Until the new version is released, `legacy/` is the working version (tag `legacy-hotfix` carries urgent security fixes).
