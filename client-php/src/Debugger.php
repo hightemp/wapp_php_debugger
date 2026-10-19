@@ -16,6 +16,7 @@ final class Debugger
         | JSON_PRESERVE_ZERO_FRACTION | JSON_PARTIAL_OUTPUT_ON_ERROR;
 
     private Clock $clock;
+    private Serializer $serializer;
     private ?JsonlFileWriter $writer;
     private string $requestId;
     private int $startedAt;
@@ -24,9 +25,10 @@ final class Debugger
     private bool $cli;
     private bool $finished = false;
 
-    private function __construct(Clock $clock, ?JsonlFileWriter $writer, string $requestId, int $startedAt, bool $cli)
+    private function __construct(Clock $clock, Serializer $serializer, ?JsonlFileWriter $writer, string $requestId, int $startedAt, bool $cli)
     {
         $this->clock = $clock;
+        $this->serializer = $serializer;
         $this->writer = $writer;
         $this->requestId = $requestId;
         $this->startedAt = $startedAt;
@@ -44,7 +46,8 @@ final class Debugger
             ? new JsonlFileWriter($logsDir, $now . '-' . $requestId . '.jsonl', $config->fileMode(), $config->dirMode())
             : null;
 
-        $debugger = new self($clock, $writer, $requestId, $now, $request->isCli());
+        $serializer = new Serializer(new Masker($config->maskKeys()), $config->maxDepth(), $config->maxItems(), $config->maxStringBytes());
+        $debugger = new self($clock, $serializer, $writer, $requestId, $now, $request->isCli());
         $debugger->emit('request_start', ['lang' => 'php', 'library_version' => self::VERSION, 'php_version' => PHP_VERSION] + $request->fields());
 
         return $debugger;
@@ -65,9 +68,12 @@ final class Debugger
      */
     public function log(string $level, string $message, array $context = []): void
     {
-        $fields = ['level' => Level::normalize($level), 'message' => $message];
+        if (!$this->enabled()) {
+            return;
+        }
+        $fields = ['level' => Level::normalize($level), 'message' => $this->serializer->normalize($message)];
         if ($context !== []) {
-            $fields['context'] = (object) $context;
+            $fields['context'] = (object) $this->serializer->normalize($context);
         }
         $this->emit('message', $fields);
     }

@@ -19,6 +19,18 @@ final class ConfigTest extends TestCase
         self::assertFalse($config->enabled());
         self::assertSame(0664, $config->fileMode());
         self::assertSame(0775, $config->dirMode());
+        self::assertSame([], $config->maskKeys());
+        self::assertSame([6, 100, 2000], [$config->maxDepth(), $config->maxItems(), $config->maxStringBytes()]);
+    }
+
+    public function testLimitsAndMaskKeys(): void
+    {
+        $config = Config::fromArray(['mask_keys' => ['cvv', 7], 'max_depth' => 3, 'max_items' => 0, 'max_string_bytes' => 'x']);
+
+        self::assertSame(['cvv'], $config->maskKeys(), 'only strings');
+        self::assertSame(3, $config->maxDepth());
+        self::assertSame(100, $config->maxItems(), 'invalid values fall back to the default');
+        self::assertSame(2000, $config->maxStringBytes());
     }
 
     public function testMissingFileMeansDisabled(): void

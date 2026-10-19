@@ -81,6 +81,21 @@ final class DebuggerTest extends TestCase
         LogAssert::validStream($this->logFiles($this->tempDir() . '/logs')[0]);
     }
 
+    public function testContextIsSerializedAndMasked(): void
+    {
+        $config = Config::fromArray([
+            'enabled' => true, 'logs_dir' => $this->tempDir() . '/logs', 'mask_keys' => ['card_number'], 'max_string_bytes' => 4,
+        ]);
+        $debugger = Debugger::start($config, RequestInfo::cli([]), new FixedClock(self::START));
+        $debugger->log(Level::INFO, 'payment', ['password' => 'p', 'card_number' => '4111', 'note' => 'abcdefgh', 'at' => new \DateTimeImmutable('@0')]);
+
+        $events = LogAssert::validStream($this->logFiles($this->tempDir() . '/logs')[0]);
+        self::assertSame(
+            ['password' => '***', 'card_number' => '***', 'note' => 'abcd… (+4 bytes)', 'at' => ['__class' => 'DateTimeImmutable', 'value' => '1970-01-01T00:00:00+00:00']],
+            $events[1]['context']
+        );
+    }
+
     public function testUnknownLevelBecomesMessage(): void
     {
         $debugger = $this->debugger(new FixedClock(self::START));

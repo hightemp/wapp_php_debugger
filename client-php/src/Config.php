@@ -15,6 +15,11 @@ final class Config
     private ?string $logsDir;
     private int $fileMode;
     private int $dirMode;
+    /** @var list<string> */
+    private array $maskKeys;
+    private int $maxDepth;
+    private int $maxItems;
+    private int $maxStringBytes;
 
     /**
      * @param array<string, mixed> $values
@@ -30,6 +35,10 @@ final class Config
             : ($this->projectRoot !== null ? $this->projectRoot . '/tmp/logs' : null);
         $this->fileMode = is_int($values['file_mode'] ?? null) ? $values['file_mode'] : 0664;
         $this->dirMode = is_int($values['dir_mode'] ?? null) ? $values['dir_mode'] : 0775;
+        $this->maskKeys = is_array($values['mask_keys'] ?? null) ? array_values(array_filter($values['mask_keys'], 'is_string')) : [];
+        $this->maxDepth = self::positiveInt($values['max_depth'] ?? null, 6);
+        $this->maxItems = self::positiveInt($values['max_items'] ?? null, 100);
+        $this->maxStringBytes = self::positiveInt($values['max_string_bytes'] ?? null, 2000);
         if ($this->logsDir === null) {
             $this->enabled = false;
         }
@@ -78,6 +87,37 @@ final class Config
     public function dirMode(): int
     {
         return $this->dirMode;
+    }
+
+    /**
+     * @return list<string> keys to mask on top of the defaults
+     */
+    public function maskKeys(): array
+    {
+        return $this->maskKeys;
+    }
+
+    public function maxDepth(): int
+    {
+        return $this->maxDepth;
+    }
+
+    public function maxItems(): int
+    {
+        return $this->maxItems;
+    }
+
+    public function maxStringBytes(): int
+    {
+        return $this->maxStringBytes;
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private static function positiveInt($value, int $default): int
+    {
+        return is_int($value) && $value > 0 ? $value : $default;
     }
 
     /**
