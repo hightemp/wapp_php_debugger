@@ -4,7 +4,7 @@
 
 Логгер-отладчик для PHP-проектов: PHP-библиотека пишет события каждого запроса в JSONL-логи, просмотрщик показывает запросы, сообщения, бэктрейсы и переменные в реальном времени.
 
-> **Статус: ранняя версия.** Просмотрщик переписан на Go + Svelte, есть десктоп-версия на Wails. Он читает логи текущей библиотеки v1; библиотека становится Composer-пакетом для PHP 7.4+ (формат логов v2). План, фазы и решения — в [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md), правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md) (на английском).
+> **Статус: ранняя версия.** Просмотрщик переписан на Go + Svelte, есть десктоп-версия на Wails. PHP-библиотека 2.x (PHP 7.4+, формат логов v2) готова в этом репозитории, но ещё не опубликована в Packagist; просмотрщик читает и логи библиотеки v1. План, фазы и решения — в [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md), правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md) (на английском).
 
 ![wapp-debugger: лента запросов, запрос и сообщение с контекстом и бэктрейсом](docs/screenshot.png)
 
@@ -16,26 +16,31 @@
    make ui-deps build                              # dist/wapp-debugger со встроенным UI
    ```
 
-2. **Подключите библиотеку к проекту.** Скопируйте в него [`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php), подключите через `require_once` в начале запроса и положите `dws_debugger.json` в корень проекта:
+2. **Подключите библиотеку 2.x к проекту** (PHP 7.4+). Без Composer скопируйте в проект [`client-php/src`](client-php/src), затем как можно раньше в запросе:
+
+   ```php
+   require __DIR__ . '/lib/wapp-debugger/autoload.php'; // или vendor/autoload.php от Composer
+   WappDebugger\Debugger::boot(__DIR__ . '/dws_debugger.json');
+   ```
+
+   и положите `dws_debugger.json` в корень проекта:
 
    ```json
    {
-       "sProjectRootPath": "/var/www/app",
-       "sTempPath": "/var/www/app/tmp",
-       "sMessagesFilesPath": "/var/www/app/tmp/logs",
-       "bIsOnFlag": true
+       "enabled": true,
+       "logs_dir": "tmp/logs"
    }
    ```
 
    Папка логов должна быть доступна PHP на запись. Логирование из кода:
 
    ```php
-   __d(DWS_MESSAGE, 'Заказ создан', ['order' => $order]);
-   func(__log($a), __log($b)); // захват значений прямо внутри выражения
+   __d(DWS_INFO, 'Заказ создан', ['order' => $order]);
+   $total = __log($price) * $quantity; // пишет значение прямо внутри выражения
    __start('db'); /* ... */ __stop('db'); // таймер
    ```
 
-   Значения с ключами вроде `password`, `token`, `api_key` маскируются. `$_SESSION` и `$_COOKIE` пишутся только при `"bLogSessionAndCookies": true`.
+   Ошибки, исключения и фатальные ошибки пишутся сами, секреты маскируются. PSR-3, Monolog, все настройки и переход с библиотеки v1 — в [client-php/README.ru.md](client-php/README.ru.md). Старые проекты могут остаться на библиотеке v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): просмотрщик читает обе.
 
 3. **Запустите просмотрщик** на папке логов:
 
@@ -89,7 +94,7 @@ WAPP_DEBUGGER_TOKEN=$(openssl rand -hex 32) dist/wapp-debugger serve --addr 0.0.
 | `server/` | Просмотрщик на Go: `wapp-debugger serve`, API, живые обновления, встроенный UI |
 | `ui/` | Веб-интерфейс на Svelte, английский и русский |
 | `server/cmd/wapp-debugger-desktop/` | Десктоп-версия на Wails v3 |
-| `client-php/` | PHP-библиотека: `v1/` — текущая, пакет 2.0 в работе |
+| `client-php/` | PHP-библиотека 2.x; в `v1/` — библиотека v1 для старых проектов |
 | `spec/` | Форматы логов, контракты API и фикстуры |
 
 Старого PHP-просмотрщика на EasyUI больше нет; он остался в истории git (тег `legacy-hotfix` — его последняя версия).

@@ -7,7 +7,7 @@
 
 A logger and debugger for PHP projects: a PHP library writes the events of every request into JSONL logs, and a viewer shows requests, messages, backtraces and variables in real time.
 
-> **Status: early.** The viewer is rewritten in Go + Svelte, with a desktop app on Wails. It reads logs of the current library v1; the library is becoming a Composer package for PHP 7.4+ (log format v2). The plan, phases and decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) (in Russian); development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
+> **Status: early.** The viewer is rewritten in Go + Svelte, with a desktop app on Wails. The PHP library 2.x (PHP 7.4+, log format v2) is ready in this repository and not yet on Packagist; the viewer also reads logs of library v1. The plan, phases and decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) (in Russian); development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ![wapp-debugger: request feed, a request and a message with its context and backtrace](docs/screenshot.png)
 
@@ -19,26 +19,31 @@ A logger and debugger for PHP projects: a PHP library writes the events of every
    make ui-deps build                              # dist/wapp-debugger with the embedded UI
    ```
 
-2. **Connect the library to your project.** Copy [`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php) into it, include it with `require_once` at the start of the request, and put `dws_debugger.json` into the project root:
+2. **Connect the library 2.x to your project** (PHP 7.4+). Without Composer, copy [`client-php/src`](client-php/src) into the project; then, as early as possible in the request:
+
+   ```php
+   require __DIR__ . '/lib/wapp-debugger/autoload.php'; // or Composer's vendor/autoload.php
+   WappDebugger\Debugger::boot(__DIR__ . '/dws_debugger.json');
+   ```
+
+   and put `dws_debugger.json` into the project root:
 
    ```json
    {
-       "sProjectRootPath": "/var/www/app",
-       "sTempPath": "/var/www/app/tmp",
-       "sMessagesFilesPath": "/var/www/app/tmp/logs",
-       "bIsOnFlag": true
+       "enabled": true,
+       "logs_dir": "tmp/logs"
    }
    ```
 
    The logs directory must be writable by PHP. Log from the code:
 
    ```php
-   __d(DWS_MESSAGE, 'Order created', ['order' => $order]);
-   func(__log($a), __log($b)); // capture values right inside an expression
+   __d(DWS_INFO, 'Order created', ['order' => $order]);
+   $total = __log($price) * $quantity; // logs a value right inside an expression
    __start('db'); /* ... */ __stop('db'); // timer
    ```
 
-   Values with keys such as `password`, `token` or `api_key` are masked. `$_SESSION` and `$_COOKIE` are logged only with `"bLogSessionAndCookies": true`.
+   Errors, exceptions and fatal errors are logged by themselves, secrets are masked. PSR-3, Monolog, all the settings and the upgrade from library v1 are in [client-php/README.md](client-php/README.md). Old projects can keep library v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): the viewer reads both.
 
 3. **Run the viewer** on the logs directory:
 
@@ -92,7 +97,7 @@ The library itself has no HTTP commands by default (`?debug_msg=…` needs the `
 | `server/` | Viewer in Go: `wapp-debugger serve`, API, live updates, embedded UI |
 | `ui/` | Web UI in Svelte, English and Russian |
 | `server/cmd/wapp-debugger-desktop/` | Desktop app on Wails v3 |
-| `client-php/` | PHP library: `v1/` is the current one, the 2.0 package is in progress |
+| `client-php/` | PHP library 2.x; `v1/` keeps library v1 for old projects |
 | `spec/` | Log formats, API contracts and fixtures |
 
 The old PHP viewer with EasyUI is gone; it stays in the git history (tag `legacy-hotfix` is its last version).
