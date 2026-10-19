@@ -120,6 +120,8 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - run: make ui-deps
       - run: make build
+      # The installer from the README one-liner, against a fake GitHub Releases server
+      - run: make scripts-lint install-test
 
   desktop:
     name: Desktop on ${{ matrix.os }}

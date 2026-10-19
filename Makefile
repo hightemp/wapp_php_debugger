@@ -244,6 +244,15 @@ docker-build: ## Build the server image wapp-debugger:dev (see Dockerfile)
 
 # --- Misc -------------------------------------------------------------------
 
+.PHONY: install-test
+install-test: ## Test scripts/install.sh against a fake GitHub Releases server
+	scripts/install_test.sh
+
+.PHONY: scripts-lint
+scripts-lint: ## shellcheck the shell scripts (shellcheck binary, or its Docker image)
+	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; \
+	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh; fi
+
 .PHONY: workflows-lint
 workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows
 	$(ACTIONLINT)

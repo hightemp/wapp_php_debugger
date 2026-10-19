@@ -19,11 +19,17 @@ composer config repositories.wapp-debugger path /path/to/wapp_php_debugger/clien
 composer require --dev hightemp/wapp-php-debugger:@dev
 ```
 
-Без Composer скопируйте `client-php/src` в проект и подключите автозагрузчик:
+Без Composer возьмите сборку одним файлом из релиза (всё, кроме мостов PSR-3 и Monolog — им Composer нужен в любом случае):
+
+```sh
+curl -fsSLO https://github.com/hightemp/wapp_php_debugger/releases/latest/download/wapp-debugger.php
+```
 
 ```php
-require __DIR__ . '/lib/wapp-debugger/autoload.php';
+require __DIR__ . '/wapp-debugger.php';
 ```
+
+или скопируйте `client-php/src` в проект и подключите `src/autoload.php`. Из исходников один файл собирает `make php-bundle`.
 
 ## Запуск
 

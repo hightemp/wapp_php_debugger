@@ -42,6 +42,7 @@ checksum:
   name_template: checksums.txt
   extra_files:
     - glob: dist/wapp-debugger.php
+    - glob: scripts/install.sh
 
 snapshot:
   version_template: '0.0.0-snapshot-{{ .ShortCommit }}'
@@ -53,6 +54,8 @@ release:
   # The one-file PHP library (make php-bundle): curl -fsSLO …/releases/latest/download/wapp-debugger.php
   extra_files:
     - glob: dist/wapp-debugger.php
+    # curl -fsSL …/releases/latest/download/install.sh | sh
+    - glob: scripts/install.sh
   # Published by hand after a look at the notes and the desktop archives the release workflow adds
   draft: true
   replace_existing_draft: true

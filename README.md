@@ -11,9 +11,33 @@ A logger and debugger for PHP projects: a PHP library writes the events of every
 
 ![wapp-debugger: request feed, a request and a message with its context and backtrace](docs/screenshot.png)
 
+## Install in one line
+
+```sh
+# The viewer (Linux, macOS): picks the build for your system, checks it, puts it into /usr/local/bin or ~/.local/bin
+curl -fsSL https://github.com/hightemp/wapp_php_debugger/releases/latest/download/install.sh | sh
+
+# The PHP library as one file, in the root of your project
+curl -fsSLO https://github.com/hightemp/wapp_php_debugger/releases/latest/download/wapp-debugger.php
+echo '{"enabled": true, "logs_dir": "tmp/logs"}' > dws_debugger.json
+```
+
+Then add two lines at the start of the request and run the viewer:
+
+```php
+require __DIR__ . '/wapp-debugger.php';
+WappDebugger\Debugger::boot(__DIR__ . '/dws_debugger.json');
+```
+
+```sh
+wapp-debugger serve --logs-dir /var/www/app/tmp/logs   # open http://127.0.0.1:8820
+```
+
+The one-liners work from the first published release that carries these files (v0.2.0). Windows: take the zip from [Releases](https://github.com/hightemp/wapp_php_debugger/releases). A specific version: `WAPP_DEBUGGER_VERSION=v0.2.0`, another directory: `WAPP_DEBUGGER_INSTALL_DIR=…` before `sh`.
+
 ## Quick start
 
-1. **Build the viewer** (Go 1.26+, Node 22+):
+1. **Or build the viewer from source** (Go 1.26+, Node 22+):
 
    ```sh
    make ui-deps build                              # dist/wapp-debugger with the embedded UI

@@ -8,9 +8,33 @@
 
 ![wapp-debugger: лента запросов, запрос и сообщение с контекстом и бэктрейсом](docs/screenshot.png)
 
+## Установка одной строкой
+
+```sh
+# Просмотрщик (Linux, macOS): сам выбирает сборку под систему, проверяет её и кладёт в /usr/local/bin или ~/.local/bin
+curl -fsSL https://github.com/hightemp/wapp_php_debugger/releases/latest/download/install.sh | sh
+
+# PHP-библиотека одним файлом — в корень проекта
+curl -fsSLO https://github.com/hightemp/wapp_php_debugger/releases/latest/download/wapp-debugger.php
+echo '{"enabled": true, "logs_dir": "tmp/logs"}' > dws_debugger.json
+```
+
+Затем две строки в начале запроса — и запуск просмотрщика:
+
+```php
+require __DIR__ . '/wapp-debugger.php';
+WappDebugger\Debugger::boot(__DIR__ . '/dws_debugger.json');
+```
+
+```sh
+wapp-debugger serve --logs-dir /var/www/app/tmp/logs   # откройте http://127.0.0.1:8820
+```
+
+Однострочники работают с первого опубликованного релиза, где есть эти файлы (v0.2.0). Windows: zip со страницы [Releases](https://github.com/hightemp/wapp_php_debugger/releases). Конкретная версия — `WAPP_DEBUGGER_VERSION=v0.2.0`, другая папка — `WAPP_DEBUGGER_INSTALL_DIR=…` перед `sh`.
+
 ## Быстрый старт
 
-1. **Соберите просмотрщик** (Go 1.26+, Node 22+):
+1. **Или соберите просмотрщик из исходников** (Go 1.26+, Node 22+):
 
    ```sh
    make ui-deps build                              # dist/wapp-debugger со встроенным UI
