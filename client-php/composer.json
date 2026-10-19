@@ -1,6 +1,6 @@
 {
     "name": "hightemp/wapp-php-debugger",
-    "description": "PHP-библиотека отладчика wapp_php_debugger: пишет события запроса в JSONL-логи для просмотрщика",
+    "description": "Debugger library of wapp_php_debugger: writes the events of every request into JSONL logs for the viewer",
     "type": "library",
     "license": "MIT",
     "require": {

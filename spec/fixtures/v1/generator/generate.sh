@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generates v1 format fixtures with the legacy library (legacy/Debugger.class.php) on PHP 7.4.
+# Generates v1 format fixtures with library v1 (client-php/v1/Debugger.class.php) on PHP 7.4.
 # Run from the repository root: make fixtures-v1
 set -euo pipefail
 
@@ -10,7 +10,7 @@ trap 'rm -rf "$WORK"' EXIT
 IMAGE="php:7.4-cli"
 
 mkdir -p "$WORK/app/logs" "$WORK/app/tmp"
-cp "$ROOT/legacy/Debugger.class.php" "$WORK/app/"
+cp "$ROOT/client-php/v1/Debugger.class.php" "$WORK/app/"
 cat > "$WORK/app/dws_debugger.json" <<JSON
 {"sProjectRootPath":"/var/www/app","sTempPath":"/var/www/app/tmp","sMessagesFilesPath":"/var/www/app/tmp/logs","bIsOnFlag":true}
 JSON

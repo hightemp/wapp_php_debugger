@@ -2,7 +2,7 @@
 
 | Version | Written by | Schema | Fixtures |
 |---|---|---|---|
-| v1 | `legacy/Debugger.class.php` (library 1.x) | [`v1/header.schema.json`](v1/header.schema.json), [`v1/message.schema.json`](v1/message.schema.json) | [`../fixtures/v1`](../fixtures/v1) |
+| v1 | `client-php/v1/Debugger.class.php` (library 1.x) | [`v1/header.schema.json`](v1/header.schema.json), [`v1/message.schema.json`](v1/message.schema.json) | [`../fixtures/v1`](../fixtures/v1) |
 | v2 | `client-php` 2.x | [`v2/event.schema.json`](v2/event.schema.json) | [`../fixtures/v2`](../fixtures/v2) |
 
 The viewer always reads both versions; the new library writes v2 only. The version of a file is detected from its first line: every v2 event has `"v": 2`.

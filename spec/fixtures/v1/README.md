@@ -1,6 +1,6 @@
 # v1 log fixtures
 
-Logs in the current format (`legacy/Debugger.class.php`), written by the real library on PHP 7.4. The v1 parser tests in Go and the UI e2e tests use them.
+Logs in the current format (`client-php/v1/Debugger.class.php`), written by the real library on PHP 7.4. The v1 parser tests in Go and the UI e2e tests use them.
 
 v1 format: the first line is the request header with a fixed length of 1000 bytes (JSON padded with spaces, rewritten in place when the request finishes), then one JSON line per message (`sType`, `sMessage`, `oVars`, `oBackTrace`, `aBackTrace`, `iTimestamp`).
 

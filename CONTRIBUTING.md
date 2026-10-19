@@ -10,12 +10,11 @@ The project is open source and **English is the base language**: code, comments,
 
 | Directory | What | Language |
 |---|---|---|
-| `client-php/` | PHP library (the debugger), Composer package, PHP 7.4+ | PHP |
+| `client-php/` | PHP library (the debugger), Composer package, PHP 7.4+; `v1/` is the current library, urgent fixes only, outside the linters | PHP |
 | `server/` | Viewer: CLI, server, log import, desktop entry point | Go 1.26+ |
 | `ui/` | Web UI, embedded into the Go binary | Svelte 5 + TypeScript |
 | `desktop/` | Notes on the Wails desktop build | — |
 | `spec/` | Contracts: fixtures, JSON Schema, OpenAPI | — |
-| `legacy/` | Old server, EasyUI and library v1. Urgent fixes only; removed in phase 5 | PHP, JS |
 
 ## Commands
 
@@ -84,4 +83,4 @@ fix(client-php): mask secrets in nested arrays
 chore: update golangci-lint to v2.15
 ```
 
-Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope is the top-level directory (`client-php`, `server`, `ui`, `desktop`, `spec`, `legacy`).
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope is the top-level directory (`client-php`, `server`, `ui`, `desktop`, `spec`, `docs`).

@@ -3,3 +3,6 @@
 # Build artifacts
 /dist/
 /server/web/dist/
+
+# Local data of the removed old viewer (its database), if any is left on disk
+/legacy/
