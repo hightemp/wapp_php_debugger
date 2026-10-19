@@ -1,8 +1,8 @@
-# Проверки на каждый push и pull request (п. 3.2 плана). Команды — те же цели make, что и локально.
+# Checks on every push and pull request. The commands are the same make targets as locally.
 name: CI
 
 on:
-  # Один разработчик, ветка на фазу: проверяем каждый push в любую ветку
+  # One developer, one branch per phase: check every push to any branch
   push:
     branches: ['**']
     tags-ignore: ['**']
@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Библиотека поддерживает PHP 7.4+ (п. 10.13)
+        # The library supports PHP 7.4+
         php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,7 +96,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # git describe для версии
+          fetch-depth: 0 # git describe for the version
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: server/go.mod
@@ -143,7 +143,7 @@ jobs:
         run: command -v make || choco install make -y
       - run: make ui-deps
       - run: make desktop-vet
-      # Окно открывается по-настоящему: REST через asset handler и поток событий Wails (п. 10.27)
+      # A real window opens: REST through the asset handler and the Wails event stream
       - run: make desktop-selftest
 
   release-snapshot:

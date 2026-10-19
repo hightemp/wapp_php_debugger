@@ -1,12 +1,12 @@
-# Сборка релиза сервера (п. 3.2 плана). Локально: make release-snapshot; в CI — release.yml (фаза 5).
-# UI собирается заранее (make ui-build) и встраивается тегом embedui.
-# Десктоп собирается отдельно на каждой ОС (нужен CGO) — job desktop в CI.
+# Server release build. Locally: make release-snapshot; in CI: release.yml.
+# The UI is built beforehand (make ui-build) and embedded with the embedui tag.
+# The desktop app is built separately on each OS (requires CGO) by the desktop CI job.
 version: 2
 project_name: wapp-debugger
 dist: dist/release
 
 git:
-  # Тег legacy-hotfix относится к старой версии и не SemVer
+  # The legacy-hotfix tag belongs to the old version and is not SemVer
   ignore_tags: ['legacy-*']
 
 before:

@@ -15,12 +15,12 @@ indent_size = 2
 indent_style = tab
 
 [*.log]
-# Фикстуры логов хранятся байт в байт
+# Log fixtures are stored byte for byte
 insert_final_newline = false
 trim_trailing_whitespace = false
 
 [legacy/**]
-# Старый код не переформатируем
+# Legacy code is not reformatted
 indent_style = unset
 indent_size = unset
 trim_trailing_whitespace = false

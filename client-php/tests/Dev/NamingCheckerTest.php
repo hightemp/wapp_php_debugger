@@ -109,7 +109,7 @@ final class NamingCheckerTest extends TestCase
 
     public function testUsagesOfForeignPropertiesAndMethodsAreNotReported(): void
     {
-        // Чужой API (например, старой библиотеки) можно вызывать: проверяются только наши объявления и переменные
+        // A foreign API (the legacy library, for example) may be called: only our declarations and variables are checked
         $source = "<?php\n\$debugger->fnDebugLog(\$debugger->sMessagesFilesPath);\nDebugger::fnGetInstance();\n";
 
         self::assertSame([], $this->names($source));
@@ -122,7 +122,7 @@ final class NamingCheckerTest extends TestCase
 
     public function testLineCanBeExcludedWithIgnoreComment(): void
     {
-        // Нужно для deprecated-обёрток со старыми именами (п. 10.23 плана)
+        // Needed for deprecated wrappers that keep the old names
         $source = "<?php\nfunction fnDebugLog() {} // naming-check:ignore\nfunction fnOther() {}\n";
 
         self::assertSame(['fnOther'], $this->names($source));

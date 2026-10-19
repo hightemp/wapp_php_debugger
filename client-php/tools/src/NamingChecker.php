@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace WappDebugger\Dev;
 
 /**
- * Находит имена в венгерской нотации ($aVars, $sMessage, fnDebugLog) в объявлениях и переменных.
- * Использования чужих свойств и методов (->sName, ::fnName) не проверяются.
+ * Finds Hungarian notation names ($aVars, $sMessage, fnDebugLog) in declarations and variables.
+ * Uses of foreign properties and methods (->sName, ::fnName) are not checked.
  */
 final class NamingChecker
 {

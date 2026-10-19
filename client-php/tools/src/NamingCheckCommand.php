@@ -10,7 +10,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * Проверяет .php-файлы в переданных путях. Коды выхода: 0 — чисто, 1 — есть нарушения, 2 — ошибка запуска.
+ * Checks .php files under the given paths. Exit codes: 0 — clean, 1 — violations found, 2 — usage error.
  */
 final class NamingCheckCommand
 {
