@@ -52,9 +52,15 @@ final class Debugger
         $now = $clock->now();
         $requestId = Ulid::generate($now);
         $logsDir = $config->logsDir();
-        $writer = $config->enabled() && $logsDir !== null
-            ? new JsonlFileWriter($logsDir, $now . '-' . $requestId . '.jsonl', $config->fileMode(), $config->dirMode())
-            : null;
+        $writer = null;
+        if ($config->enabled() && $logsDir !== null) {
+            $fileName = $now . '-' . $requestId . '.jsonl';
+            $rotation = new Rotation($config->maxAgeDays(), $config->maxFiles(), $config->maxLogsBytes());
+            if ($rotation->due($logsDir, $now)) {
+                $rotation->run($logsDir, $now, $fileName);
+            }
+            $writer = new JsonlFileWriter($logsDir, $fileName, $config->fileMode(), $config->dirMode());
+        }
 
         $serializer = new Serializer(new Masker($config->maskKeys()), $config->maxDepth(), $config->maxItems(), $config->maxStringBytes());
         $debugger = new self($clock, $serializer, new Frames($config->projectRoot()), $config->traceFrames(), $writer, $requestId, $now, $request->isCli());

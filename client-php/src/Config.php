@@ -23,6 +23,9 @@ final class Config
     private int $traceFrames;
     /** @var list<string> */
     private array $logGlobals;
+    private int $maxAgeDays;
+    private int $maxFiles;
+    private int $maxLogsBytes;
     /** @var array<string, string|null> */
     private array $oldKeys = [];
 
@@ -35,6 +38,7 @@ final class Config
         'iArraySizeLimit' => 'max_items',
         'iPageSize' => null,
         'bLogSessionAndCookies' => 'log_globals',
+        'iLogsSizeLimit' => 'max_logs_size',
     ];
 
     private const GLOBALS = ['server', 'get', 'post', 'files', 'session', 'cookie'];
@@ -60,6 +64,9 @@ final class Config
         $this->maxStringBytes = self::positiveInt($values['max_string_bytes'] ?? null, 2000);
         $traceFrames = $values['trace_frames'] ?? null;
         $this->traceFrames = is_int($traceFrames) && $traceFrames >= 0 ? $traceFrames : 10;
+        $this->maxAgeDays = self::nonNegativeInt($values['max_age_days'] ?? null, 30);
+        $this->maxFiles = self::nonNegativeInt($values['max_files'] ?? null, 5000);
+        $this->maxLogsBytes = self::nonNegativeInt($values['max_logs_size'] ?? null, 256 * 1024 * 1024);
         $globals = is_array($values['log_globals'] ?? null) ? $values['log_globals'] : ['get', 'post', 'files'];
         $globals = array_map('strtolower', array_filter($globals, 'is_string'));
         $this->logGlobals = array_values(array_intersect($globals, self::GLOBALS));
@@ -142,6 +149,24 @@ final class Config
         return $this->traceFrames;
     }
 
+    /** Log files older than this are deleted; 0 keeps them. */
+    public function maxAgeDays(): int
+    {
+        return $this->maxAgeDays;
+    }
+
+    /** At most this many log files; 0 means no limit. */
+    public function maxFiles(): int
+    {
+        return $this->maxFiles;
+    }
+
+    /** At most this many bytes of logs (max_logs_size); 0 means no limit. */
+    public function maxLogsBytes(): int
+    {
+        return $this->maxLogsBytes;
+    }
+
     /**
      * Superglobals written at boot: server, get, post, files, session, cookie.
      *
@@ -174,7 +199,11 @@ final class Config
                 continue;
             }
             $this->oldKeys[$old] = $new;
-            if ($new === 'log_globals') {
+            if ($new === 'max_logs_size') {
+                if (is_int($values[$old]) && !array_key_exists($new, $values)) {
+                    $values[$new] = $values[$old] * 1024; // v1 counted kilobytes
+                }
+            } elseif ($new === 'log_globals') {
                 if ($values[$old] === true && !array_key_exists('log_globals', $values)) {
                     $values['log_globals'] = ['get', 'post', 'files', 'session', 'cookie'];
                 }
@@ -184,6 +213,14 @@ final class Config
         }
 
         return $values;
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private static function nonNegativeInt($value, int $default): int
+    {
+        return is_int($value) && $value >= 0 ? $value : $default;
     }
 
     /**
