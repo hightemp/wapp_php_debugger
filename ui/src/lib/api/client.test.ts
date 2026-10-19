@@ -1,0 +1,75 @@
+import { describe, expect, it, vi } from 'vitest';
+import { ApiError, createHttpTransport, type EventSourceLike } from './client';
+
+function jsonResponse(body: unknown, status = 200, type = 'application/json'): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': type } });
+}
+
+describe('createHttpTransport', () => {
+  it('requests the feed with query parameters and parses the page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ items: [], next_cursor: null }));
+    const transport = createHttpTransport({ baseUrl: 'http://127.0.0.1:8820', fetch: fetchMock });
+
+    const page = await transport.listRequests({ limit: 50, cursor: 'abc' });
+
+    expect(page).toEqual({ items: [], next_cursor: null });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8820/api/v1/requests?limit=50&cursor=abc',
+      expect.objectContaining({ headers: { Accept: 'application/json' } }),
+    );
+  });
+
+  it('skips undefined parameters', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ items: [], next_cursor: null }));
+    await createHttpTransport({ baseUrl: '', fetch: fetchMock }).listRequests({});
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/requests');
+  });
+
+  it('turns Problem Details into ApiError', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(
+          { title: 'Bad Request', status: 400, detail: 'invalid cursor' },
+          400,
+          'application/problem+json',
+        ),
+      );
+    const error = await createHttpTransport({ baseUrl: '', fetch: fetchMock })
+      .listRequests({ cursor: 'x' })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 400, title: 'Bad Request', detail: 'invalid cursor' });
+  });
+
+  it('reports network failures as ApiError with status 0', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    const error = await createHttpTransport({ baseUrl: '', fetch: fetchMock })
+      .getVersion()
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ status: 0, title: 'Network error' });
+  });
+
+  it('subscribes to the stream and parses named events', () => {
+    const listeners = new Map<string, (event: MessageEvent) => void>();
+    const source: EventSourceLike = {
+      addEventListener: (name, listener) => listeners.set(name, listener),
+      close: vi.fn(),
+    };
+    const createEventSource = vi.fn().mockReturnValue(source);
+    const transport = createHttpTransport({ baseUrl: '', fetch: vi.fn(), createEventSource });
+
+    const received: unknown[] = [];
+    const unsubscribe = transport.subscribe((event) => received.push(event));
+    listeners.get('request_created')?.(
+      new MessageEvent('request_created', { data: '{"event":"request_created","request_id":7}' }),
+    );
+    listeners.get('resync')?.(new MessageEvent('resync', { data: '{"event":"resync"}' }));
+    unsubscribe();
+
+    expect(createEventSource).toHaveBeenCalledWith('/api/v1/stream');
+    expect(received).toEqual([{ event: 'request_created', request_id: 7 }, { event: 'resync' }]);
+    expect(source.close).toHaveBeenCalled();
+  });
+});

@@ -7,7 +7,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
-    "types": ["svelte", "vite/client", "@testing-library/jest-dom"]
+    "types": ["svelte", "vite/client", "@testing-library/jest-dom", "node"]
   },
   "include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts", "vitest-setup.ts"]
 }

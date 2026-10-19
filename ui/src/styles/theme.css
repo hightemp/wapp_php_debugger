@@ -1,0 +1,119 @@
+/* Токены тем (п. 6.4 плана). Компоненты берут цвета только отсюда.
+   Контраст пар цветов проверяется тестом theme.test.ts (WCAG AA, у контрастной темы текст — AAA). */
+
+:root {
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-size: 14px;
+  --font-size-small: 12px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-6: 24px;
+  --radius: 6px;
+  color-scheme: light dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-hover: #f0f2f5;
+  --surface-sunken: #eceff3;
+  --border: #d0d6de;
+  --text: #1b1f24;
+  --text-muted: #555e6a;
+  --accent: #2f6fed;
+  --level-error: #c62828;
+  --level-warning: #8f5400;
+  --level-info: #1d6b40;
+  --level-message: #555e6a;
+  --level-debug: #6650c8;
+  --level-error-soft: #fde8e8;
+  --level-warning-soft: #fdf1dc;
+  --shadow-small: 0 1px 2px rgb(0 0 0 / 12%);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --surface: #161a20;
+  --surface-hover: #1e232b;
+  --surface-sunken: #0b0d10;
+  --border: #353d48;
+  --text: #e6e9ee;
+  --text-muted: #9ea8b6;
+  --accent: #6ea0ff;
+  --level-error: #ff7b72;
+  --level-warning: #e3b341;
+  --level-info: #56d364;
+  --level-message: #9ea8b6;
+  --level-debug: #b4a7ff;
+  --level-error-soft: #3a1d1f;
+  --level-warning-soft: #33290f;
+  --shadow-small: 0 1px 2px rgb(0 0 0 / 50%);
+}
+
+:root[data-theme='high-contrast'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #000000;
+  --surface-hover: #1a1a1a;
+  --surface-sunken: #000000;
+  --border: #ffffff;
+  --text: #ffffff;
+  --text-muted: #e0e0e0;
+  --accent: #ffff00;
+  --level-error: #ff6b6b;
+  --level-warning: #ffd23f;
+  --level-info: #6bff8b;
+  --level-message: #e0e0e0;
+  --level-debug: #c9b8ff;
+  --level-error-soft: #2a0000;
+  --level-warning-soft: #2a2200;
+  --shadow-small: 0 0 0 1px #ffffff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--font-size);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Скроллбары в цвет темы — стилизация CSS, без эмуляции на JS (п. 10.5) */
+* {
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
