@@ -251,3 +251,58 @@ func (s *Store) DeleteProject(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// ServerPatch holds server fields to change; nil fields stay as they are.
+type ServerPatch struct {
+	Name         *string
+	Environment  *string
+	Config       *string
+	ReadOnly     *bool
+	AllowDelete  *bool
+	AllowControl *bool
+}
+
+// UpdateServer changes a server.
+func (s *Store) UpdateServer(ctx context.Context, id int64, patch ServerPatch) (Server, error) {
+	server, found, err := s.GetServer(ctx, id)
+	if err != nil {
+		return Server{}, err
+	}
+	if !found {
+		return Server{}, ErrNotFound
+	}
+	if patch.Name != nil {
+		server.Name = *patch.Name
+	}
+	if patch.Environment != nil {
+		server.Environment = *patch.Environment
+	}
+	if patch.Config != nil {
+		server.Config = *patch.Config
+	}
+	if patch.ReadOnly != nil {
+		server.ReadOnly = *patch.ReadOnly
+	}
+	if patch.AllowDelete != nil {
+		server.AllowDelete = *patch.AllowDelete
+	}
+	if patch.AllowControl != nil {
+		server.AllowControl = *patch.AllowControl
+	}
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE servers SET name = ?, environment = ?, config = ?, read_only = ?, allow_delete = ?, allow_control = ?, updated_at = ?
+		WHERE id = ?`, server.Name, server.Environment, server.Config, server.ReadOnly, server.AllowDelete, server.AllowControl,
+		time.Now().UnixMilli(), id)
+	if err != nil {
+		return Server{}, classify(err)
+	}
+	updated, _, err := s.GetServer(ctx, id)
+	return updated, err
+}
+
+// PendingFiles counts the project log files that are known but not read to the end.
+func (s *Store) PendingFiles(ctx context.Context, projectID int64) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM log_files WHERE project_id = ? AND read_offset < size`, projectID).Scan(&n)
+	return n, err
+}
