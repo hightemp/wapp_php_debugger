@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Usage: tools/bin/bundle <src dir> <target file>
+// No Composer needed: the release job builds the bundle with a plain PHP
+require __DIR__.'/../src/Bundler.php';
+
+if ($argc !== 3) {
+    fwrite(STDERR, "usage: bundle <src dir> <target file>\n");
+    exit(2);
+}
+(new WappDebugger\Dev\Bundler())->build($argv[1], $argv[2]);
+echo "written {$argv[2]}\n";

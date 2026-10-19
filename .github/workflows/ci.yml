@@ -44,6 +44,8 @@ jobs:
         if: matrix.psr-log
         run: cd client-php && composer require --dev "psr/log:${{ matrix.psr-log }}" -W --no-interaction --no-progress
       - run: make php-test
+      # The same suite against the one-file build
+      - run: make php-bundle-test
 
   php-lint:
     name: PHP lint

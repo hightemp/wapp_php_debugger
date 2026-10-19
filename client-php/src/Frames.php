@@ -14,6 +14,9 @@ final class Frames
     /** @var array<string, true> directories of logging code (PSR-3, Monolog) whose frames are skipped too */
     private static array $loggingDirs = [];
 
+    /** true in the one-file build (tools/bin/bundle): then this file is the library, not its directory. */
+    private const BUNDLED = false;
+
     private ?string $projectRoot;
     private string $libraryDir;
 
@@ -123,7 +126,12 @@ final class Frames
 
     private function isLoggingCode(string $file): bool
     {
-        if (strpos($file, $this->libraryDir) === 0) {
+        // @phpstan-ignore booleanAnd.leftAlwaysFalse (BUNDLED is rewritten by the bundler)
+        if (self::BUNDLED && $file === __FILE__) {
+            return true;
+        }
+        // @phpstan-ignore booleanNot.alwaysTrue (BUNDLED is rewritten by the bundler)
+        if (!self::BUNDLED && strpos($file, $this->libraryDir) === 0) {
             return true;
         }
         foreach (self::$loggingDirs as $dir => $_) {

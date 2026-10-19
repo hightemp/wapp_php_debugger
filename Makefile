@@ -110,6 +110,15 @@ php-lint: ## Code style, PHPStan and the naming check (no Hungarian notation)
 php-test: ## PHP library tests
 	cd client-php && vendor/bin/phpunit
 
+.PHONY: php-bundle
+php-bundle: ## One-file build of the PHP library: dist/wapp-debugger.php
+	cd client-php && php tools/bin/bundle src $(DIST)/wapp-debugger.php
+
+.PHONY: php-bundle-test
+php-bundle-test: php-bundle ## The PHP library tests against the one-file build
+	@# auto_prepend_file: the bundle is declared before PHPUnit loads Composer's autoloader (and src/)
+	cd client-php && php -d auto_prepend_file=$(DIST)/wapp-debugger.php vendor/bin/phpunit -c phpunit.bundle.xml
+
 .PHONY: php74-test
 php74-test: ## PHP library tests on PHP 7.4 in Docker, dependencies resolved for 7.4 as in CI
 	rm -rf $(DIST)/php74 && mkdir -p $(DIST)/php74
@@ -210,11 +219,11 @@ generate-check: generate ## Check that generated code matches what is committed
 # --- Release ----------------------------------------------------------------
 
 .PHONY: release
-release: $(GORELEASER) ui-build ## Publish a draft GitHub release for the current tag (CI only: needs GITHUB_TOKEN)
+release: $(GORELEASER) ui-build php-bundle ## Publish a draft GitHub release for the current tag (CI only: needs GITHUB_TOKEN)
 	$(GORELEASER) release --clean
 
 .PHONY: release-snapshot
-release-snapshot: $(GORELEASER) ui-build ## Local release check: server archives for all OSes in dist/release
+release-snapshot: $(GORELEASER) ui-build php-bundle ## Local release check: server archives for all OSes in dist/release
 	$(GORELEASER) release --snapshot --clean
 
 DESKTOP_ARCHIVE := $(DIST)/release-desktop/wapp-debugger-desktop_$(patsubst v%,%,$(VERSION))_$(shell go env GOOS)_$(shell go env GOARCH)

@@ -12,6 +12,7 @@ git:
 before:
   hooks:
     - test -f server/web/dist/index.html
+    - test -f dist/wapp-debugger.php
 
 builds:
   - id: wapp-debugger
@@ -39,6 +40,8 @@ archives:
 
 checksum:
   name_template: checksums.txt
+  extra_files:
+    - glob: dist/wapp-debugger.php
 
 snapshot:
   version_template: '0.0.0-snapshot-{{ .ShortCommit }}'
@@ -47,6 +50,9 @@ changelog:
   disable: true
 
 release:
+  # The one-file PHP library (make php-bundle): curl -fsSLO …/releases/latest/download/wapp-debugger.php
+  extra_files:
+    - glob: dist/wapp-debugger.php
   # Published by hand after a look at the notes and the desktop archives the release workflow adds
   draft: true
   replace_existing_draft: true
