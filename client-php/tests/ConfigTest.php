@@ -90,4 +90,15 @@ final class ConfigTest extends TestCase
         self::assertSame(['get', 'post', 'files'], Config::fromArray([])->logGlobals(), '$_SERVER, session and cookies only on request');
         self::assertSame(['server', 'get'], Config::fromArray(['log_globals' => ['server', 'GET', 'bogus']])->logGlobals());
     }
+
+    public function testModesAsOctalStringsInJson(): void
+    {
+        $file = $this->tempDir() . '/dws_debugger.json';
+        file_put_contents($file, '{"file_mode": "0640", "dir_mode": "750"}');
+        $config = Config::fromFile($file);
+
+        self::assertSame(0640, $config->fileMode(), 'JSON has no octal numbers');
+        self::assertSame(0750, $config->dirMode());
+        self::assertSame(0664, Config::fromArray(['file_mode' => '0999'])->fileMode(), 'not octal: the default');
+    }
 }

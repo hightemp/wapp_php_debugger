@@ -60,8 +60,8 @@ final class Config
         $this->logsDir = $logs !== null
             ? self::resolve($logs, $this->projectRoot)
             : ($this->projectRoot !== null ? $this->projectRoot . '/tmp/logs' : null);
-        $this->fileMode = is_int($values['file_mode'] ?? null) ? $values['file_mode'] : 0664;
-        $this->dirMode = is_int($values['dir_mode'] ?? null) ? $values['dir_mode'] : 0775;
+        $this->fileMode = self::mode($values['file_mode'] ?? null, 0664);
+        $this->dirMode = self::mode($values['dir_mode'] ?? null, 0775);
         $this->maskKeys = is_array($values['mask_keys'] ?? null) ? array_values(array_filter($values['mask_keys'], 'is_string')) : [];
         $this->maxDepth = self::positiveInt($values['max_depth'] ?? null, 6);
         $this->maxItems = self::positiveInt($values['max_items'] ?? null, 100);
@@ -244,6 +244,20 @@ final class Config
         }
 
         return $values;
+    }
+
+    /**
+     * A permission mode: an int from PHP code or an octal string ("0664") from JSON, which has no octal numbers.
+     *
+     * @param mixed $value
+     */
+    private static function mode($value, int $default): int
+    {
+        if (is_int($value) && $value >= 0 && $value <= 0777) {
+            return $value;
+        }
+
+        return is_string($value) && preg_match('/^0?[0-7]{3}$/', $value) === 1 ? (int) octdec($value) : $default;
     }
 
     /**
