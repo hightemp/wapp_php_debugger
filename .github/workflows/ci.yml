@@ -2,8 +2,10 @@
 name: CI
 
 on:
+  # Один разработчик, ветка на фазу: проверяем каждый push в любую ветку
   push:
-    branches: [main]
+    branches: ['**']
+    tags-ignore: ['**']
   pull_request:
   workflow_dispatch:
 
