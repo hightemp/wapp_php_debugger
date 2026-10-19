@@ -6,7 +6,11 @@ import type {
   MessagePage,
   MessageType,
   Problem,
+  Project,
+  ProjectInput,
+  ProjectPatch,
   RequestDetail,
+  Server,
   RequestPage,
   StreamEvent,
 } from './types';
@@ -37,6 +41,14 @@ export interface Transport {
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
   getMessage(id: number): Promise<MessageDetail>;
+  listServers(): Promise<{ items: Server[] }>;
+  listProjects(): Promise<{ items: Project[] }>;
+  createProject(input: ProjectInput): Promise<Project>;
+  updateProject(id: number, patch: ProjectPatch): Promise<Project>;
+  deleteProject(id: number): Promise<void>;
+  getDebuggerState(id: number): Promise<{ enabled: boolean }>;
+  setDebuggerState(id: number, enabled: boolean): Promise<{ enabled: boolean }>;
+  clearProjectLogs(id: number): Promise<{ removed_files: number }>;
   /** Subscribes to /api/v1/stream; returns the unsubscribe function. */
   subscribe(onEvent: (event: StreamEvent) => void): () => void;
 }
@@ -80,7 +92,12 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
   const createEventSource =
     options.createEventSource ?? ((url: string) => new EventSource(url) as EventSourceLike);
 
-  async function getJSON<T>(path: string, params: object = {}): Promise<T> {
+  async function request<T>(
+    method: string,
+    path: string,
+    params: object = {},
+    body?: unknown,
+  ): Promise<T> {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
@@ -89,10 +106,18 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
       }
     }
     const url = `${options.baseUrl}${path}${query.size > 0 ? `?${query}` : ''}`;
+    const init: RequestInit =
+      body === undefined
+        ? { method, headers: { Accept: 'application/json' } }
+        : {
+            method,
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          };
 
     let response: Response;
     try {
-      response = await fetchImpl(url, { headers: { Accept: 'application/json' } });
+      response = await fetchImpl(url, method === 'GET' ? { headers: init.headers } : init);
     } catch (error) {
       throw new ApiError({ status: 0, title: 'Network error', detail: String(error) });
     }
@@ -104,8 +129,13 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
         detail: problem?.detail,
       });
     }
+    if (response.status === 204) {
+      return undefined as T;
+    }
     return (await response.json()) as T;
   }
+
+  const getJSON = <T>(path: string, params?: object) => request<T>('GET', path, params);
 
   const subscribers = new Set<(event: StreamEvent) => void>();
   let source: EventSourceLike | null = null;
@@ -117,6 +147,18 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     listMessages: (requestId, params) =>
       getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
     getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
+    listServers: () => getJSON<{ items: Server[] }>('/api/v1/servers'),
+    listProjects: () => getJSON<{ items: Project[] }>('/api/v1/projects'),
+    createProject: (input) => request<Project>('POST', '/api/v1/projects', {}, input),
+    updateProject: (id, patch) => request<Project>('PATCH', `/api/v1/projects/${id}`, {}, patch),
+    deleteProject: async (id) => {
+      await request<unknown>('DELETE', `/api/v1/projects/${id}`);
+    },
+    getDebuggerState: (id) => getJSON<{ enabled: boolean }>(`/api/v1/projects/${id}/debugger`),
+    setDebuggerState: (id, enabled) =>
+      request<{ enabled: boolean }>('PUT', `/api/v1/projects/${id}/debugger`, {}, { enabled }),
+    clearProjectLogs: (id) =>
+      request<{ removed_files: number }>('DELETE', `/api/v1/projects/${id}/logs`),
     subscribe(onEvent) {
       // One EventSource for all subscribers; it reconnects by itself and sends Last-Event-ID
       subscribers.add(onEvent);

@@ -1,7 +1,7 @@
 // Test helpers: an in-memory Transport and sample DTOs.
 import { vi } from 'vitest';
 import type { Transport } from '../lib/api/client';
-import type { MessageDetail, Request, RequestDetail, StreamEvent } from '../lib/api/types';
+import type { MessageDetail, Project, Request, RequestDetail, StreamEvent } from '../lib/api/types';
 
 export function sampleRequest(id: number, overrides: Partial<Request> = {}): Request {
   return {
@@ -49,6 +49,24 @@ export function sampleMessage(id: number, overrides: Partial<MessageDetail> = {}
   };
 }
 
+export function sampleProject(id: number, overrides: Partial<Project> = {}): Project {
+  return {
+    id,
+    server_id: 1,
+    name: `project-${id}`,
+    root_path: `/var/www/project-${id}`,
+    logs_dir: `/var/www/project-${id}/tmp/logs`,
+    local_path: null,
+    config_path: `/var/www/project-${id}/dws_debugger.json`,
+    editor: 'vscode',
+    retention: {},
+    pending_files: 0,
+    created_at: 0,
+    updated_at: 0,
+    ...overrides,
+  };
+}
+
 /** A Transport whose methods are vi.fn() with empty answers; override what a test needs. */
 export function fakeTransport(overrides: Partial<Transport> = {}) {
   let emit: (event: StreamEvent) => void = () => {};
@@ -59,6 +77,14 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
     getRequest: vi.fn(async (id: number) => sampleRequestDetail(id)),
     listMessages: vi.fn(async () => ({ items: [], next_cursor: null })),
     getMessage: vi.fn(async (id: number) => sampleMessage(id)),
+    listServers: vi.fn(async () => ({ items: [] })),
+    listProjects: vi.fn(async () => ({ items: [] as Project[] })),
+    createProject: vi.fn(async () => sampleProject(1)),
+    updateProject: vi.fn(async (id: number) => sampleProject(id)),
+    deleteProject: vi.fn(async () => undefined),
+    getDebuggerState: vi.fn(async () => ({ enabled: false })),
+    setDebuggerState: vi.fn(async (_id: number, enabled: boolean) => ({ enabled })),
+    clearProjectLogs: vi.fn(async () => ({ removed_files: 0 })),
     subscribe: vi.fn((onEvent: (event: StreamEvent) => void) => {
       emit = onEvent;
       return unsubscribe;

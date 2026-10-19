@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { Transport } from '../lib/api/client';
   import type { Request } from '../lib/api/types';
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
@@ -8,9 +7,15 @@
 
   let {
     transport,
+    projectId,
     selectedId,
     onselect = () => {},
-  }: { transport: Transport; selectedId?: number; onselect?: (id: number) => void } = $props();
+  }: {
+    transport: Transport;
+    projectId?: number;
+    selectedId?: number;
+    onselect?: (id: number) => void;
+  } = $props();
 
   const pageSize = 100;
   let items = $state<Request[]>([]);
@@ -19,10 +24,13 @@
   let errorMessage = $state('');
   let loadingMore = $state(false);
 
+  // undefined means the combined feed of all projects
+  const filter = () => (projectId === undefined ? {} : { project_id: projectId });
+
   async function load() {
     status = 'loading';
     try {
-      const page = await transport.listRequests({ limit: pageSize });
+      const page = await transport.listRequests({ limit: pageSize, ...filter() });
       items = page.items;
       nextCursor = page.next_cursor;
       status = 'ready';
@@ -38,7 +46,11 @@
     }
     loadingMore = true;
     try {
-      const page = await transport.listRequests({ limit: pageSize, cursor: nextCursor });
+      const page = await transport.listRequests({
+        limit: pageSize,
+        cursor: nextCursor,
+        ...filter(),
+      });
       const known = new Set(items.map((item) => item.id));
       items = [...items, ...page.items.filter((item) => !known.has(item.id))];
       nextCursor = page.next_cursor;
@@ -50,16 +62,24 @@
     }
   }
 
-  onMount(() => {
+  $effect(() => {
+    void projectId; // reload when the project filter changes
     void load();
-    return transport.subscribe((event) => {
+  });
+
+  $effect(() =>
+    transport.subscribe((event) => {
+      // Live requests of other projects do not belong in a filtered feed
+      if (projectId !== undefined && event.request && event.request.project_id !== projectId) {
+        return;
+      }
       const update = applyStreamEvent(items, event);
       items = update.items;
       if (update.reload) {
         void load();
       }
-    });
-  });
+    }),
+  );
 
   function outcome(request: Request): string {
     if (!request.finished) {

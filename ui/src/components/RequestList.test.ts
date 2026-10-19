@@ -94,6 +94,23 @@ describe('RequestList', () => {
     expect(row).toHaveTextContent('1,89 с');
   });
 
+  it('shows only the requests of the selected project', async () => {
+    const { transport, listRequests, emit } = feed([
+      { items: [request(1, { project_id: 3 })], next_cursor: null },
+      { items: [], next_cursor: null },
+    ]);
+    const { rerender } = render(RequestList, { transport, projectId: 3 });
+    await screen.findAllByRole('listitem');
+    expect(listRequests).toHaveBeenCalledWith({ limit: 100, project_id: 3 });
+
+    emit({ event: 'request_created', request: request(9, { project_id: 4 }) });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+
+    await rerender({ transport, projectId: undefined });
+    await waitFor(() => expect(listRequests).toHaveBeenLastCalledWith({ limit: 100 }));
+  });
+
   it('unsubscribes from the stream when removed', async () => {
     const { transport, unsubscribe } = feed([{ items: [], next_cursor: null }]);
     const { unmount } = render(RequestList, { transport });

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import LanguageSwitch from './components/LanguageSwitch.svelte';
   import MessageDetail from './components/MessageDetail.svelte';
+  import ProjectsPanel from './components/ProjectsPanel.svelte';
   import RequestDetail from './components/RequestDetail.svelte';
   import RequestList from './components/RequestList.svelte';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
@@ -52,10 +53,16 @@
   </header>
   <main class="panes">
     <div class="pane feed">
+      <ProjectsPanel
+        {transport}
+        selectedId={route.projectId}
+        onselect={(id) => navigate({ projectId: id })}
+      />
       <RequestList
         {transport}
+        projectId={route.projectId}
         selectedId={route.requestId}
-        onselect={(id) => navigate({ requestId: id })}
+        onselect={(id) => navigate({ projectId: route.projectId, requestId: id })}
       />
     </div>
     <div class="pane">
@@ -64,8 +71,9 @@
           {transport}
           requestId={route.requestId}
           selectedMessageId={route.messageId}
-          onselectmessage={(id) => navigate({ requestId: route.requestId, messageId: id })}
-          onselectrequest={(id) => navigate({ requestId: id })}
+          onselectmessage={(id) =>
+            navigate({ projectId: route.projectId, requestId: route.requestId, messageId: id })}
+          onselectrequest={(id) => navigate({ projectId: route.projectId, requestId: id })}
         />
       {:else}
         <p class="hint">{i18n.t('detail.empty')}</p>

@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.svelte';
 import { i18n } from './lib/i18n/locale.svelte';
-import { fakeTransport, sampleMessage, sampleRequest } from './test/transport';
+import { fakeTransport, sampleMessage, sampleProject, sampleRequest } from './test/transport';
 
 function setup() {
   return fakeTransport({
@@ -33,14 +33,25 @@ describe('App', () => {
   it('opens a request and a message and keeps the selection in the URL', async () => {
     const { transport } = setup();
     render(App, { transport });
-    const [row] = await screen.findAllByRole('listitem');
-    await fireEvent.click(within(row as HTMLElement).getByRole('button'));
+    await fireEvent.click(await screen.findByRole('button', { name: /GET \/item\/42/ }));
     expect(window.location.hash).toBe('#/requests/42');
 
     const [message] = await screen.findAllByRole('listitem', { name: /message/i });
     await fireEvent.click(within(message as HTMLElement).getByRole('button'));
     expect(window.location.hash).toBe('#/requests/42/messages/1001');
     expect(transport.getMessage).toHaveBeenCalledWith(1001);
+  });
+
+  it('filters the feed by the project chosen in the panel', async () => {
+    const { transport } = fakeTransport({
+      listProjects: vi.fn(async () => ({ items: [sampleProject(3, { name: 'shop' })] })),
+    });
+    render(App, { transport });
+    await fireEvent.click(await screen.findByRole('button', { name: 'shop' }));
+    expect(window.location.hash).toBe('#/projects/3');
+    await waitFor(() =>
+      expect(transport.listRequests).toHaveBeenLastCalledWith({ limit: 100, project_id: 3 }),
+    );
   });
 
   it('restores the selection from the URL', async () => {

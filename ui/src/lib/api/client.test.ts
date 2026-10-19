@@ -66,6 +66,51 @@ describe('createHttpTransport', () => {
     ]);
   });
 
+  it('manages projects and the debugger with JSON bodies', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse({}));
+    const transport = createHttpTransport({ baseUrl: '', fetch: fetchMock });
+
+    await transport.listServers();
+    await transport.listProjects();
+    await transport.createProject({
+      server_id: 1,
+      name: 'shop',
+      root_path: '/r',
+      logs_dir: '/r/logs',
+    });
+    await transport.updateProject(3, { local_path: '/home/dev/shop' });
+    await transport.getDebuggerState(3);
+    await transport.setDebuggerState(3, true);
+    await transport.clearProjectLogs(3);
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => [
+      url,
+      init?.method ?? 'GET',
+      init?.body ?? null,
+    ]);
+    expect(calls).toEqual([
+      ['/api/v1/servers', 'GET', null],
+      ['/api/v1/projects', 'GET', null],
+      [
+        '/api/v1/projects',
+        'POST',
+        '{"server_id":1,"name":"shop","root_path":"/r","logs_dir":"/r/logs"}',
+      ],
+      ['/api/v1/projects/3', 'PATCH', '{"local_path":"/home/dev/shop"}'],
+      ['/api/v1/projects/3/debugger', 'GET', null],
+      ['/api/v1/projects/3/debugger', 'PUT', '{"enabled":true}'],
+      ['/api/v1/projects/3/logs', 'DELETE', null],
+    ]);
+  });
+
+  it('accepts 204 No Content', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(
+      createHttpTransport({ baseUrl: '', fetch: fetchMock }).deleteProject(3),
+    ).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('DELETE');
+  });
+
   it('subscribes to the stream and parses named events', () => {
     const listeners = new Map<string, (event: MessageEvent) => void>();
     const source: EventSourceLike = {

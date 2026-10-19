@@ -9,6 +9,17 @@ describe('route', () => {
     expect(parseRoute('#/requests/42/messages/1001')).toEqual({ requestId: 42, messageId: 1001 });
   });
 
+  it('keeps the project filter in front of the selection', () => {
+    expect(parseRoute('#/projects/3')).toEqual({ projectId: 3 });
+    expect(parseRoute('#/projects/3/requests/42/messages/1001')).toEqual({
+      projectId: 3,
+      requestId: 42,
+      messageId: 1001,
+    });
+    expect(formatRoute({ projectId: 3 })).toBe('#/projects/3');
+    expect(formatRoute({ projectId: 3, requestId: 42 })).toBe('#/projects/3/requests/42');
+  });
+
   it('ignores anything it does not understand', () => {
     expect(parseRoute('#/requests/abc')).toEqual({});
     expect(parseRoute('#/requests/-1')).toEqual({});
