@@ -20,7 +20,9 @@ ACTIONLINT_VERSION := v1.7.12
 # Генератор запускается через npx: его peer-зависимость — TypeScript 5, а UI на TypeScript 6
 OPENAPI_TS_VERSION := 7.13.0
 GENERATED := server/internal/api/openapi.gen.go server/internal/libclient/client.gen.go ui/src/lib/api/schema.gen.d.ts
+GORELEASER_VERSION := v2.18.3
 GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
+GORELEASER := $(TOOLS_BIN)/goreleaser
 ACTIONLINT := $(TOOLS_BIN)/actionlint
 
 .PHONY: help
@@ -50,6 +52,9 @@ $(GOLANGCI_LINT):
 
 $(ACTIONLINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+
+$(GORELEASER):
+	GOBIN=$(TOOLS_BIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
 
 # --- Общие цели -------------------------------------------------------------
 
@@ -118,6 +123,34 @@ server-build: ui-build ## Собрать бинарник со встроенн�
 	cd server && CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/wapp-debugger ./cmd/wapp-debugger
 	@$(DIST)/wapp-debugger version
 
+# --- Десктоп (Wails v3) ------------------------------------------------------
+
+# На Linux Wails v3 по умолчанию собирается с GTK4 + WebKitGTK 6.0; для GTK3 + WebKit2GTK 4.1: make desktop-build LINUX_GTK=gtk3
+LINUX_GTK ?= gtk4
+DESKTOP_TAGS := desktop embedui $(if $(filter gtk3,$(LINUX_GTK)),gtk3)
+EXE := $(shell go env GOEXE)
+DESKTOP_BIN := $(DIST)/wapp-debugger-desktop$(EXE)
+
+.PHONY: desktop-build
+desktop-build: ui-build ## Собрать десктоп-приложение под текущую ОС (нужен CGO)
+	cd server && CGO_ENABLED=1 go build -tags "$(DESKTOP_TAGS)" -trimpath -ldflags "$(LDFLAGS)" -o $(DESKTOP_BIN) ./cmd/wapp-debugger-desktop
+
+.PHONY: desktop-vet
+desktop-vet: ## go vet кода десктопа (с тегами сборки)
+	cd server && CGO_ENABLED=1 go vet -tags "$(DESKTOP_TAGS)" ./cmd/wapp-debugger-desktop
+
+.PHONY: desktop-selftest
+desktop-selftest: desktop-build ## Открыть окно и проверить REST и поток событий внутри Wails (п. 10.27)
+	@if [ "$$(go env GOOS)" = linux ] && [ -z "$${DISPLAY:-}" ]; then \
+		xvfb-run -a -s "-screen 0 1280x800x24" $(DESKTOP_BIN) --self-test; \
+	else \
+		$(DESKTOP_BIN) --self-test; \
+	fi
+
+.PHONY: desktop-dev
+desktop-dev: desktop-build ## Запустить десктоп (LOGS_DIR=… — папка логов проекта)
+	$(DESKTOP_BIN) $(if $(LOGS_DIR),--logs-dir $(LOGS_DIR))
+
 # --- Веб-интерфейс (ui) -----------------------------------------------------
 
 .PHONY: ui-deps
@@ -154,6 +187,12 @@ generate-check: generate ## Проверить, что сгенерирован�
 		echo "Сгенерированный код устарел: выполните make generate и закоммитьте изменения"; \
 		git status --short -- $(GENERATED); git --no-pager diff --stat -- $(GENERATED); exit 1; \
 	fi
+
+# --- Релиз -------------------------------------------------------------------
+
+.PHONY: release-snapshot
+release-snapshot: $(GORELEASER) ui-build ## Локальная проверка релиза: архивы сервера для всех ОС в dist/release
+	$(GORELEASER) release --snapshot --clean
 
 # --- Прочее -----------------------------------------------------------------
 
