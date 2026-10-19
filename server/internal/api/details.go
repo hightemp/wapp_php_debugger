@@ -77,6 +77,9 @@ func (s *server) ListMessages(ctx context.Context, request ListMessagesRequestOb
 	if params.Tag != nil {
 		filter.Tag = *params.Tag
 	}
+	if params.Q != nil {
+		filter.Query = *params.Q
+	}
 	if params.Cursor != nil {
 		filter.Cursor = *params.Cursor
 	}

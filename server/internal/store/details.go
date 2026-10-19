@@ -96,6 +96,7 @@ type MessageFilter struct {
 	Levels    []string
 	Type      string
 	Tag       string
+	Query     string // every word must be in the message text or its context
 	Cursor    string
 	Limit     int
 }
@@ -145,6 +146,10 @@ func (s *Store) ListMessages(ctx context.Context, filter MessageFilter) (Message
 	}
 	if filter.Tag != "" {
 		where, args = append(where, "EXISTS (SELECT 1 FROM json_each(m.tags) WHERE value = ?)"), append(args, filter.Tag)
+	}
+	if match := ftsQuery(filter.Query); match != "" {
+		where = append(where, "m.id IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?)")
+		args = append(args, match)
 	}
 	if filter.Cursor != "" {
 		afterSeq, err := decodeSeqCursor(filter.Cursor)

@@ -321,11 +321,18 @@ type RequestRow struct {
 	ReceivedAt    int64
 }
 
-// RequestFilter holds feed parameters. ProjectID = 0 means all projects.
+// RequestFilter holds feed parameters; zero values do not filter.
 type RequestFilter struct {
-	ProjectID int64
-	Limit     int
-	Cursor    string
+	ProjectID   int64
+	ServerID    int64
+	Environment string
+	Sapi        string
+	HasErrors   bool
+	Query       string // words searched in messages and context, or a URL substring
+	Since       int64  // started_at at or after, ms
+	Until       int64  // started_at before, ms
+	Limit       int
+	Cursor      string
 }
 
 // RequestPage is a feed page; NextCursor is empty on the last page.
@@ -339,6 +346,27 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 	where, args := []string{"1 = 1"}, []any{}
 	if filter.ProjectID != 0 {
 		where, args = append(where, "r.project_id = ?"), append(args, filter.ProjectID)
+	}
+	if filter.ServerID != 0 {
+		where, args = append(where, "p.server_id = ?"), append(args, filter.ServerID)
+	}
+	if filter.Environment != "" {
+		where, args = append(where, "p.server_id IN (SELECT id FROM servers WHERE environment = ?)"), append(args, filter.Environment)
+	}
+	if filter.Sapi != "" {
+		where, args = append(where, "r.sapi = ?"), append(args, filter.Sapi)
+	}
+	if filter.HasErrors {
+		where = append(where, "r.error_count > 0")
+	}
+	if filter.Since != 0 {
+		where, args = append(where, "r.started_at >= ?"), append(args, filter.Since)
+	}
+	if filter.Until != 0 {
+		where, args = append(where, "r.started_at < ?"), append(args, filter.Until)
+	}
+	if clause, searchArgs := requestSearch(filter.Query); clause != "" {
+		where, args = append(where, clause), append(args, searchArgs...)
 	}
 	if filter.Cursor != "" {
 		startedAt, id, err := decodeCursor(filter.Cursor)

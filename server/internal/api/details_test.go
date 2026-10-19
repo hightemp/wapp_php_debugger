@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -116,5 +117,40 @@ func TestV1TraceLinksMapAbsolutePaths(t *testing.T) {
 	// v1 writes absolute server paths: inside the project root they are shown relative
 	if !strings.Contains(body, `"file":"Debugger.class.php"`) || !strings.Contains(body, `"editor_url":"vscode://file/var/www/app/Debugger.class.php:`) {
 		t.Fatalf("v1 trace = %s", body)
+	}
+}
+
+func TestSearchAndFilterTheFeed(t *testing.T) {
+	e := newTestEnv(t)
+	keys := func(query string) []string {
+		_, body := get(t, e.server.URL+"/api/v1/requests?limit=100&"+query)
+		var page RequestPage
+		if err := json.Unmarshal([]byte(body), &page); err != nil {
+			t.Fatalf("%s: %s", query, body)
+		}
+		var result []string
+		for _, r := range page.Items {
+			result = append(result, r.RequestKey)
+		}
+		return result
+	}
+	// a context value of the AJAX child only; a common message word matches v1 and v2 alike
+	if got := keys("q=" + url.QueryEscape("c-981")); len(got) != 1 || got[0] != "01JAZ7Q5X0K4M8T2V6N9P3R5S8" {
+		t.Fatalf("q: %v", got)
+	}
+	if got := keys("q=" + url.QueryEscape("кеша")); len(got) != 8 { // 7 v1 logs + web-request.jsonl
+		t.Fatalf("q common word: %v", got)
+	}
+	if got := keys("has_errors=true&sapi=cli"); len(got) != 4 { // cli, killed and pre-hotfix v1 logs are CLI runs with an error, plus cli-exception.jsonl
+		t.Fatalf("has_errors+cli: %v", got)
+	}
+	if got := keys("since=1792400100000&until=1792400100001"); len(got) != 1 {
+		t.Fatalf("time range: %v", got)
+	}
+
+	id := findRequest(t, e, webRequestKey)
+	_, body := get(t, fmt.Sprintf("%s/api/v1/requests/%d/messages?q=%s", e.server.URL, id, url.QueryEscape("кеша")))
+	if strings.Count(body, `"id":`) != 1 {
+		t.Fatalf("messages q: %s", body)
 	}
 }

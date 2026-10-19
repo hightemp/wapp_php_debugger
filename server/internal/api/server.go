@@ -40,6 +40,27 @@ func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestOb
 	if params.ProjectId != nil {
 		filter.ProjectID = *params.ProjectId
 	}
+	if params.ServerId != nil {
+		filter.ServerID = *params.ServerId
+	}
+	if params.Environment != nil {
+		filter.Environment = string(*params.Environment)
+	}
+	if params.Sapi != nil {
+		filter.Sapi = string(*params.Sapi)
+	}
+	if params.HasErrors != nil {
+		filter.HasErrors = *params.HasErrors
+	}
+	if params.Q != nil {
+		filter.Query = *params.Q
+	}
+	if params.Since != nil {
+		filter.Since = *params.Since
+	}
+	if params.Until != nil {
+		filter.Until = *params.Until
+	}
 	if params.Cursor != nil {
 		filter.Cursor = *params.Cursor
 	}
