@@ -63,6 +63,11 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		return nil, err
 	}
 	s := store.New(db)
+	// The local machine is always a server, with or without a --logs-dir project
+	if _, err := s.EnsureLocalServer(ctx); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if cfg.LogsDir != "" {
 		if err := registerProject(ctx, s, cfg); err != nil {
 			_ = db.Close()

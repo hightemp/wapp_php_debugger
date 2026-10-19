@@ -166,6 +166,10 @@ func TestRunWithoutLogsDirStartsEmpty(t *testing.T) {
 			func(addr string) { ready <- addr })
 	}()
 	addr := <-ready
+	// The local machine is a server from the start: local projects can be added in the UI
+	if body := getBody(t, "http://"+addr+"/api/v1/servers"); !strings.Contains(body, `"kind":"local"`) {
+		t.Fatalf("servers = %s", body)
+	}
 	if body := getBody(t, "http://"+addr+"/api/v1/requests"); body != "{\"items\":[],\"next_cursor\":null}\n" {
 		t.Fatalf("body = %q", body)
 	}
