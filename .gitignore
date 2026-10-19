@@ -1,0 +1,5 @@
+# Инструменты, закреплённые в Makefile (make tools)
+/.tools/
+# Артефакты сборки
+/dist/
+/server/web/dist/
