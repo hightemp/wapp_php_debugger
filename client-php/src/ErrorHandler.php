@@ -60,7 +60,7 @@ final class ErrorHandler
     public function handleError(int $type, string $message, string $file = '', int $line = 0): bool
     {
         if ((error_reporting() & $type) !== 0) {
-            $this->debugger->error([
+            $this->debugger->phpError([
                 'kind' => 'php_error',
                 'level' => self::level($type),
                 'message' => $message,
@@ -136,7 +136,7 @@ final class ErrorHandler
             if (strpos($lastError['message'], 'Allowed memory size') === 0) {
                 self::makeRoomInMemory();
             }
-            $this->debugger->error([
+            $this->debugger->phpError([
                 'kind' => 'fatal',
                 'level' => Level::ERROR,
                 'message' => $lastError['message'],

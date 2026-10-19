@@ -198,15 +198,60 @@ final class Debugger
     }
 
     /**
-     * Writes an error event; used by ErrorHandler.
+     * @param array<array-key, mixed> $context
+     * @param list<string>            $tags
+     */
+    public function error(string $message, array $context = [], array $tags = []): void
+    {
+        $this->log(Level::ERROR, $message, $context, $tags);
+    }
+
+    /**
+     * @param array<array-key, mixed> $context
+     * @param list<string>            $tags
+     */
+    public function warning(string $message, array $context = [], array $tags = []): void
+    {
+        $this->log(Level::WARNING, $message, $context, $tags);
+    }
+
+    /**
+     * @param array<array-key, mixed> $context
+     * @param list<string>            $tags
+     */
+    public function info(string $message, array $context = [], array $tags = []): void
+    {
+        $this->log(Level::INFO, $message, $context, $tags);
+    }
+
+    /**
+     * @param array<array-key, mixed> $context
+     * @param list<string>            $tags
+     */
+    public function message(string $message, array $context = [], array $tags = []): void
+    {
+        $this->log(Level::MESSAGE, $message, $context, $tags);
+    }
+
+    /**
+     * @param array<array-key, mixed> $context
+     * @param list<string>            $tags
+     */
+    public function debug(string $message, array $context = [], array $tags = []): void
+    {
+        $this->log(Level::DEBUG, $message, $context, $tags);
+    }
+
+    /**
+     * Writes an error event of a PHP error or a fatal error; used by ErrorHandler.
      *
      * @internal
      *
-     * @param array<string, mixed>       $fields kind, level, message, error_type
+     * @param array<string, mixed>           $fields kind, level, message, error_type
      * @param array{file: string, line: int} $source
-     * @param list<array<string, mixed>> $backtrace
+     * @param list<array<string, mixed>>     $backtrace
      */
-    public function error(array $fields, array $source, array $backtrace): void
+    public function phpError(array $fields, array $source, array $backtrace): void
     {
         if (!$this->enabled()) {
             return;

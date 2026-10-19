@@ -96,6 +96,21 @@ final class DebuggerTest extends TestCase
         );
     }
 
+    public function testLevelShortcuts(): void
+    {
+        $debugger = $this->debugger(new FixedClock(self::START));
+        $debugger->error('e', ['a' => 1], ['billing']);
+        $debugger->warning('w');
+        $debugger->info('i');
+        $debugger->message('m');
+        $debugger->debug('d');
+
+        $events = array_slice(LogAssert::validStream($this->logFiles($this->tempDir() . '/logs')[0]), 1);
+        self::assertSame(['error', 'warning', 'info', 'message', 'debug'], array_column($events, 'level'));
+        self::assertSame(['a' => 1], $events[0]['context']);
+        self::assertSame(['billing'], $events[0]['tags']);
+    }
+
     public function testUnknownLevelBecomesMessage(): void
     {
         $debugger = $this->debugger(new FixedClock(self::START));
