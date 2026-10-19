@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__.'/../../vendor/autoload.php';
+
+exit((new WappDebugger\Dev\NamingCheckCommand())->run(array_values(array_slice($argv, 1)), STDOUT));
