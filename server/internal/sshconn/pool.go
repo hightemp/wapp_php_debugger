@@ -13,6 +13,7 @@ import (
 
 // Connection states reported by Pool.Status and PoolOptions.OnStatus.
 const (
+	StateUnknown    = "unknown" // no attempt yet
 	StateConnecting = "connecting"
 	StateOnline     = "online"
 	StateOffline    = "offline"
@@ -152,7 +153,7 @@ func (p *Pool) Status(serverID int64) Status {
 	if e, ok := p.entries[serverID]; ok {
 		return e.status
 	}
-	return Status{State: StateOffline}
+	return Status{State: StateUnknown}
 }
 
 // Reset forgets the back-off, so the next Get dials at once (after a host key was confirmed, say).
@@ -194,7 +195,7 @@ func (p *Pool) Close() {
 func (p *Pool) entry(serverID int64) *entry {
 	e, ok := p.entries[serverID]
 	if !ok {
-		e = &entry{status: Status{State: StateOffline}}
+		e = &entry{status: Status{State: StateUnknown}}
 		p.entries[serverID] = e
 	}
 	return e

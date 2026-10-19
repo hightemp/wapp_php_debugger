@@ -7,25 +7,13 @@ import "context"
 // Operations that are not implemented yet: 501 as Problem Details.
 
 // CheckServer is not implemented yet.
-func (s *server) CheckServer(context.Context, CheckServerRequestObject) (CheckServerResponseObject, error) {
-	return CheckServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
-}
-
 // CreateServer is not implemented yet.
-func (s *server) CreateServer(context.Context, CreateServerRequestObject) (CreateServerResponseObject, error) {
-	return CreateServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
-}
-
 // DeleteRequest is not implemented yet.
 func (s *server) DeleteRequest(context.Context, DeleteRequestRequestObject) (DeleteRequestResponseObject, error) {
 	return DeleteRequestdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
 }
 
 // DeleteServer is not implemented yet.
-func (s *server) DeleteServer(context.Context, DeleteServerRequestObject) (DeleteServerResponseObject, error) {
-	return DeleteServerdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil
-}
-
 // GetSettings is not implemented yet.
 func (s *server) GetSettings(context.Context, GetSettingsRequestObject) (GetSettingsResponseObject, error) {
 	return GetSettingsdefaultApplicationProblemPlusJSONResponse{Body: notImplemented(), StatusCode: 501}, nil

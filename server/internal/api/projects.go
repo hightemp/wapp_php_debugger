@@ -31,20 +31,30 @@ func storeProblem(err error, what string) (Problem, bool) {
 	}
 }
 
-func serverDTO(s store.Server) (Server, error) {
+func (s *server) serverDTO(srv store.Server) (Server, error) {
 	var config ServerConfig
-	if err := json.Unmarshal([]byte(s.Config), &config); err != nil {
+	if err := json.Unmarshal([]byte(srv.Config), &config); err != nil {
 		return Server{}, err
 	}
-	// A local server is always reachable; remote connection state arrives with SSH (phase 7)
-	state := Unknown
-	if s.Kind == "local" {
-		state = Online
+	connection := ServerConnection{State: Online} // the local server is always reachable
+	if srv.Kind != "local" {
+		connection = ServerConnection{State: Unknown}
+		if s.deps.SSH != nil && srv.Kind == "ssh" {
+			status := s.deps.SSH.Status(srv.ID)
+			connection.State = ConnectionState(status.State)
+			if status.Error != "" {
+				connection.Error = &status.Error
+			}
+			if !status.Since.IsZero() {
+				checkedAt := status.Since.UnixMilli()
+				connection.CheckedAt = &checkedAt
+			}
+		}
 	}
 	return Server{
-		Id: s.ID, Name: s.Name, Kind: ServerKind(s.Kind), Environment: Environment(s.Environment), Config: config,
-		Permissions: ServerPermissions{ReadOnly: s.ReadOnly, AllowDelete: s.AllowDelete, AllowControl: s.AllowControl},
-		Connection:  ServerConnection{State: state}, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
+		Id: srv.ID, Name: srv.Name, Kind: ServerKind(srv.Kind), Environment: Environment(srv.Environment), Config: config,
+		Permissions: ServerPermissions{ReadOnly: srv.ReadOnly, AllowDelete: srv.AllowDelete, AllowControl: srv.AllowControl},
+		Connection:  connection, CreatedAt: srv.CreatedAt, UpdatedAt: srv.UpdatedAt,
 	}, nil
 }
 
@@ -56,7 +66,7 @@ func (s *server) ListServers(ctx context.Context, _ ListServersRequestObject) (L
 	}
 	response := ListServers200JSONResponse{Items: make([]Server, 0, len(servers))}
 	for _, row := range servers {
-		dto, err := serverDTO(row)
+		dto, err := s.serverDTO(row)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +84,7 @@ func (s *server) GetServer(ctx context.Context, request GetServerRequestObject) 
 	if !found {
 		return GetServerdefaultApplicationProblemPlusJSONResponse{Body: notFound("server"), StatusCode: http.StatusNotFound}, nil
 	}
-	dto, err := serverDTO(row)
+	dto, err := s.serverDTO(row)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +120,16 @@ func (s *server) UpdateServer(ctx context.Context, request UpdateServerRequestOb
 	if err != nil {
 		return nil, err
 	}
-	dto, err := serverDTO(updated)
+	if updated.Kind != "local" && body.Config != nil {
+		// New connection settings: a fresh connection, and the projects pick up the new target
+		if s.deps.SSH != nil {
+			s.deps.SSH.Forget(updated.ID)
+		}
+		if err := s.restartProjects(ctx, updated.ID); err != nil {
+			return nil, err
+		}
+	}
+	dto, err := s.serverDTO(updated)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +219,7 @@ func (s *server) CreateProject(ctx context.Context, request CreateProjectRequest
 	if !found {
 		return fail(notFound("server"))
 	}
-	if serverRow.Kind != "local" {
+	if serverRow.Kind != "local" && serverRow.Kind != "ssh" {
 		return fail(badRequestProblem("projects on " + serverRow.Kind + " servers are not supported yet"))
 	}
 

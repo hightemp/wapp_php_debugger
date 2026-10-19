@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
+	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
@@ -21,11 +23,29 @@ type ProjectRuntime interface {
 	Source(projectID int64) (source.Source, bool)
 }
 
+// SSHRuntime is the SSH side of the app: connection state, checks and host keys of ssh servers.
+type SSHRuntime interface {
+	Status(serverID int64) sshconn.Status
+	Check(ctx context.Context, server store.Server) (ServerCheck, error)
+	// TrustHostKey trusts the key the server presents if it has the confirmed fingerprint.
+	TrustHostKey(ctx context.Context, server store.Server, fingerprint string) error
+	// Forget closes the connection: the server was removed or its settings changed.
+	Forget(serverID int64)
+}
+
+var (
+	// ErrHostKeyMismatch means the server presents another key than the user confirmed.
+	ErrHostKeyMismatch = errors.New("the host key does not match the confirmed fingerprint")
+	// ErrHostKeyChanged means the known key of the host changed: never trusted from the viewer.
+	ErrHostKeyChanged = errors.New("the host key has changed")
+)
+
 // Deps are the dependencies of the HTTP layer.
 type Deps struct {
 	Store     *store.Store
 	Broker    *events.Broker
 	Projects  ProjectRuntime
+	SSH       SSHRuntime    // nil: ssh servers show an unknown connection
 	UI        fs.FS         // built Svelte UI (index.html and assets/)
 	Heartbeat time.Duration // SSE heartbeat comment period; 0 means 15 seconds
 }

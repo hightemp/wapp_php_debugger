@@ -78,6 +78,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/servers/{server_id}/host-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trust the host key of an SSH server after the user checked its fingerprint
+         * @description checkServer shows the fingerprint of an unknown host (or of an unknown jump host on the way). The viewer
+         *     connects again and trusts the key only if the server still presents this fingerprint, so a key swapped
+         *     between the check and the confirmation is not trusted. The key goes to the viewer's own known_hosts file;
+         *     the user's ~/.ssh/known_hosts is never written. A changed key is never trusted here (409).
+         */
+        post: operations["trustHostKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -409,13 +432,14 @@ export interface components {
         ServerCheck: {
             ok: boolean;
             /** @description Check steps in order (connect, host key, logs directory permissions and so on) */
-            steps: {
-                name: string;
-                ok: boolean;
-                detail?: string;
-            }[];
+            steps: components["schemas"]["ServerCheckStep"][];
             /** @description For a new SSH host, the key fingerprint to confirm in the UI */
             host_key_fingerprint?: string;
+        };
+        ServerCheckStep: {
+            name: string;
+            ok: boolean;
+            detail?: string;
         };
         ProjectInput: {
             /** Format: int64 */
@@ -862,6 +886,34 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServerCheck"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    trustHostKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: components["parameters"]["ServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8 */
+                    fingerprint: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Trusted (or already known) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

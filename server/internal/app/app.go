@@ -74,11 +74,12 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	if cfg.SSH == (SSHConfig{}) {
 		cfg.SSH = DefaultSSH()
 	}
-	pool := sshconn.NewPool(&sshconn.Dialer{
+	dialer := &sshconn.Dialer{
 		HostKeys:    sshconn.NewHostKeys(cfg.SSH.TrustedHostsFile),
 		AgentSocket: cfg.SSH.AgentSocket,
 		Timeout:     15 * time.Second,
-	}, sshconn.PoolOptions{OnStatus: func(serverID int64, status sshconn.Status) {
+	}
+	pool := sshconn.NewPool(dialer, sshconn.PoolOptions{OnStatus: func(serverID int64, status sshconn.Status) {
 		broker.Publish("server_status", serverStatusEvent(serverID, status))
 	}})
 	manager := ingest.NewManager(s, ingest.ManagerOptions{
@@ -99,8 +100,9 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		return nil, err
 	}
 	return &Core{
-		db:      db,
-		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI}),
+		db: db,
+		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
+			SSH: &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}}),
 		broker:  broker,
 		manager: manager,
 		ssh:     pool,
