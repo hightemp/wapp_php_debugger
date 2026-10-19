@@ -99,8 +99,12 @@ func (l *Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(path)
 }
 
-// enabledKey is the flag key in the config: bIsOnFlag for library v1, enabled for v2.
+// enabledKey is the flag key in the config: enabled (library 2.x), or bIsOnFlag of a v1 config.
+// With both keys enabled wins, as in library 2.x, which reads the v1 key only when the new one is missing.
 func enabledKey(config map[string]json.RawMessage) string {
+	if _, ok := config["enabled"]; ok {
+		return "enabled"
+	}
 	if _, ok := config["bIsOnFlag"]; ok {
 		return "bIsOnFlag"
 	}

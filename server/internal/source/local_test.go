@@ -92,6 +92,20 @@ func TestLocalUsesEnabledKeyForV2Config(t *testing.T) {
 	}
 }
 
+// A config in the middle of the migration has both keys; library 2.x listens to enabled, so must the viewer.
+func TestLocalPrefersEnabledOverBIsOnFlag(t *testing.T) {
+	src, configPath := newLocal(t, nil, `{"bIsOnFlag":false,"enabled":true}`)
+	if enabled, err := src.Enabled(context.Background()); err != nil || !enabled {
+		t.Fatalf("Enabled = %v, %v; want the enabled key", enabled, err)
+	}
+	if err := src.SetEnabled(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	if config := readConfig(t, configPath); config["enabled"] != false {
+		t.Fatalf("config = %v; the enabled key must change", config)
+	}
+}
+
 func TestLocalWithoutConfig(t *testing.T) {
 	src, _ := newLocal(t, nil, "")
 	if enabled, err := src.Enabled(context.Background()); err != nil || enabled {
