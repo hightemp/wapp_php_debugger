@@ -55,6 +55,8 @@ if ($sMethod == 'list_debug_messages') {
         );
 
         $sPath = preg_quote($oDebugMessage->tprojects->relative_path, "/");
+        // Сообщение содержит данные запроса: экранируем до вставки ссылок, клиент выводит его как HTML
+        $oDebugMessage->s_message = htmlspecialchars((string) $oDebugMessage->s_message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $oDebugMessage->s_message = preg_replace(
             '/('.$sPath.')([\w\/\\.]*?\.php(:\d+)?)/', 
             sprintf(

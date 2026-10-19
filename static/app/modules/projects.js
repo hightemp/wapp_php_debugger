@@ -1,4 +1,4 @@
-import { tpl, fnAlertMessage } from "./lib.js"
+import { tpl, fnAlertMessage, fnEscapeFormatter } from "./lib.js"
 
 export class Projects {
     static sURL = ``
@@ -237,7 +237,7 @@ export class Projects {
             idField:'id',
             treeField:'name',
             columns:[[
-                {title:'Название',field:'name',width:190},
+                {title:'Название',field:'name',width:190,formatter:fnEscapeFormatter},
             ]],
 
             onSelect: ((iIndex, oNode) => {

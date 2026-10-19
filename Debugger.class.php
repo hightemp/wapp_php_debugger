@@ -1,17 +1,22 @@
 <?php
 
-if (defined('DA_FLAG')) {
-    return 'defined DA_FLAG';
+if (defined('DA_LOADED')) {
+    return 'defined DA_LOADED';
 }
+
+define('DA_LOADED', true);
 
 define('DA_CONFIG_FILE_NAME', 'dws_debugger.json');
 define('DA_CONFIG_FILE_PATH', __DIR__."/".DA_CONFIG_FILE_NAME);
 
 // [!] Все пути должны быть без / на конце
-// define('DA_ROOT_DIR', __DIR__);
-// define('DA_LOGS_DIR', DA_ROOT_DIR."/logs");
-// define('DA_FLAG_FILE', DA_LOGS_DIR."/dws_debugger.flag");
-// define('DA_FLAG', is_file(DA_LOGS_DIR."/dws_debugger.json"));
+// Константы можно определить до подключения файла, иначе берутся значения по умолчанию
+defined('DA_ROOT_DIR') || define('DA_ROOT_DIR', __DIR__);
+// Отладчик активен, только если есть файл конфига (включение и выключение — флаг bIsOnFlag в нём)
+defined('DA_FLAG') || define('DA_FLAG', is_file(DA_CONFIG_FILE_PATH));
+// HTTP-управление (?debug_msg=..., ?save_debug_message) выключено, пока не задан токен (не короче 16 символов).
+// Токен передаётся в заголовке X-Debugger-Token.
+// define('DA_HTTP_TOKEN', '...');
 
 // define('DA_LOGS_MESSAGES_DIR', DA_ROOT_DIR."/logs/dws_debugger");
 
@@ -97,44 +102,96 @@ class Debugger
 
     function fnGetCurrentURL()
     {
-        $sURL = $_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
-
-        if (!$sURL) {
+        if (!isset($_SERVER['HTTP_HOST'])) {
             return '';
         }
+
+        $sURL = $_SERVER['HTTP_HOST'].(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '');
 
         return $this->fnGetProtocol() . "://" . $sURL;
     }
 
-    function fnExec($sCommand)
+    function fnToHumanSize($iSize)
     {
-        $aStdOut = [];
-        $iExitCode = 0;
-        try {
-            exec($sCommand, $aStdOut, $iExitCode);
-        } catch (\Exception $oException) {
-            
+        $aUnits = ['B', 'K', 'M', 'G', 'T'];
+        $iUnit = 0;
+
+        while ($iSize >= 1024 && $iUnit < count($aUnits) - 1) {
+            $iSize /= 1024;
+            $iUnit++;
         }
 
-        return [ "aStdOut" => $aStdOut, "iExitCode" => $iExitCode ];
+        return round($iSize, 1).$aUnits[$iUnit];
     }
 
+    // Формат как у строки `df -h`: [Filesystem, Size, Used, Avail, Use%, Mounted on]
     function fnGetCurrentSpace()
     {
-        $aExecResult = $this->fnExec("df -h {$this->sTempPath}");
+        $iTotal = @disk_total_space($this->sTempPath);
+        $iFree = @disk_free_space($this->sTempPath);
 
-        return preg_split("/\s+/", $aExecResult["aStdOut"][1]);
+        if (!$iTotal || $iFree === false) {
+            return [];
+        }
+
+        $iUsed = $iTotal - $iFree;
+
+        return [
+            "",
+            $this->fnToHumanSize($iTotal),
+            $this->fnToHumanSize($iUsed),
+            $this->fnToHumanSize($iFree),
+            round($iUsed / $iTotal * 100)."%",
+            $this->sTempPath,
+        ];
     }
 
+    // Размер файлов в папке в килобайтах (как `du -s`), чтобы iLogsSizeLimit в старых конфигах сохранил смысл
     function fnGetDirSize($sPath)
     {
-        $aExecResult = $this->fnExec("du -s {$sPath}");
+        $iSize = 0;
 
-        return preg_replace("/^(\d+).*/", "\1", $aExecResult["aStdOut"][0]);
+        foreach ((array) glob($sPath."/*") as $sFilePath) {
+            if (is_file($sFilePath)) {
+                $iSize += (int) @filesize($sFilePath);
+            }
+        }
+
+        return (int) ceil($iSize / 1024);
+    }
+
+    function fnIsSafeMessagesFilesPath()
+    {
+        return !empty($this->sMessagesFilesPath) && count(explode('/', $this->sMessagesFilesPath)) >= 3;
+    }
+
+    // Удаляет содержимое папки без exec; по символическим ссылкам не переходит
+    function fnRemoveDirContents($sPath)
+    {
+        if (!is_dir($sPath)) {
+            return;
+        }
+
+        $oIterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($sPath, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($oIterator as $oFile) {
+            if ($oFile->isDir() && !$oFile->isLink()) {
+                @rmdir($oFile->getPathname());
+            } else {
+                @unlink($oFile->getPathname());
+            }
+        }
     }
 
     function fnGetCurrentUser()
     {
+        if (!function_exists('posix_getpwuid') || !function_exists('posix_geteuid')) {
+            return '';
+        }
+
         $processUser = posix_getpwuid(posix_geteuid());
         return @$processUser['name'];
     }
@@ -156,7 +213,7 @@ class Debugger
 
     function fnGetSysUser()
     {
-        return $_SESSION['USER_INFO']['login'];
+        return isset($_SESSION['USER_INFO']['login']) ? $_SESSION['USER_INFO']['login'] : '';
     }
 
     public static $aConfigKeys = [
@@ -166,8 +223,64 @@ class Debugger
         "bIsOnFlag",
         "iPageSize",
         "iArraySizeLimit",
+        "iLogsSizeLimit",
+        "bLogSessionAndCookies"
+    ];
+
+    // Ключи, которые можно менять через HTTP. Пути меняются только правкой конфига на сервере
+    public static $aRequestConfigKeys = [
+        "bIsOnFlag",
+        "iPageSize",
+        "iArraySizeLimit",
         "iLogsSizeLimit"
     ];
+
+    // Значения с такими ключами не попадают в лог
+    public $sSecretKeysPattern = '/(pass(wd|word)?$|^pwd$|secret|token|api_?key|app_?key|private_?key|access_?key|authori[sz]ation|php_auth_pw|cookie|dsn|csrf)/i';
+    public $bLogSessionAndCookies = false;
+
+    function fnIsHttpApiAllowed()
+    {
+        if (!defined('DA_HTTP_TOKEN') || !is_string(DA_HTTP_TOKEN) || strlen(DA_HTTP_TOKEN) < 16) {
+            return false;
+        }
+
+        $sToken = isset($_SERVER['HTTP_X_DEBUGGER_TOKEN']) ? (string) $_SERVER['HTTP_X_DEBUGGER_TOKEN'] : '';
+
+        return hash_equals(DA_HTTP_TOKEN, $sToken);
+    }
+
+    function fnFilterRequestConfig($aParams)
+    {
+        $aResult = [];
+
+        foreach (self::$aRequestConfigKeys as $sKey) {
+            if (isset($aParams[$sKey])) {
+                $aResult[$sKey] = $sKey[0] == 'b'
+                    ? filter_var($aParams[$sKey], FILTER_VALIDATE_BOOLEAN)
+                    : (int) $aParams[$sKey];
+            }
+        }
+
+        return $aResult;
+    }
+
+    function fnMaskSecrets($mVars, $iDepth=0)
+    {
+        if (!is_array($mVars) || $iDepth > 32) {
+            return $mVars;
+        }
+
+        foreach ($mVars as $mKey => $mValue) {
+            if (is_string($mKey) && preg_match($this->sSecretKeysPattern, str_replace('-', '_', $mKey))) {
+                $mVars[$mKey] = '***';
+            } else if (is_array($mValue)) {
+                $mVars[$mKey] = $this->fnMaskSecrets($mValue, $iDepth + 1);
+            }
+        }
+
+        return $mVars;
+    }
 
     function fnSaveConfig($aParams=[])
     {
@@ -188,22 +301,43 @@ class Debugger
             $aConfig = json_decode(file_get_contents($this->sConfigFilePath), true);
 
             foreach (self::$aConfigKeys as $sKey) {
-                $this->$sKey = $aConfig[$sKey];
+                if (isset($aConfig[$sKey])) {
+                    $this->$sKey = $aConfig[$sKey];
+                }
             }
         }
     }
 
+    // Удаляет самые старые файлы логов, пока суммарный размер больше iLogsSizeLimit (в килобайтах)
     function fnClearLargeLogs()
     {
-        $iSize = (int) $this->fnGetDirSize($this->sMessagesFilesPath);
+        if (!$this->fnIsSafeMessagesFilesPath()) {
+            return;
+        }
 
-        if ($this->iLogsSizeLimit<$iSize) {
-            if (empty($this->sMessagesFilesPath) || count(explode('/',$this->sMessagesFilesPath))<3) {
-                return;
+        $iSize = $this->fnGetDirSize($this->sMessagesFilesPath);
+
+        if ($this->iLogsSizeLimit >= $iSize) {
+            return;
+        }
+
+        $aFiles = [];
+        foreach ((array) glob($this->sMessagesFilesPath."/*") as $sFilePath) {
+            if (is_file($sFilePath)) {
+                $aFiles[$sFilePath] = (int) @filemtime($sFilePath);
             }
+        }
+        asort($aFiles);
 
-            $sMask = "{$this->sMessagesFilesPath}/*";
-            exec("ls -tp {$sMask} | grep -v '/$' | tail | xargs -I {} rm -- {}");
+        $iSizeBytes = $iSize * 1024;
+        foreach ($aFiles as $sFilePath => $iMTime) {
+            if ($iSizeBytes <= $this->iLogsSizeLimit * 1024) {
+                break;
+            }
+            $iFileSize = (int) @filesize($sFilePath);
+            if (@unlink($sFilePath)) {
+                $iSizeBytes -= $iFileSize;
+            }
         }
     }
 
@@ -214,22 +348,31 @@ class Debugger
         if ($this->bIsOnFlag) {
             $this->fnOldErrorHandler = set_error_handler([$this, "fnDebugErrorHandler"]);
             $this->iStartTime = $this->milliseconds();
+
+            if ($this->iLogsSizeLimit) {
+                $this->fnClearLargeLogs();
+            }
         }
 
-        if ($this->iLogsSizeLimit) {
-            $this->fnClearLargeLogs();
+        // Без токена HTTP-команды не обрабатываются: запрос идёт в приложение как обычно
+        if (!$this->fnIsHttpApiAllowed()) {
+            return;
         }
-        
+
         $sDebugMsg = $this->fnGetDebugParam();
 
         if (isset($_GET['save_debug_message'])) {
-            $aData = json_decode($_POST['sData']);
+            $aData = isset($_POST['sData']) ? json_decode($_POST['sData'], true) : null;
+            if (!is_array($aData) || !isset($aData['sType'], $aData['sMessage'])) {
+                $this->fnSendResponse("ERR");
+            }
             $this->fnDebugLog(
-                $aData['sType'], 
-                $aData['sMessage'], 
-                $aData['aVars'], 
-                $aData['iRequestTimestamp'], 
-                $aData['sLang']
+                (string) $aData['sType'],
+                (string) $aData['sMessage'],
+                isset($aData['aVars']) && is_array($aData['aVars']) ? $aData['aVars'] : [],
+                isset($aData['iRequestTimestamp']) ? (int) $aData['iRequestTimestamp'] : 0,
+                "",
+                isset($aData['sLang']) ? (string) $aData['sLang'] : "js"
             );
             $this->fnSendResponse("OK");
         }
@@ -260,13 +403,13 @@ class Debugger
             }
 
             if ($sDebugMsg=='set_config') {
-                $this->fnSaveConfig($_POST);
+                $this->fnSaveConfig($this->fnFilterRequestConfig($_POST));
                 $this->fnSendResponse("OK");
             }
-    
+
             if ($sDebugMsg=='start') {
                 $this->bIsOnFlag = true;
-                $this->fnSaveConfig($_POST);
+                $this->fnSaveConfig(array_merge($this->fnFilterRequestConfig($_POST), ["bIsOnFlag" => true]));
                 $this->fnSendResponse("OK");
             }
     
@@ -277,23 +420,13 @@ class Debugger
             }
     
             if ($sDebugMsg=='clear') {
-                if (empty($this->sMessagesFilesPath) || count(explode('/',$this->sMessagesFilesPath))<3) {
+                if (!$this->fnIsSafeMessagesFilesPath()) {
                     $this->fnSendResponse("ERR");//: path '{$this->sMessagesFilesPath}' is wrong");
                 }
                 $sMask = "{$this->sMessagesFilesPath}/*";
-                exec("rm -rf {$sMask}");
+                $this->fnRemoveDirContents($this->sMessagesFilesPath);
 
-                // $iFilesCount = count(glob($sMask));
-                // if ($iFilesCount) {
-                //     $files = glob($sMask); // get all file names
-                //     foreach($files as $file){ // iterate files
-                //         if(is_file($file))
-                //             unlink($file); // delete file
-                //     }
-                //     // array_map( 'unlink', array_filter((array) glob($sMask) ) );
-                // }
-
-                $iFilesCount = count(glob($sMask));
+                $iFilesCount = count((array) glob($sMask));
                 if ($iFilesCount) {
                     $this->fnSendResponse("ERR");// : dir is not empty, {$iFilesCount} files found");
                 }
@@ -318,7 +451,18 @@ class Debugger
             }
     
             if ($sDebugMsg=='get_file') {
-                $sFileFullPath = $this->sProjectRootPath."/".$_GET["file"];
+                $sRootPath = realpath($this->sProjectRootPath);
+                $sFileFullPath = isset($_GET["file"]) ? realpath($this->sProjectRootPath."/".$_GET["file"]) : false;
+
+                if (
+                    !$sRootPath
+                    || !$sFileFullPath
+                    || strpos($sFileFullPath, rtrim($sRootPath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR) !== 0
+                    || !is_file($sFileFullPath)
+                ) {
+                    $this->fnSendResponse("ERR");
+                }
+
                 $sContent = file_get_contents($sFileFullPath);
                 $this->fnSendResponse($sContent);
             }
@@ -332,7 +476,7 @@ class Debugger
             }
     
             $sMessagesFilePath = $this->sMessagesFilesPath."/".$sDebugMsg;
-            if (is_file($sMessagesFilePath)) {
+            if (basename($sDebugMsg) === $sDebugMsg && is_file($sMessagesFilePath)) {
                 if (isset($_GET['download'])) {
                     $this->fnSendResponse(
                         json_encode(
@@ -372,7 +516,7 @@ class Debugger
 
     function fnDebugShutdown()
     {
-        if (!(PHP_SAPI == 'cli' || !isset($_SERVER['HTTP_USER_AGENT']))) {
+        if (!(PHP_SAPI == 'cli' || !isset($_SERVER['HTTP_USER_AGENT'])) && function_exists('fastcgi_finish_request')) {
             fastcgi_finish_request();
         }
 
@@ -505,8 +649,24 @@ class Debugger
 
     function fnPrintJSONLineWithLength($aData, $iMaxLength=1000)
     {
-        $sString = json_encode($aData, JSON_UNESCAPED_UNICODE);
-        return $sString.str_repeat(" ", $iMaxLength - strlen($sString));
+        $iFlags = JSON_UNESCAPED_UNICODE | (defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 0);
+        $sString = json_encode($aData, $iFlags);
+
+        // Заголовок перезаписывается на месте, поэтому он не должен выходить за $iMaxLength:
+        // иначе затрутся первые сообщения. Сначала укорачиваем длинные поля, потом оставляем только служебные
+        if ($sString === false || strlen($sString) > $iMaxLength) {
+            $aData['aArgv'] = [];
+            $aData['sURL'] = substr((string) $aData['sURL'], 0, 300);
+            $sString = json_encode($aData, $iFlags);
+        }
+
+        if ($sString === false || strlen($sString) > $iMaxLength) {
+            $sString = json_encode(array_intersect_key($aData, array_flip([
+                "bIsCli", "bIsAjax", "iRequestTimestamp", "bFinished", "iCode", "iStartTime", "iStopTime", "iTotalTime"
+            ])));
+        }
+
+        return $sString.str_repeat(" ", max(0, $iMaxLength - strlen($sString)));
     }
 
     function fnUpdateHeaderData()
@@ -546,7 +706,7 @@ class Debugger
             "sServerName" => (string) $this->sServerName,
             "bIsCli" => (bool) $this->bIsCli,
             "bIsAjax" => (bool) $this->bIsAjax,
-            "aArgv" => (array) $_SERVER['argv'],
+            "aArgv" => isset($_SERVER['argv']) ? (array) $_SERVER['argv'] : [],
             "sUser" => (string) $this->sUser,
             "sSysUser" => (string) $this->sSysUser,
             "sSession" => (string) session_id(),
@@ -650,27 +810,33 @@ class Debugger
 
         try {
             
+            $aVars = (array) $aVars;
+
             if ($this->iArraySizeLimit) {
                 foreach ($aVars as &$aVar) {
-                    if (count($aVar, COUNT_RECURSIVE) > $this->iArraySizeLimit) {
+                    if (is_array($aVar) && count($aVar, COUNT_RECURSIVE) > $this->iArraySizeLimit) {
                         $aVar = [];
                     }
                 }
+                unset($aVar);
             }
+
+            $aVars = $this->fnMaskSecrets($aVars);
 
             if (!is_file($this->sLogFilePath)) {
                 throw new Exception("Файл не найден {$this->sLogFilePath}");
             }
-            
-            $aVars = (array) $aVars;
+
             $aDebugBackTrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+            $aFrame = isset($aDebugBackTrace[0+$iBacktraceShift]) ? $aDebugBackTrace[0+$iBacktraceShift] : [];
+            $aCallerFrame = isset($aDebugBackTrace[1+$iBacktraceShift]) ? $aDebugBackTrace[1+$iBacktraceShift] : [];
 
             $aData = [
                 "sType" => $sType,
                 "oBackTrace" => [
-                    "file" => str_replace(DA_ROOT_DIR, "", $aDebugBackTrace[0+$iBacktraceShift]["file"]), // ? $aDebugBackTrace[1]["file"] : $aDebugBackTrace[0]["file"],
-                    "line" => $aDebugBackTrace[0+$iBacktraceShift]["line"],
-                    "function" => $aDebugBackTrace[1+$iBacktraceShift]["function"],
+                    "file" => isset($aFrame["file"]) ? str_replace(DA_ROOT_DIR, "", $aFrame["file"]) : null,
+                    "line" => isset($aFrame["line"]) ? $aFrame["line"] : null,
+                    "function" => isset($aCallerFrame["function"]) ? $aCallerFrame["function"] : null,
                 ],
                 "aBackTrace" => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS),
                 "sMessage" => $sMessage,
@@ -796,7 +962,8 @@ function fnDebugAddNotFoundField($sFieldName)
 function __log($mValue=[])
 {
     if (DA_FLAG) {
-        $sValue = (is_string($mValue) || is_numeric($mValue) ? $mValue : (is_array($mValue) && count($mValue)==1 ? $mValue[0] : '' ));
+        $mFirst = is_array($mValue) && count($mValue)==1 ? reset($mValue) : null;
+        $sValue = (is_string($mValue) || is_numeric($mValue) ? $mValue : (is_scalar($mFirst) ? $mFirst : '' ));
         $sType = gettype($mValue);
         __d(DWS_MESSAGE, "#inlinelog #{$sType} {$sValue}", $mValue, 2);
     }
@@ -819,8 +986,11 @@ function __stop($sName="", $iShift=2)
 }
 
 __d(DWS_MESSAGE, '$_SERVER', $_SERVER);
-__d(DWS_MESSAGE, '$_SESSION', $_SESSION);
-__d(DWS_MESSAGE, '$_COOKIE', $_COOKIE);
+// Сессия и cookie целиком попадают в лог только при bLogSessionAndCookies в конфиге
+if (Debugger::fnGetInstance()->bLogSessionAndCookies) {
+    __d(DWS_MESSAGE, '$_SESSION', isset($_SESSION) ? $_SESSION : []);
+    __d(DWS_MESSAGE, '$_COOKIE', $_COOKIE);
+}
 __d(DWS_MESSAGE, '$_GET', $_GET);
 __d(DWS_MESSAGE, '$_POST', $_POST);
 __d(DWS_MESSAGE, '$_FILES', $_FILES);

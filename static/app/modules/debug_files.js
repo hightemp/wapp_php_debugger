@@ -1,4 +1,4 @@
-import { tpl, fnAlertMessage } from "./lib.js"
+import { tpl, fnAlertMessage, fnEscapeHtml } from "./lib.js"
 
 export class DebugFiles {
     static sURL = ``
@@ -318,19 +318,19 @@ export class DebugFiles {
                         var s = `
                         <div class="debug-files-cell">
                             <div class="row-url">
-                                ${row.s_url}
+                                ${fnEscapeHtml(row.s_url)}
                             </div>
                             <div class="row-file-info">
-                                <span class="row-name">${row.name}</span>
-                                <span class="type">${row.type}</span>
-                                <span class="errors">${row.count_errors}</span>
-                                <span class="messages">${row.count}</span>
-                                <span class="size ${sSCls}">${row.size_human}</span>
+                                <span class="row-name">${fnEscapeHtml(row.name)}</span>
+                                <span class="type">${fnEscapeHtml(row.type)}</span>
+                                <span class="errors">${fnEscapeHtml(row.count_errors)}</span>
+                                <span class="messages">${fnEscapeHtml(row.count)}</span>
+                                <span class="size ${sSCls}">${fnEscapeHtml(row.size_human)}</span>
                             </div>
                             <div class="row-file-info-2">
-                                <span class="lang">${row.s_lang}</span>
-                                <span class="s_user">${row.s_user}</span>
-                                <span class="sys_user">${row.s_sys_user}</span>
+                                <span class="lang">${fnEscapeHtml(row.s_lang)}</span>
+                                <span class="s_user">${fnEscapeHtml(row.s_user)}</span>
+                                <span class="sys_user">${fnEscapeHtml(row.s_sys_user)}</span>
                             </div>
                         </div>
                         `;

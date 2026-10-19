@@ -1,4 +1,4 @@
-import { tpl, fnAlertMessage } from "./lib.js"
+import { tpl, fnAlertMessage, fnEscapeHtml, fnEscapeFormatter } from "./lib.js"
 
 export class DebugMessageInfo {
     static sURL = ``
@@ -52,9 +52,9 @@ export class DebugMessageInfo {
 
             this.oMessageText.html(`
                 <div class="debug-info-file">
-                    <span class="type">${oNode.s_type}</span>
-                    <span class="size">${oNode.size_human}</span>
-                    <a href="${oNode.editor_url}">${sFile}:${sLine}</a>
+                    <span class="type">${fnEscapeHtml(oNode.s_type)}</span>
+                    <span class="size">${fnEscapeHtml(oNode.size_human)}</span>
+                    <a href="${fnEscapeHtml(oNode.editor_url)}">${fnEscapeHtml(sFile)}:${fnEscapeHtml(sLine)}</a>
                 </div>
                 <div class="debug-info-message">${oNode.s_message}</div>
             `);
@@ -77,10 +77,10 @@ export class DebugMessageInfo {
                 data: oNode.a_back_trace,
     
                 columns:[[
-                    {title:'class',field:'class',width:100},
-                    {title:'function',field:'function',width:150},
-                    {title:'line',field:'line',width:50},
-                    {title:'file',field:'file',width:300},
+                    {title:'class',field:'class',width:100,formatter:fnEscapeFormatter},
+                    {title:'function',field:'function',width:150,formatter:fnEscapeFormatter},
+                    {title:'line',field:'line',width:50,formatter:fnEscapeFormatter},
+                    {title:'file',field:'file',width:300,formatter:fnEscapeFormatter},
                 ]],
             });
 
@@ -109,8 +109,8 @@ export class DebugMessageInfo {
                 treeField: 'name',
     
                 columns:[[
-                    {title:'name',field:'name',width:200},
-                    {title:'value',field:'value',width:600},
+                    {title:'name',field:'name',width:200,formatter:fnEscapeFormatter},
+                    {title:'value',field:'value',width:600,formatter:fnEscapeFormatter},
                 ]],
             });
 

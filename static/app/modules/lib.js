@@ -10,6 +10,21 @@ export function tpl(strings, ...keys) {
     });
 }
 
+// Данные из логов приходят от отлаживаемого приложения, поэтому в HTML вставляются только экранированными
+export function fnEscapeHtml(mValue) {
+    return String(mValue ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// formatter для колонок datagrid/treegrid: EasyUI вставляет значение ячейки как HTML
+export function fnEscapeFormatter(mValue) {
+    return fnEscapeHtml(mValue);
+}
+
 export function fnAlertMessage(sMessage) {
     // alert(sMessage);
     $.messager.alert('', sMessage);

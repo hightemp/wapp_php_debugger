@@ -1,4 +1,4 @@
-import { tpl, fnAlertMessage } from "./lib.js"
+import { tpl, fnAlertMessage, fnEscapeHtml } from "./lib.js"
 
 export class DebugMessages {
     static sURL = ``
@@ -233,16 +233,17 @@ export class DebugMessages {
                             sFunction = row.o_back_trace.function ?? '';
                         }
 
+                        // s_message экранируется на сервере (controllers/debug_messages.php) и содержит только ссылки на файлы
                         var s = `
-                        <div class="debug-message-cell ${row.s_type}">
+                        <div class="debug-message-cell ${fnEscapeHtml(row.s_type)}">
                             <div class="debug-log-message">${row.s_message}</div>
                             <div class="debug-log-message-info">
-                                <span><a href="${row.editor_url}">${sFile}:${sLine}</a></span>
-                                <span>${sFunction}</span>
+                                <span><a href="${fnEscapeHtml(row.editor_url)}">${fnEscapeHtml(sFile)}:${fnEscapeHtml(sLine)}</a></span>
+                                <span>${fnEscapeHtml(sFunction)}</span>
                             </div>
                             <div class="debug-log-message-info-2">
-                                <span>${row.s_type}</span>
-                                <span>${row.size_human}</span>
+                                <span>${fnEscapeHtml(row.s_type)}</span>
+                                <span>${fnEscapeHtml(row.size_human)}</span>
                             </div>
                         </div>
                         `;

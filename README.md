@@ -32,7 +32,7 @@ func(__log($a),__log($b));
 ## Быстрый запуск
 
 ```
-php -S 0.0.0.0:80 -t .
+php -S 127.0.0.1:8820 -t .
 # или 
 docker-compose up -d
 ```
