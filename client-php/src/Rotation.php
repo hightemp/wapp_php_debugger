@@ -11,7 +11,8 @@ namespace WappDebugger;
 final class Rotation
 {
     private const MARKER = '.rotation';
-    private const LOG_NAME = '/^(\d{10,16})(?:-[0-9A-HJKMNP-TV-Z]{26}\.jsonl)?$/';
+    /** Names of log files: v2 "<ts>-<ulid>.jsonl" and v1 "<ts>". */
+    public const LOG_NAME = '/^(\d{10,16})(?:-[0-9A-HJKMNP-TV-Z]{26}\.jsonl)?$/';
 
     private int $maxAgeDays;
     private int $maxFiles;

@@ -80,6 +80,15 @@ final class Debugger
     public static function boot(string $configPath): self
     {
         $config = Config::fromFile($configPath);
+        // The HTTP mode works with logging off too: that is how it gets turned on remotely
+        if ($config->httpToken() !== null && PHP_SAPI !== 'cli') {
+            $response = (new HttpEndpoint($configPath, $config))->handle($_SERVER);
+            if ($response !== null) {
+                $response->send();
+
+                exit;
+            }
+        }
         if (!$config->enabled()) {
             return self::$instance = self::start($config, RequestInfo::cli([]));
         }

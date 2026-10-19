@@ -26,6 +26,10 @@ final class Config
     private int $maxAgeDays;
     private int $maxFiles;
     private int $maxLogsBytes;
+    private ?string $httpToken;
+    /** @var list<string> */
+    private array $httpAllowedIps;
+    private int $httpRateLimit;
     /** @var array<string, string|null> */
     private array $oldKeys = [];
 
@@ -67,6 +71,11 @@ final class Config
         $this->maxAgeDays = self::nonNegativeInt($values['max_age_days'] ?? null, 30);
         $this->maxFiles = self::nonNegativeInt($values['max_files'] ?? null, 5000);
         $this->maxLogsBytes = self::nonNegativeInt($values['max_logs_size'] ?? null, 256 * 1024 * 1024);
+        $token = $values['http_token'] ?? null;
+        // A short token is as good as none: the HTTP mode stays off
+        $this->httpToken = is_string($token) && strlen($token) >= 32 ? $token : null;
+        $this->httpAllowedIps = is_array($values['http_allowed_ips'] ?? null) ? array_values(array_filter($values['http_allowed_ips'], 'is_string')) : [];
+        $this->httpRateLimit = self::positiveInt($values['http_rate_limit'] ?? null, 600);
         $globals = is_array($values['log_globals'] ?? null) ? $values['log_globals'] : ['get', 'post', 'files'];
         $globals = array_map('strtolower', array_filter($globals, 'is_string'));
         $this->logGlobals = array_values(array_intersect($globals, self::GLOBALS));
@@ -147,6 +156,28 @@ final class Config
     public function traceFrames(): int
     {
         return $this->traceFrames;
+    }
+
+    /** Token of the HTTP mode (at least 32 characters); null keeps the mode off. */
+    public function httpToken(): ?string
+    {
+        return $this->httpToken;
+    }
+
+    /**
+     * Addresses or networks (CIDR) allowed to use the HTTP mode; empty means any.
+     *
+     * @return list<string>
+     */
+    public function httpAllowedIps(): array
+    {
+        return $this->httpAllowedIps;
+    }
+
+    /** HTTP mode requests per minute. */
+    public function httpRateLimit(): int
+    {
+        return $this->httpRateLimit;
     }
 
     /** Log files older than this are deleted; 0 keeps them. */
