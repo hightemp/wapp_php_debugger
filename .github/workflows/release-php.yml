@@ -1,0 +1,56 @@
+# Release of the PHP library on a client-php/vX.Y.Z tag: the whole CI, then client-php/ is split into
+# its own repository with the tag vX.Y.Z, which Packagist picks up (plan 3.2, decision 10.14).
+#
+# One-time setup by the owner: the repository hightemp/wapp-php-debugger, a deploy key with write
+# access to it, the secret CLIENT_PHP_DEPLOY_KEY (the private key) in the environment "release"
+# with required reviewers, and the package registered on Packagist with the GitHub hook.
+name: Release PHP library
+
+on:
+  push:
+    tags: ['client-php/v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-php-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  split:
+    name: Split into hightemp/wapp-php-debugger
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      TARGET: git@github.com:hightemp/wapp-php-debugger.git
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: The tag matches Debugger::VERSION
+        run: |
+          version="${GITHUB_REF_NAME#client-php/v}"
+          library=$(php -r 'require "client-php/src/Debugger.php"; echo WappDebugger\Debugger::VERSION;')
+          if [ "$version" != "$library" ]; then
+            echo "::error::tag $GITHUB_REF_NAME, but Debugger::VERSION is $library"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Split and push
+        env:
+          DEPLOY_KEY: ${{ secrets.CLIENT_PHP_DEPLOY_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes"
+          git subtree split --prefix=client-php -b client-php-split
+          git push "$TARGET" client-php-split:main
+          git tag "v$VERSION" client-php-split
+          git push "$TARGET" "v$VERSION"

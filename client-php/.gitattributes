@@ -1,0 +1,9 @@
+# Left out of the Composer dist archive: the package is src/ with its README and composer.json
+/tests export-ignore
+/tools export-ignore
+/v1 export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/phpstan.neon.dist export-ignore
+/phpunit.xml.dist export-ignore
