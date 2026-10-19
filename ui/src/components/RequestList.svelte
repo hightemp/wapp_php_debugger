@@ -4,6 +4,8 @@
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
+  import SegmentedControl from './SegmentedControl.svelte';
+  import Switch from './Switch.svelte';
 
   let {
     transport,
@@ -24,13 +26,45 @@
   let errorMessage = $state('');
   let loadingMore = $state(false);
 
-  // undefined means the combined feed of all projects
-  const filter = () => (projectId === undefined ? {} : { project_id: projectId });
+  type Sapi = 'all' | 'web' | 'cli';
+  const searchDelay = 250;
+
+  let searchInput = $state('');
+  let query = $state('');
+  let errorsOnly = $state(false);
+  let sapi = $state<Sapi>('all');
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function onSearchInput(value: string) {
+    searchInput = value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => (query = value.trim()), searchDelay);
+  }
+
+  // Only set filters go to the API; no project means the combined feed of all projects
+  const filter = $derived({
+    ...(projectId === undefined ? {} : { project_id: projectId }),
+    ...(query === '' ? {} : { q: query }),
+    ...(errorsOnly ? { has_errors: true } : {}),
+    ...(sapi === 'all' ? {} : { sapi }),
+  });
+  const filtered = $derived(query !== '' || errorsOnly || sapi !== 'all');
+
+  // A live request is added only when it surely matches: the text search is checked by the server.
+  // Requests that gain errors after they were created show up on the next reload.
+  function mayShow(request: Request): boolean {
+    return (
+      (projectId === undefined || request.project_id === projectId) &&
+      query === '' &&
+      (!errorsOnly || request.error_count > 0) &&
+      (sapi === 'all' || request.sapi === sapi)
+    );
+  }
 
   async function load() {
     status = 'loading';
     try {
-      const page = await transport.listRequests({ limit: pageSize, ...filter() });
+      const page = await transport.listRequests({ limit: pageSize, ...filter });
       items = page.items;
       nextCursor = page.next_cursor;
       status = 'ready';
@@ -49,7 +83,7 @@
       const page = await transport.listRequests({
         limit: pageSize,
         cursor: nextCursor,
-        ...filter(),
+        ...filter,
       });
       const known = new Set(items.map((item) => item.id));
       items = [...items, ...page.items.filter((item) => !known.has(item.id))];
@@ -63,14 +97,13 @@
   }
 
   $effect(() => {
-    void projectId; // reload when the project filter changes
+    void filter; // reload when the project or a filter changes
     void load();
   });
 
   $effect(() =>
     transport.subscribe((event) => {
-      // Live requests of other projects do not belong in a filtered feed
-      if (projectId !== undefined && event.request && event.request.project_id !== projectId) {
+      if (event.event === 'request_created' && event.request && !mayShow(event.request)) {
         return;
       }
       const update = applyStreamEvent(items, event);
@@ -107,6 +140,37 @@
 <section class="feed" aria-labelledby="feed-title">
   <h2 id="feed-title" class="visually-hidden">{i18n.t('feed.title')}</h2>
 
+  <div class="toolbar">
+    <input
+      class="search"
+      type="search"
+      aria-label={i18n.t('feed.search')}
+      placeholder={i18n.t('feed.searchHint')}
+      value={searchInput}
+      oninput={(event) => onSearchInput(event.currentTarget.value)}
+    />
+    <div class="filters">
+      <SegmentedControl
+        label={i18n.t('feed.sapi')}
+        options={[
+          { value: 'all', label: i18n.t('feed.sapiAll') },
+          { value: 'web', label: i18n.t('feed.sapiWeb') },
+          { value: 'cli', label: i18n.t('feed.sapiCli') },
+        ]}
+        value={sapi}
+        onchange={(value: Sapi) => (sapi = value)}
+      />
+      <span class="errors-only">
+        <Switch
+          label={i18n.t('feed.errorsOnly')}
+          checked={errorsOnly}
+          onchange={(value) => (errorsOnly = value)}
+        />
+        <span aria-hidden="true">{i18n.t('feed.errorsOnly')}</span>
+      </span>
+    </div>
+  </div>
+
   {#if status === 'loading' && items.length === 0}
     <p class="state">{i18n.t('feed.loading')}</p>
   {:else if status === 'error'}
@@ -114,6 +178,8 @@
       <p>{i18n.t('feed.error', { message: errorMessage })}</p>
       <button type="button" class="action" onclick={load}>{i18n.t('feed.retry')}</button>
     </div>
+  {:else if items.length === 0 && filtered}
+    <p class="state">{i18n.t('feed.noMatches')}</p>
   {:else if items.length === 0}
     <div class="state">
       <p class="state-title">{i18n.t('feed.emptyTitle')}</p>
@@ -169,6 +235,42 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+  }
+
+  .toolbar {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    color: var(--text);
+    font: inherit;
+  }
+
+  .search:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .errors-only {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
   }
 
   .list {

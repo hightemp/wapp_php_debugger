@@ -73,6 +73,22 @@ describe('RequestDetail', () => {
     );
   });
 
+  it('searches messages together with the level filter', async () => {
+    const { transport } = setup();
+    await screen.findByRole('heading', { level: 2 });
+    await fireEvent.click(screen.getByRole('button', { name: 'Errors' }));
+    await fireEvent.input(screen.getByRole('searchbox', { name: 'Search messages' }), {
+      target: { value: 'кеша' },
+    });
+    await waitFor(() =>
+      expect(transport.listMessages).toHaveBeenLastCalledWith(42, {
+        level: ['error'],
+        q: 'кеша',
+        limit: 500,
+      }),
+    );
+  });
+
   it('lists child requests and opens them', async () => {
     const { onselectrequest } = setup();
     const child = await screen.findByRole('button', { name: /POST \/item\/43/ });

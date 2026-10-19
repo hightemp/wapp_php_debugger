@@ -23,6 +23,11 @@ export interface Version {
 
 export interface ListRequestsParams {
   project_id?: number;
+  q?: string;
+  has_errors?: boolean;
+  sapi?: 'web' | 'cli';
+  since?: number;
+  until?: number;
   cursor?: string;
   limit?: number;
 }
@@ -31,6 +36,7 @@ export interface ListMessagesParams {
   level?: Level[];
   type?: MessageType;
   tag?: string;
+  q?: string;
   cursor?: string;
   limit?: number;
 }

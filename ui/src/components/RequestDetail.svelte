@@ -39,12 +39,24 @@
     }
   }
 
-  async function loadMessages(id: number, filter: Level[]) {
+  const searchDelay = 250;
+  let searchInput = $state('');
+  let query = $state('');
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function onSearchInput(value: string) {
+    searchInput = value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => (query = value.trim()), searchDelay);
+  }
+
+  async function loadMessages(id: number, filter: Level[], search: string) {
     try {
-      const page = await transport.listMessages(
-        id,
-        filter.length > 0 ? { level: filter, limit: messageLimit } : { limit: messageLimit },
-      );
+      const page = await transport.listMessages(id, {
+        ...(filter.length > 0 ? { level: filter } : {}),
+        ...(search === '' ? {} : { q: search }),
+        limit: messageLimit,
+      });
       messages = page.items;
     } catch {
       messages = [];
@@ -57,14 +69,14 @@
   });
 
   $effect(() => {
-    void loadMessages(requestId, activeLevels);
+    void loadMessages(requestId, activeLevels, query);
   });
 
   $effect(() =>
     transport.subscribe((event) => {
       if (event.event === 'request_updated' && event.request?.id === requestId) {
         void loadRequest(requestId);
-        void loadMessages(requestId, activeLevels);
+        void loadMessages(requestId, activeLevels, query);
       }
     }),
   );
@@ -133,6 +145,14 @@
     {/if}
 
     <div class="filters" role="group" aria-label={i18n.t('detail.filterLabel')}>
+      <input
+        class="search"
+        type="search"
+        aria-label={i18n.t('detail.search')}
+        placeholder={i18n.t('detail.search')}
+        value={searchInput}
+        oninput={(event) => onSearchInput(event.currentTarget.value)}
+      />
       {#each levels as level (level)}
         <button
           type="button"
@@ -245,6 +265,22 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     border-bottom: 1px solid var(--border);
+  }
+
+  .search {
+    flex: 1 1 16ch;
+    padding: 2px var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--font-size-small);
+  }
+
+  .search:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .chip {

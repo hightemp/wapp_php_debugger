@@ -111,6 +111,55 @@ describe('RequestList', () => {
     await waitFor(() => expect(listRequests).toHaveBeenLastCalledWith({ limit: 100 }));
   });
 
+  it('searches and filters the feed', async () => {
+    const { transport, listRequests } = feed([{ items: [request(1)], next_cursor: null }]);
+    render(RequestList, { transport });
+    await screen.findAllByRole('listitem');
+
+    await fireEvent.input(screen.getByRole('searchbox', { name: 'Search' }), {
+      target: { value: 'cache miss' },
+    });
+    await waitFor(() =>
+      expect(listRequests).toHaveBeenLastCalledWith({ limit: 100, q: 'cache miss' }),
+    );
+
+    await fireEvent.click(screen.getByRole('switch', { name: 'Errors only' }));
+    await waitFor(() =>
+      expect(listRequests).toHaveBeenLastCalledWith({
+        limit: 100,
+        q: 'cache miss',
+        has_errors: true,
+      }),
+    );
+
+    await fireEvent.click(screen.getByRole('radio', { name: 'CLI' }));
+    await waitFor(() =>
+      expect(listRequests).toHaveBeenLastCalledWith({
+        limit: 100,
+        q: 'cache miss',
+        has_errors: true,
+        sapi: 'cli',
+      }),
+    );
+    expect(await screen.findByText('No matching requests')).toBeInTheDocument();
+  });
+
+  it('does not add live requests that the filter may not match', async () => {
+    const { transport, emit } = feed([
+      { items: [request(1)], next_cursor: null },
+      { items: [request(1, { error_count: 1 })], next_cursor: null },
+    ]);
+    render(RequestList, { transport });
+    await screen.findAllByRole('listitem');
+    await fireEvent.click(screen.getByRole('switch', { name: 'Errors only' }));
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
+
+    emit({ event: 'request_created', request: request(9) });
+    emit({ event: 'request_created', request: request(10, { error_count: 3 }) });
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
+    expect(screen.queryByText('GET /item/9')).not.toBeInTheDocument();
+  });
+
   it('unsubscribes from the stream when removed', async () => {
     const { transport, unsubscribe } = feed([{ items: [], next_cursor: null }]);
     const { unmount } = render(RequestList, { transport });
