@@ -29,7 +29,7 @@ func newServeFlags(cfg *app.Config, output io.Writer) *flag.FlagSet {
 	flags.StringVar(&cfg.RootPath, "root", "", "project root (default: parent of --logs-dir)")
 	flags.StringVar(&cfg.ProjectName, "project", "", "project name (default: name of the --root directory)")
 	flags.StringVar(&cfg.ConfigPath, "config", "", "library dws_debugger.json (default: inside --root)")
-	flags.DurationVar(&cfg.ScanInterval, "scan-interval", time.Second, "how often to check the logs directory")
+	flags.DurationVar(&cfg.ScanInterval, "scan-interval", 5*time.Second, "fallback rescan period; changes are picked up right away where the file system reports them")
 	return flags
 }
 

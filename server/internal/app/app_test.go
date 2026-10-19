@@ -198,3 +198,34 @@ func TestStartGivesHandlerWithoutListening(t *testing.T) {
 		t.Fatal("desktop needs the broker to publish its own events")
 	}
 }
+
+// With a long poll interval a new log still shows up quickly: file system notifications trigger the scan.
+func TestNewLogsAppearWithoutWaitingForThePoll(t *testing.T) {
+	dir := t.TempDir()
+	logsDir := filepath.Join(dir, "logs")
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	core, err := Start(context.Background(), Config{
+		DBPath: filepath.Join(dir, "viewer.db"), ProjectName: "shop", RootPath: dir, LogsDir: logsDir,
+		ScanInterval: time.Hour, UI: fstest.MapFS{"index.html": {}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer core.Close()
+	server := httptest.NewServer(core.Handler())
+	defer server.Close()
+
+	time.Sleep(100 * time.Millisecond) // the initial scan of the empty directory
+	if err := os.WriteFile(filepath.Join(logsDir, "1792400000009"), fixture(t, "web-get.log"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(getBody(t, server.URL+"/api/v1/requests"), `"request_key":"1792400000009"`) {
+		if time.Now().After(deadline) {
+			t.Fatal("the new log did not appear within a second")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}

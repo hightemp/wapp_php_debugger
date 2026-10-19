@@ -53,7 +53,7 @@ func TestParseServeDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Addr != "127.0.0.1:8820" || cfg.DBPath != "/home/u/.config/wapp-debugger/wapp-debugger.db" || cfg.LogsDir != "" || cfg.ScanInterval != time.Second {
+	if cfg.Addr != "127.0.0.1:8820" || cfg.DBPath != "/home/u/.config/wapp-debugger/wapp-debugger.db" || cfg.LogsDir != "" || cfg.ScanInterval != 5*time.Second {
 		t.Fatalf("defaults = %+v", cfg)
 	}
 }

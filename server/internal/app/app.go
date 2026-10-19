@@ -15,6 +15,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/ingest"
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
+	"github.com/hightemp/wapp_php_debugger/server/internal/watch"
 )
 
 // Config holds launch settings.
@@ -46,7 +47,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		cfg.Logger = slog.Default()
 	}
 	if cfg.ScanInterval == 0 {
-		cfg.ScanInterval = time.Second
+		cfg.ScanInterval = 5 * time.Second
 	}
 
 	db, err := store.Open(ctx, cfg.DBPath)
@@ -132,9 +133,9 @@ func scanLoop(ctx context.Context, cfg Config, s *store.Store, broker *events.Br
 	}
 	src := source.NewLocal(cfg.LogsDir, cfg.ConfigPath)
 	importer := ingest.New(s)
-	ticker := time.NewTicker(cfg.ScanInterval)
-	defer ticker.Stop()
-	for {
+	// Scan right after file changes (debounced so a growing file is not re-read per line)
+	// and every ScanInterval as a fallback for file systems without notifications
+	for range watch.Dir(ctx, cfg.LogsDir, watch.Options{PollInterval: cfg.ScanInterval, Debounce: 100 * time.Millisecond}) {
 		result, err := importer.Scan(ctx, ids.ProjectID, src)
 		if err != nil && ctx.Err() == nil {
 			cfg.Logger.Warn("scan logs", "error", err)
@@ -144,12 +145,6 @@ func scanLoop(ctx context.Context, cfg Config, s *store.Store, broker *events.Br
 		}
 		publish(ctx, s, broker, "request_created", result.Created)
 		publish(ctx, s, broker, "request_updated", result.Updated)
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
 	}
 }
 
