@@ -44,6 +44,9 @@ func appliedVersions(t *testing.T, db *sql.DB) []int {
 		}
 		versions = append(versions, version)
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	return versions
 }
 

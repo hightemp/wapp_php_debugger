@@ -160,6 +160,9 @@ func searchMessages(t *testing.T, db *sql.DB, query string) []string {
 		}
 		found = append(found, message)
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	return found
 }
 
