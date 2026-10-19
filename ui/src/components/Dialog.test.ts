@@ -29,13 +29,29 @@ describe('Dialog', () => {
     expect(onclose).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps Escape to itself, so a dialog opened from another one closes alone', async () => {
+  it('closes on Escape even when the focus is lost', async () => {
+    const onclose = vi.fn();
+    render(Dialog, { open: true, title: 'Project', onclose, children: content });
+    (document.activeElement as HTMLElement | null)?.blur();
+    await fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onclose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes only the top dialog on Escape', async () => {
     const outer = vi.fn();
-    document.addEventListener('keydown', outer);
-    render(Dialog, { open: true, title: 'Project', onclose: vi.fn(), children: content });
-    await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    document.removeEventListener('keydown', outer);
+    const inner = vi.fn();
+    render(Dialog, { open: true, title: 'Servers', onclose: outer, children: content });
+    render(Dialog, { open: true, title: 'New server', onclose: inner, children: content });
+    await fireEvent.keyDown(screen.getByRole('dialog', { name: 'New server' }), { key: 'Escape' });
+    expect(inner).toHaveBeenCalledTimes(1);
     expect(outer).not.toHaveBeenCalled();
+  });
+
+  it('brings a lost focus back on Tab', async () => {
+    render(Dialog, { open: true, title: 'Project', onclose: vi.fn(), children: content });
+    (document.activeElement as HTMLElement | null)?.blur();
+    await fireEvent.keyDown(document.body, { key: 'Tab' });
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
   });
 
   it('keeps Tab inside the dialog', async () => {

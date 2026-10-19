@@ -1,5 +1,11 @@
+<script lang="ts" module>
+  // Open dialogs, the top one last: only it answers Escape and Tab
+  const stack: symbol[] = [];
+</script>
+
 <script lang="ts">
   // Modal dialog instead of native ones: labelled, traps Tab, closes on Escape, returns the focus.
+  // Escape and Tab work wherever the focus is: a button that disappears takes the focus to <body>.
   import type { Snippet } from 'svelte';
   import { i18n } from '../lib/i18n/locale.svelte';
 
@@ -21,6 +27,7 @@
 
   let panel = $state<HTMLElement>();
   const titleId = `dialog-title-${Math.random().toString(36).slice(2)}`;
+  const me = Symbol(titleId);
 
   const focusable = () =>
     [
@@ -33,16 +40,23 @@
     if (!open) {
       return;
     }
+    stack.push(me);
     const previous = document.activeElement as HTMLElement | null;
     queueMicrotask(() => (focusable()[1] ?? focusable()[0])?.focus());
-    return () => previous?.focus();
+    window.addEventListener('keydown', onKeydown);
+    return () => {
+      window.removeEventListener('keydown', onKeydown);
+      stack.splice(stack.indexOf(me), 1);
+      previous?.focus();
+    };
   });
 
   function onKeydown(event: KeyboardEvent) {
+    if (stack[stack.length - 1] !== me || event.defaultPrevented) {
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
-      // A dialog opened from another one: only the top one closes
-      event.stopPropagation();
       onclose();
       return;
     }
@@ -55,7 +69,10 @@
     if (!first || !last) {
       return;
     }
-    if (event.shiftKey && document.activeElement === first) {
+    if (!panel?.contains(document.activeElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
@@ -78,7 +95,6 @@
       aria-modal="true"
       aria-labelledby={titleId}
       tabindex="-1"
-      onkeydown={onKeydown}
     >
       <header class="header">
         <h2 id={titleId} class="title">{title}</h2>

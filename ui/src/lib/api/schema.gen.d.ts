@@ -435,6 +435,8 @@ export interface components {
             steps: components["schemas"]["ServerCheckStep"][];
             /** @description For a new SSH host, the key fingerprint to confirm in the UI */
             host_key_fingerprint?: string;
+            /** @description Type of that key (ssh-ed25519, ecdsa-sha2-nistp256, ssh-rsa…), so the user compares it with the right file on the server */
+            host_key_type?: string;
         };
         ServerCheckStep: {
             name: string;

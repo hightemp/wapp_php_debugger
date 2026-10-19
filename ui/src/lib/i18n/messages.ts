@@ -109,7 +109,7 @@ const en = {
   'servers.thisMachine': 'this machine',
   'servers.unknownKey':
     'Unknown host key. Compare the fingerprint with the server before you trust it:',
-  'servers.keyHint': 'On the server: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub',
+  'servers.keyHint': 'On the server: ssh-keygen -lf /etc/ssh/{file}',
   'servers.trust': 'Trust this key',
   'connection.online': 'Online',
   'connection.offline': 'Offline',
@@ -256,7 +256,7 @@ const ru: Record<MessageKey, Entry> = {
   'servers.thisMachine': 'этот компьютер',
   'servers.unknownKey':
     'Неизвестный ключ хоста. Сверьте отпечаток с сервером, прежде чем доверять ему:',
-  'servers.keyHint': 'На сервере: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub',
+  'servers.keyHint': 'На сервере: ssh-keygen -lf /etc/ssh/{file}',
   'servers.trust': 'Доверять этому ключу',
   'connection.online': 'В сети',
   'connection.offline': 'Недоступен',

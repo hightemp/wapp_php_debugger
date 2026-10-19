@@ -69,6 +69,17 @@
     local: 'step.local',
   };
 
+  // The host key file on the server for a key type, to compare the fingerprint with
+  function hostKey(type: string | undefined): { label: string; file: string } {
+    if (type?.startsWith('ecdsa-')) {
+      return { label: 'ECDSA', file: 'ssh_host_ecdsa_key.pub' };
+    }
+    if (type === 'ssh-rsa' || type?.startsWith('rsa-')) {
+      return { label: 'RSA', file: 'ssh_host_rsa_key.pub' };
+    }
+    return { label: 'ED25519', file: 'ssh_host_ed25519_key.pub' };
+  }
+
   function stepName(name: string): string {
     const key = stepKeys[name];
     return key ? i18n.t(key) : name;
@@ -163,10 +174,13 @@
           {/if}
           {#if state.result.host_key_fingerprint}
             {@const fingerprint = state.result.host_key_fingerprint}
+            {@const key = hostKey(state.result.host_key_type)}
             <div class="key">
               <p>{i18n.t('servers.unknownKey')}</p>
-              <code class="fingerprint">{fingerprint}</code>
-              <p class="note">{i18n.t('servers.keyHint')}</p>
+              <p class="fingerprint">
+                <span class="key-type">{key.label}</span> <code>{fingerprint}</code>
+              </p>
+              <p class="note">{i18n.t('servers.keyHint', { file: key.file })}</p>
               <button
                 type="button"
                 class="action primary"
@@ -290,9 +304,11 @@
   }
 
   .fingerprint {
-    display: block;
-    margin-bottom: var(--space-2);
     overflow-wrap: anywhere;
+  }
+
+  .key-type {
+    font-weight: 600;
   }
 
   .action {

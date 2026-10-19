@@ -83,6 +83,7 @@ describe('ServersDialog', () => {
         ok: false,
         steps: [{ name: 'connect', ok: false, detail: 'unknown host 10.0.0.5:22' }],
         host_key_fingerprint: fingerprint,
+        host_key_type: 'ecdsa-sha2-nistp256',
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -95,7 +96,9 @@ describe('ServersDialog', () => {
     const stage = await row('stage');
     await fireEvent.click(within(stage).getByRole('button', { name: 'Check' }));
     expect(await within(stage).findByText(fingerprint)).toBeInTheDocument();
-    expect(stage).toHaveTextContent('ssh-keygen -lf');
+    expect(stage).toHaveTextContent('ECDSA');
+    // the hint names the file of this key type on the server
+    expect(stage).toHaveTextContent('ssh-keygen -lf /etc/ssh/ssh_host_ecdsa_key.pub');
 
     await fireEvent.click(within(stage).getByRole('button', { name: 'Trust this key' }));
     await waitFor(() => expect(transport.trustHostKey).toHaveBeenCalledWith(2, fingerprint));
