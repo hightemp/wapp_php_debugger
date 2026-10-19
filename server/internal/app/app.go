@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/api"
@@ -158,4 +160,19 @@ func publish(ctx context.Context, s *store.Store, broker *events.Broker, name st
 		dto := api.RequestDTO(row)
 		broker.Publish(name, api.StreamEvent{Event: api.StreamEventEvent(name), Request: &dto})
 	}
+}
+
+// GuessRoot is the nearest parent of logsDir (up to three levels) that holds dws_debugger.json,
+// or the parent of logsDir when there is none: logs usually live in tmp/logs or tmpFiles/dws_debugger.
+func GuessRoot(logsDir string) string {
+	parent := filepath.Dir(filepath.Clean(logsDir))
+	for dir, level := parent, 0; level < 3; dir, level = filepath.Dir(dir), level+1 {
+		if info, err := os.Stat(filepath.Join(dir, "dws_debugger.json")); err == nil && info.Mode().IsRegular() {
+			return dir
+		}
+		if filepath.Dir(dir) == dir {
+			break
+		}
+	}
+	return parent
 }

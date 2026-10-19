@@ -26,7 +26,7 @@ func newServeFlags(cfg *app.Config, output io.Writer) *flag.FlagSet {
 	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8820", "HTTP address; 0.0.0.0 exposes the viewer to the network")
 	flags.StringVar(&cfg.DBPath, "db", "", "database file (default: in the user config directory)")
 	flags.StringVar(&cfg.LogsDir, "logs-dir", "", "logs directory of a local project")
-	flags.StringVar(&cfg.RootPath, "root", "", "project root (default: parent of --logs-dir)")
+	flags.StringVar(&cfg.RootPath, "root", "", "project root (default: the nearest parent of --logs-dir with dws_debugger.json, else its parent)")
 	flags.StringVar(&cfg.ProjectName, "project", "", "project name (default: name of the --root directory)")
 	flags.StringVar(&cfg.ConfigPath, "config", "", "library dws_debugger.json (default: inside --root)")
 	flags.DurationVar(&cfg.ScanInterval, "scan-interval", 5*time.Second, "fallback rescan period; changes are picked up right away where the file system reports them")
@@ -58,7 +58,7 @@ func parseServe(args []string, userConfigDir func() (string, error)) (app.Config
 	}
 	if cfg.LogsDir != "" {
 		if cfg.RootPath == "" {
-			cfg.RootPath = filepath.Dir(filepath.Clean(cfg.LogsDir))
+			cfg.RootPath = app.GuessRoot(cfg.LogsDir)
 		}
 		if cfg.ProjectName == "" {
 			cfg.ProjectName = filepath.Base(cfg.RootPath)

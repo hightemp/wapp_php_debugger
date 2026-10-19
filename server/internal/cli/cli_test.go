@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -91,5 +93,22 @@ func TestServeHelpListsFlags(t *testing.T) {
 	code, _, stderr := run("serve", "--help")
 	if code != 0 || !strings.Contains(stderr, "-logs-dir") || !strings.Contains(stderr, "-addr") {
 		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+}
+
+// Logs usually live two levels deep (tmp/logs, tmpFiles/dws_debugger): the project root is the
+// nearest parent of the logs directory that holds the library config.
+func TestParseServeFindsTheRootByTheLibraryConfig(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "shop")
+	logs := filepath.Join(root, "tmp", "logs")
+	if err := os.MkdirAll(logs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dws_debugger.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := parseServe([]string{"--logs-dir", logs, "--db", "/tmp/x.db"}, nil)
+	if err != nil || cfg.RootPath != root || cfg.ProjectName != "shop" || cfg.ConfigPath != filepath.Join(root, "dws_debugger.json") {
+		t.Fatalf("cfg = %+v, %v", cfg, err)
 	}
 }

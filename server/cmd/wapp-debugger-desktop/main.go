@@ -55,7 +55,7 @@ func run() int {
 		cfg.DBPath = filepath.Join(dir, "self-test.db")
 	}
 	if cfg.LogsDir != "" {
-		cfg.RootPath = filepath.Dir(filepath.Clean(cfg.LogsDir))
+		cfg.RootPath = app.GuessRoot(cfg.LogsDir)
 		cfg.ProjectName = filepath.Base(cfg.RootPath)
 		cfg.ConfigPath = filepath.Join(cfg.RootPath, "dws_debugger.json")
 	}
