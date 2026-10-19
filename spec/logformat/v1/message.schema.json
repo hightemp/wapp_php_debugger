@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hightemp/wapp_php_debugger/spec/logformat/v1/message.schema.json",
+  "title": "Строка сообщения v1",
+  "description": "Каждая строка файла после заголовка. sMessage приходит как есть из __d(), поэтому допускается любой скаляр; объекты и массивы не допускаются (их не может показать ни один просмотрщик).",
+  "type": "object",
+  "required": ["sType", "sMessage", "iTimestamp"],
+  "properties": {
+    "sType": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Обычно error, warning, info, message, functions_debug, но __d() принимает любую строку"
+    },
+    "sMessage": { "type": ["string", "number", "boolean", "null"] },
+    "oVars": {
+      "type": "object",
+      "description": "Переменные; библиотека приводит их к объекту, поэтому списки приходят как {\"0\": ...}"
+    },
+    "oBackTrace": {
+      "type": "object",
+      "description": "Место вызова __d()",
+      "properties": {
+        "file": { "type": ["string", "null"], "description": "Путь без DA_ROOT_DIR" },
+        "line": { "type": ["integer", "null"] },
+        "function": { "type": ["string", "null"] }
+      }
+    },
+    "aBackTrace": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/frame" }
+    },
+    "iTimestamp": { "type": "integer", "description": "Момент записи, мс от эпохи" }
+  },
+  "$defs": {
+    "frame": {
+      "type": "object",
+      "description": "Кадр debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)",
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "function": { "type": "string" },
+        "class": { "type": "string" },
+        "type": { "type": "string", "enum": ["->", "::"] }
+      }
+    }
+  }
+}

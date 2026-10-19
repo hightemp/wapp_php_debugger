@@ -1,0 +1,14 @@
+{
+  "v": 2,
+  "type": "request_start",
+  "request_id": "01JAZ7R2B3C4D5E6F7G8H9J0K1",
+  "seq": 1,
+  "ts": 1792400100000,
+  "sapi": "cli",
+  "lang": "php",
+  "library_version": "2.0.0",
+  "php_version": "8.3.12",
+  "hostname": "worker-2",
+  "pid": 991,
+  "process_user": "deploy"
+}

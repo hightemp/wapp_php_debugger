@@ -1,0 +1,4 @@
+{"v":2,"type":"request_start","request_id":"01JAZ7Q5X0K4M8T2V6N9P3R5S8","seq":1,"ts":1792400000150,"sapi":"web","lang":"php","library_version":"2.0.0","php_version":"7.4.33","parent_request_id":"01JAZ7Q5X0K4M8T2V6N9P3R5S7","method":"POST","url":"https://shop.example.test/api/cart/add","is_ajax":true,"ip":"203.0.113.10","hostname":"web-1","pid":4183}
+{"v":2,"type":"message","request_id":"01JAZ7Q5X0K4M8T2V6N9P3R5S8","seq":2,"ts":1792400000153,"level":"message","message":"$_POST","tags":["superglobals"],"context":{"_POST":{"item_id":"42","qty":"2","password":"***"}}}
+{"v":2,"type":"message","request_id":"01JAZ7Q5X0K4M8T2V6N9P3R5S8","seq":3,"ts":1792400000159,"level":"info","message":"Товар добавлен в корзину","context":{"cart_id":"c-981","items":3}}
+{"v":2,"type":"request_end","request_id":"01JAZ7Q5X0K4M8T2V6N9P3R5S8","seq":4,"ts":1792400000161,"duration_ms":11.0,"status_code":201,"memory_peak_bytes":1572864}

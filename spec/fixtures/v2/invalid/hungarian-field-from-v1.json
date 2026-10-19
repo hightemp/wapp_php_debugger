@@ -1,0 +1,40 @@
+{
+  "v": 2,
+  "type": "message",
+  "request_id": "01JAZ7Q5X0K4M8T2V6N9P3R5S7",
+  "seq": 3,
+  "ts": 1792400000005,
+  "level": "info",
+  "context": {
+    "item_id": 42,
+    "user": {
+      "id": 7,
+      "name": "Тест",
+      "api_key": "***"
+    }
+  },
+  "source": {
+    "file": "app/Controller/ItemController.php",
+    "line": 31,
+    "function": "show",
+    "class": "App\\Controller\\ItemController",
+    "call_type": "->"
+  },
+  "trace": [
+    {
+      "file": "app/Controller/ItemController.php",
+      "line": 31,
+      "function": "show",
+      "class": "App\\Controller\\ItemController",
+      "call_type": "->"
+    },
+    {
+      "file": "public/index.php",
+      "line": 12,
+      "function": "dispatch",
+      "class": "App\\Router",
+      "call_type": "->"
+    }
+  ],
+  "sMessage": "x"
+}

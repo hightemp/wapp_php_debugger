@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hightemp/wapp_php_debugger/spec/logformat/v2/event.schema.json",
+  "title": "Событие лога v2",
+  "description": "Одна строка файла лога v2. Схема строгая (неизвестные поля запрещены), чтобы ловить ошибки писателя; просмотрщик при чтении неизвестные поля игнорирует. Правила потока (seq, порядок событий) описаны в README.md.",
+  "type": "object",
+  "required": ["v", "type", "request_id", "seq", "ts"],
+  "properties": {
+    "v": { "const": 2, "description": "Версия формата" },
+    "type": { "enum": ["request_start", "message", "timer", "error", "request_end"] },
+    "request_id": { "$ref": "#/$defs/ulid" },
+    "seq": { "type": "integer", "minimum": 1, "description": "Номер события в запросе, с 1 и без пропусков" },
+    "ts": { "type": "integer", "minimum": 0, "description": "Время события, мс от эпохи (часы сервера)" }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/request_start" },
+    { "$ref": "#/$defs/message" },
+    { "$ref": "#/$defs/timer" },
+    { "$ref": "#/$defs/error" },
+    { "$ref": "#/$defs/request_end" }
+  ],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "ulid": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "description": "ULID: сортируется по времени, генерируется без координации"
+    },
+    "level": {
+      "enum": ["error", "warning", "info", "message", "debug"],
+      "description": "message — нейтральная запись (как DWS_MESSAGE в v1); уровни PSR-3 сводятся к этим пяти"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.:-]*$", "maxLength": 64 },
+      "uniqueItems": true,
+      "description": "Теги без #, например sql, timediff"
+    },
+    "frame": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string", "description": "Путь относительно корня проекта" },
+        "line": { "type": "integer", "minimum": 0 },
+        "function": { "type": "string" },
+        "class": { "type": "string" },
+        "call_type": { "enum": ["->", "::"] }
+      },
+      "additionalProperties": false
+    },
+    "trace": { "type": "array", "items": { "$ref": "#/$defs/frame" } },
+    "request_start": {
+      "properties": {
+        "type": { "const": "request_start" },
+        "sapi": { "enum": ["web", "cli"] },
+        "lang": { "enum": ["php", "js"] },
+        "library_version": { "type": "string", "minLength": 1 },
+        "php_version": { "type": "string" },
+        "parent_request_id": { "$ref": "#/$defs/ulid" },
+        "method": { "type": "string", "pattern": "^[A-Z]+$" },
+        "url": { "type": "string" },
+        "is_ajax": { "type": "boolean" },
+        "argv": { "type": "array", "items": { "type": "string" } },
+        "ip": { "type": "string" },
+        "server_ip": { "type": "string" },
+        "server_name": { "type": "string" },
+        "hostname": { "type": "string" },
+        "pid": { "type": "integer", "minimum": 0 },
+        "process_user": { "type": "string" },
+        "app_user": { "type": "string" },
+        "session_id": { "type": "string" }
+      },
+      "required": ["sapi", "lang", "library_version"],
+      "if": { "properties": { "sapi": { "const": "web" } } },
+      "then": { "required": ["method", "url"] },
+      "else": { "required": ["argv"] }
+    },
+    "message": {
+      "properties": {
+        "type": { "const": "message" },
+        "level": { "$ref": "#/$defs/level" },
+        "message": { "type": "string" },
+        "tags": { "$ref": "#/$defs/tags" },
+        "context": { "type": "object", "description": "Именованные переменные; значения — любой JSON" },
+        "source": { "$ref": "#/$defs/frame" },
+        "trace": { "$ref": "#/$defs/trace" }
+      },
+      "required": ["level", "message"]
+    },
+    "timer": {
+      "properties": {
+        "type": { "const": "timer" },
+        "name": { "type": "string", "minLength": 1 },
+        "duration_ms": { "type": "number", "minimum": 0 },
+        "level": { "$ref": "#/$defs/level" },
+        "source": { "$ref": "#/$defs/frame" }
+      },
+      "required": ["name", "duration_ms", "level"]
+    },
+    "error": {
+      "properties": {
+        "type": { "const": "error" },
+        "kind": { "enum": ["php_error", "exception", "fatal"] },
+        "level": { "$ref": "#/$defs/level" },
+        "message": { "type": "string" },
+        "error_type": { "type": "string", "pattern": "^E_[A-Z_]+$", "description": "Для php_error и fatal: E_WARNING, E_ERROR и т. п." },
+        "exception_class": { "type": "string", "description": "Для exception" },
+        "code": { "type": ["integer", "string"] },
+        "source": { "$ref": "#/$defs/frame" },
+        "trace": { "$ref": "#/$defs/trace" },
+        "previous": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "exception_class": { "type": "string" },
+              "message": { "type": "string" },
+              "code": { "type": ["integer", "string"] },
+              "source": { "$ref": "#/$defs/frame" }
+            },
+            "required": ["exception_class", "message"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["kind", "level", "message"],
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "exception" } } }, "then": { "required": ["exception_class"] } },
+        { "if": { "properties": { "kind": { "enum": ["php_error", "fatal"] } } }, "then": { "required": ["error_type"] } }
+      ]
+    },
+    "request_end": {
+      "properties": {
+        "type": { "const": "request_end" },
+        "duration_ms": { "type": "number", "minimum": 0 },
+        "status_code": { "type": "integer", "minimum": 100, "maximum": 599, "description": "Только для web" },
+        "exit_code": { "type": "integer", "description": "Только для cli, если известен" },
+        "memory_peak_bytes": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["duration_ms"]
+    }
+  }
+}

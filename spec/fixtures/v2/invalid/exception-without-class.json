@@ -1,0 +1,45 @@
+{
+  "v": 2,
+  "type": "error",
+  "request_id": "01JAZ7R2B3C4D5E6F7G8H9J0K1",
+  "seq": 4,
+  "ts": 1792400102600,
+  "kind": "exception",
+  "level": "error",
+  "message": "Connection refused",
+  "code": 111,
+  "source": {
+    "file": "app/Mail/SmtpTransport.php",
+    "line": 88,
+    "function": "send",
+    "class": "App\\Mail\\SmtpTransport",
+    "call_type": "->"
+  },
+  "trace": [
+    {
+      "file": "app/Mail/SmtpTransport.php",
+      "line": 88,
+      "function": "send",
+      "class": "App\\Mail\\SmtpTransport",
+      "call_type": "->"
+    },
+    {
+      "file": "app/Queue/Worker.php",
+      "line": 40,
+      "function": "handle",
+      "class": "App\\Queue\\Worker",
+      "call_type": "->"
+    }
+  ],
+  "previous": [
+    {
+      "exception_class": "ErrorException",
+      "message": "stream_socket_client(): unable to connect",
+      "code": 2,
+      "source": {
+        "file": "app/Mail/SmtpTransport.php",
+        "line": 61
+      }
+    }
+  ]
+}

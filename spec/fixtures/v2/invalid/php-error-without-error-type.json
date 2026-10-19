@@ -1,0 +1,15 @@
+{
+  "v": 2,
+  "type": "error",
+  "request_id": "01JAZ7Q5X0K4M8T2V6N9P3R5S7",
+  "seq": 6,
+  "ts": 1792400000025,
+  "kind": "php_error",
+  "level": "warning",
+  "message": "Undefined index: discount",
+  "code": 8,
+  "source": {
+    "file": "app/View/item.php",
+    "line": 22
+  }
+}

@@ -1,0 +1,147 @@
+package spec
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
+)
+
+func v2Schema(t *testing.T) *jsonschema.Schema {
+	return compileSchema(t, "logformat/v2/event.schema.json")
+}
+
+func globFixtures(t *testing.T, pattern string) []string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(specDir(t), pattern))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatalf("no files match %s", pattern)
+	}
+	return files
+}
+
+type v2Event struct {
+	Type      string `json:"type"`
+	RequestID string `json:"request_id"`
+	Seq       int    `json:"seq"`
+	TS        int64  `json:"ts"`
+}
+
+// checkV2Stream проверяет правила потока событий одного запроса, которые не выражаются JSON Schema.
+func checkV2Stream(data []byte) error {
+	lines := bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n"))
+	var first v2Event
+	var previousTS int64
+	for index, line := range lines {
+		var event v2Event
+		if err := json.Unmarshal(line, &event); err != nil {
+			return fmt.Errorf("line %d: %w", index+1, err)
+		}
+		if index == 0 {
+			first = event
+			if event.Type != "request_start" {
+				return fmt.Errorf("line 1: first event must be request_start, got %q", event.Type)
+			}
+		}
+		if event.RequestID != first.RequestID {
+			return fmt.Errorf("line %d: request_id %q differs from %q", index+1, event.RequestID, first.RequestID)
+		}
+		if event.Seq != index+1 {
+			return fmt.Errorf("line %d: seq = %d, want %d", index+1, event.Seq, index+1)
+		}
+		if index > 0 && event.Type == "request_start" {
+			return fmt.Errorf("line %d: request_start repeated", index+1)
+		}
+		if event.Type == "request_end" && index != len(lines)-1 {
+			return fmt.Errorf("line %d: events after request_end", index+1)
+		}
+		if event.TS < previousTS {
+			return fmt.Errorf("line %d: ts goes backwards", index+1)
+		}
+		previousTS = event.TS
+	}
+	return nil
+}
+
+func TestV2ValidFixtures(t *testing.T) {
+	schema := v2Schema(t)
+	for _, file := range globFixtures(t, "fixtures/v2/*.jsonl") {
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			data := readFile(t, file)
+			if !bytes.HasSuffix(data, []byte("\n")) {
+				t.Fatal("file must end with a newline: every event is a complete line")
+			}
+			for number, line := range bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n")) {
+				value, err := decodeJSON(line)
+				if err != nil {
+					t.Fatalf("line %d: %v", number+1, err)
+				}
+				if err := schema.Validate(value); err != nil {
+					t.Fatalf("line %d: %v", number+1, err)
+				}
+			}
+			if err := checkV2Stream(data); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+// Каждый файл invalid/*.json — одно событие, которое схема обязана отклонить; причина — в имени файла.
+func TestV2SchemaRejectsInvalidEvents(t *testing.T) {
+	schema := v2Schema(t)
+	for _, file := range globFixtures(t, "fixtures/v2/invalid/*.json") {
+		t.Run(strings.TrimSuffix(filepath.Base(file), ".json"), func(t *testing.T) {
+			value, err := decodeJSON(readFile(t, file))
+			if err != nil {
+				t.Fatalf("invalid example must still be JSON: %v", err)
+			}
+			if schema.Validate(value) == nil {
+				t.Fatal("schema accepted invalid event")
+			}
+		})
+	}
+}
+
+// Каждый файл invalid-streams/*.jsonl состоит из корректных событий, но нарушает правила потока.
+func TestV2StreamRulesRejectInvalidStreams(t *testing.T) {
+	schema := v2Schema(t)
+	for _, file := range globFixtures(t, "fixtures/v2/invalid-streams/*.jsonl") {
+		t.Run(strings.TrimSuffix(filepath.Base(file), ".jsonl"), func(t *testing.T) {
+			data := readFile(t, file)
+			for number, line := range bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n")) {
+				value, err := decodeJSON(line)
+				if err != nil {
+					t.Fatalf("line %d: %v", number+1, err)
+				}
+				if err := schema.Validate(value); err != nil {
+					t.Fatalf("line %d must be a valid event, the stream is what is broken: %v", number+1, err)
+				}
+			}
+			if checkV2Stream(data) == nil {
+				t.Fatal("stream rules accepted invalid stream")
+			}
+		})
+	}
+}
+
+func TestV2FixturesDirectoryHasNoStrayFiles(t *testing.T) {
+	entries, err := os.ReadDir(filepath.Join(specDir(t), "fixtures/v2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.IsDir() && !strings.HasSuffix(name, ".jsonl") && name != "README.md" {
+			t.Errorf("unexpected file %s: valid fixtures are *.jsonl", name)
+		}
+	}
+}

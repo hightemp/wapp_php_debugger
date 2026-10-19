@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hightemp/wapp_php_debugger/spec/logformat/v1/header.schema.json",
+  "title": "Заголовок файла лога v1",
+  "description": "Первая строка файла: JSON, дополненный пробелами до 1000 байт и перезаписываемый на месте. Обязательны только поля, которые есть и в укороченном заголовке hotfix-версии; неизвестные поля допускаются (у разных версий библиотеки набор отличается).",
+  "type": "object",
+  "required": ["iRequestTimestamp", "bFinished"],
+  "properties": {
+    "sURL": { "type": "string", "description": "URL запроса, пустой для CLI" },
+    "sIP": { "type": "string" },
+    "sServerIP": { "type": "string" },
+    "sServerName": { "type": "string" },
+    "bIsCli": { "type": "boolean" },
+    "bIsAjax": { "type": "boolean" },
+    "aArgv": { "type": "array", "items": { "type": "string" } },
+    "sUser": { "type": "string", "description": "Пользователь процесса PHP" },
+    "sSysUser": { "type": "string", "description": "Пользователь приложения" },
+    "sSession": { "type": "string" },
+    "iRequestTimestamp": { "type": "integer", "description": "Начало запроса, мс от эпохи; совпадает с именем файла" },
+    "sLang": { "type": "string", "description": "php или js" },
+    "bFinished": { "type": "boolean", "description": "false — запрос не дошёл до shutdown (процесс убит или ещё выполняется)" },
+    "iCode": { "type": "integer", "description": "HTTP-код ответа, 0 для CLI" },
+    "iStartTime": { "type": "integer" },
+    "iStopTime": { "type": "integer" },
+    "iTotalTime": { "type": "integer" }
+  }
+}
