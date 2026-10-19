@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import LanguageSwitch from './components/LanguageSwitch.svelte';
+  import MessageDetail from './components/MessageDetail.svelte';
+  import RequestDetail from './components/RequestDetail.svelte';
   import RequestList from './components/RequestList.svelte';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport } from './lib/api/client';
   import { createWailsEventSource, isDesktop, openWailsStream } from './lib/api/wails-stream';
+  import { i18n } from './lib/i18n/locale.svelte';
+  import { formatRoute, parseRoute, type Route } from './lib/route';
 
   // In the desktop app REST uses the same fetch through the Wails asset handler, events use a Wails stream
   let {
@@ -15,18 +19,30 @@
   }: { transport?: Transport } = $props();
 
   let version = $state('');
+  let route = $state<Route>(parseRoute(window.location.hash));
+
+  function navigate(next: Route) {
+    route = next;
+    const hash = formatRoute(next);
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    }
+  }
 
   onMount(() => {
     transport
       .getVersion()
       .then((info) => (version = info.version))
       .catch(() => (version = ''));
+    const follow = () => (route = parseRoute(window.location.hash));
+    window.addEventListener('hashchange', follow);
+    return () => window.removeEventListener('hashchange', follow);
   });
 </script>
 
 <div class="app">
   <header class="header">
-    <h1 class="title">wapp-debugger</h1>
+    <h1 class="title">{i18n.t('app.title')}</h1>
     {#if version}
       <span class="version">{version}</span>
     {/if}
@@ -34,8 +50,34 @@
     <LanguageSwitch />
     <ThemeSwitch />
   </header>
-  <main class="main">
-    <RequestList {transport} />
+  <main class="panes">
+    <div class="pane feed">
+      <RequestList
+        {transport}
+        selectedId={route.requestId}
+        onselect={(id) => navigate({ requestId: id })}
+      />
+    </div>
+    <div class="pane">
+      {#if route.requestId !== undefined}
+        <RequestDetail
+          {transport}
+          requestId={route.requestId}
+          selectedMessageId={route.messageId}
+          onselectmessage={(id) => navigate({ requestId: route.requestId, messageId: id })}
+          onselectrequest={(id) => navigate({ requestId: id })}
+        />
+      {:else}
+        <p class="hint">{i18n.t('detail.empty')}</p>
+      {/if}
+    </div>
+    <div class="pane">
+      {#if route.messageId !== undefined}
+        <MessageDetail {transport} messageId={route.messageId} />
+      {:else if route.requestId !== undefined}
+        <p class="hint">{i18n.t('message.empty')}</p>
+      {/if}
+    </div>
   </main>
 </div>
 
@@ -71,8 +113,37 @@
     flex: 1;
   }
 
-  .main {
-    overflow: auto;
+  .panes {
+    display: grid;
+    grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 1fr) minmax(320px, 1fr);
+    min-height: 0;
     background: var(--surface);
+  }
+
+  .pane {
+    min-width: 0;
+    overflow: auto;
+    border-right: 1px solid var(--border);
+  }
+
+  .pane:last-child {
+    border-right: 0;
+  }
+
+  .hint {
+    padding: var(--space-6) var(--space-4);
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 1100px) {
+    .panes {
+      grid-template-columns: 1fr;
+      grid-auto-rows: minmax(240px, auto);
+    }
+
+    .pane {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
   }
 </style>

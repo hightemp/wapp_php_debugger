@@ -1,0 +1,61 @@
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { i18n } from '../lib/i18n/locale.svelte';
+import JsonTree from './JsonTree.svelte';
+
+const value = {
+  id: 42,
+  name: 'Item',
+  note: null,
+  text_null: 'null',
+  active: true,
+  rows: [{ price: 9.5 }, 'second'],
+  empty: {},
+};
+
+function row(key: string) {
+  return screen.getByText(key, { selector: '.key' }).closest('li') as HTMLElement;
+}
+
+describe('JsonTree', () => {
+  beforeEach(() => i18n.set('en'));
+
+  it('shows keys and values with their JSON types', () => {
+    render(JsonTree, { value });
+    expect(within(row('id')).getByText('42')).toHaveAttribute('data-type', 'number');
+    expect(within(row('name')).getByText('"Item"')).toHaveAttribute('data-type', 'string');
+    expect(within(row('active')).getByText('true')).toHaveAttribute('data-type', 'boolean');
+    // null and the string "null" must not look the same
+    expect(within(row('note')).getByText('null')).toHaveAttribute('data-type', 'null');
+    expect(within(row('text_null')).getByText('"null"')).toHaveAttribute('data-type', 'string');
+    expect(within(row('empty')).getByText('{}')).toBeInTheDocument();
+  });
+
+  it('shows array items by index', () => {
+    render(JsonTree, { value });
+    expect(within(row('rows')).getByText('"second"')).toBeInTheDocument();
+    expect(within(row('rows')).getByText('price')).toBeInTheDocument();
+  });
+
+  it('collapses and expands nested values', async () => {
+    render(JsonTree, { value });
+    const toggle = within(row('rows')).getByRole('button', { name: 'rows' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(within(row('rows')).queryByText('"second"')).not.toBeInTheDocument();
+    expect(within(row('rows')).getByText('2 items')).toBeInTheDocument();
+  });
+
+  it('starts collapsed below the given depth', () => {
+    render(JsonTree, { value: { a: { b: { c: 1 } } }, expandDepth: 1 });
+    expect(screen.queryByText('c', { selector: '.key' })).not.toBeInTheDocument();
+    expect(screen.getByText('1 key')).toBeInTheDocument();
+  });
+
+  it('renders a scalar root', () => {
+    render(JsonTree, { value: 'just text' });
+    expect(screen.getByText('"just text"')).toHaveAttribute('data-type', 'string');
+  });
+});

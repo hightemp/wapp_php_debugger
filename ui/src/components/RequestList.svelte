@@ -6,7 +6,11 @@
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
 
-  let { transport }: { transport: Transport } = $props();
+  let {
+    transport,
+    selectedId,
+    onselect = () => {},
+  }: { transport: Transport; selectedId?: number; onselect?: (id: number) => void } = $props();
 
   const pageSize = 100;
   let items = $state<Request[]>([]);
@@ -98,29 +102,37 @@
   {:else}
     <ul class="list">
       {#each items as request (request.id)}
-        <li class="row" data-kind={outcomeKind(request)}>
-          <span class="outcome">{outcome(request)}</span>
-          <span class="title" title={request.url ?? request.request_key}
-            >{requestTitle(request)}</span
+        <li class="item" aria-current={request.id === selectedId ? 'true' : undefined}>
+          <button
+            type="button"
+            class="row"
+            data-kind={outcomeKind(request)}
+            onclick={() => onselect(request.id)}
           >
-          <span class="meta">
-            {#if request.error_count > 0}
-              <span class="badge error"
-                >{i18n.t('request.errors', { count: request.error_count })}</span
-              >
-            {/if}
-            {#if request.warning_count > 0}
-              <span class="badge warning"
-                >{i18n.t('request.warnings', { count: request.warning_count })}</span
-              >
-            {/if}
-            <span class="count">{i18n.t('request.messages', { count: request.message_count })}</span
+            <span class="outcome">{outcome(request)}</span>
+            <span class="title" title={request.url ?? request.request_key}
+              >{requestTitle(request)}</span
             >
-            <span class="duration">{formatDuration(request.duration_ms, i18n.locale)}</span>
-            <time datetime={new Date(request.started_at).toISOString()}
-              >{formatTime(request.started_at)}</time
-            >
-          </span>
+            <span class="meta">
+              {#if request.error_count > 0}
+                <span class="badge error"
+                  >{i18n.t('request.errors', { count: request.error_count })}</span
+                >
+              {/if}
+              {#if request.warning_count > 0}
+                <span class="badge warning"
+                  >{i18n.t('request.warnings', { count: request.warning_count })}</span
+                >
+              {/if}
+              <span class="count"
+                >{i18n.t('request.messages', { count: request.message_count })}</span
+              >
+              <span class="duration">{formatDuration(request.duration_ms, i18n.locale)}</span>
+              <time datetime={new Date(request.started_at).toISOString()}
+                >{formatTime(request.started_at)}</time
+              >
+            </span>
+          </button>
         </li>
       {/each}
     </ul>
@@ -145,14 +157,31 @@
     list-style: none;
   }
 
+  .item[aria-current='true'] .row {
+    background: var(--surface-hover);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
   .row {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
     display: grid;
-    grid-template-columns: 11ch 1fr auto;
-    gap: var(--space-3);
+    grid-template-columns: 11ch 1fr;
+    gap: var(--space-1) var(--space-3);
     align-items: center;
     padding: var(--space-2) var(--space-4);
-    border-bottom: 1px solid var(--border);
     font-variant-numeric: tabular-nums;
+  }
+
+  .row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
   .row:hover {
@@ -182,6 +211,8 @@
   }
 
   .meta {
+    grid-column: 2;
+    flex-wrap: wrap;
     display: flex;
     gap: var(--space-3);
     align-items: center;

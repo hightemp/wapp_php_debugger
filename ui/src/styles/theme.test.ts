@@ -40,6 +40,10 @@ const pairs: [string, string, number][] = [
   ['level-info', 'surface', 4.5],
   ['level-error', 'level-error-soft', 4.5],
   ['level-warning', 'level-warning-soft', 4.5],
+  ['syntax-string', 'surface', 4.5],
+  ['syntax-number', 'surface', 4.5],
+  ['syntax-keyword', 'surface', 4.5],
+  ['syntax-null', 'surface', 4.5],
   ['accent', 'surface', 3],
   ['border', 'surface', 1.2],
 ];

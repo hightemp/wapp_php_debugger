@@ -1,58 +1,29 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
-import { ApiError, type Transport } from '../lib/api/client';
-import type { Request, RequestPage, StreamEvent } from '../lib/api/types';
+import { ApiError } from '../lib/api/client';
+import type { RequestPage } from '../lib/api/types';
+import { fakeTransport, sampleRequest } from '../test/transport';
 import RequestList from './RequestList.svelte';
 
-function request(id: number, overrides: Partial<Request> = {}): Request {
-  return {
-    id,
-    project_id: 1,
-    server_id: 1,
-    request_key: `k${id}`,
-    format_version: 1,
-    sapi: 'web',
-    method: 'GET',
-    url: `https://shop.test/item/${id}`,
-    is_ajax: false,
-    status_code: 200,
-    started_at: Date.UTC(2026, 9, 19, 12, 0, id),
-    duration_ms: 40,
-    finished: true,
-    message_count: 5,
-    error_count: 0,
-    warning_count: 0,
-    received_at: 0,
-    ...overrides,
-  };
-}
+const request = sampleRequest;
 
-function fakeTransport(pages: RequestPage[] | Error) {
-  let emit: (event: StreamEvent) => void = () => {};
+function feed(pages: RequestPage[] | Error) {
   const listRequests = vi.fn(async () => {
     if (pages instanceof Error) {
       throw pages;
     }
     return pages.shift() ?? { items: [], next_cursor: null };
   });
-  const unsubscribe = vi.fn();
-  const transport: Transport = {
-    getVersion: vi.fn(),
-    listRequests,
-    subscribe: (onEvent) => {
-      emit = onEvent;
-      return unsubscribe;
-    },
-  };
-  return { transport, listRequests, unsubscribe, emit: (event: StreamEvent) => emit(event) };
+  const fake = fakeTransport({ listRequests });
+  return { ...fake, listRequests };
 }
 
 describe('RequestList', () => {
   beforeEach(() => i18n.set('en'));
 
   it('shows requests newest first with status, duration and counters', async () => {
-    const { transport } = fakeTransport([
+    const { transport } = feed([
       {
         items: [request(2, { error_count: 2, warning_count: 1 }), request(1, { sapi: 'cli' })],
         next_cursor: null,
@@ -70,15 +41,13 @@ describe('RequestList', () => {
   });
 
   it('shows an empty state with a hint', async () => {
-    const { transport } = fakeTransport([{ items: [], next_cursor: null }]);
+    const { transport } = feed([{ items: [], next_cursor: null }]);
     render(RequestList, { transport });
     expect(await screen.findByText('No requests yet')).toBeInTheDocument();
   });
 
   it('shows an error and retries', async () => {
-    const { transport, listRequests } = fakeTransport(
-      new ApiError({ status: 0, title: 'Network error' }),
-    );
+    const { transport, listRequests } = feed(new ApiError({ status: 0, title: 'Network error' }));
     render(RequestList, { transport });
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error');
     await fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -86,7 +55,7 @@ describe('RequestList', () => {
   });
 
   it('adds live requests on top and reloads on resync', async () => {
-    const { transport, emit, listRequests } = fakeTransport([
+    const { transport, emit, listRequests } = feed([
       { items: [request(1)], next_cursor: null },
       { items: [request(3), request(2), request(1)], next_cursor: null },
     ]);
@@ -102,7 +71,7 @@ describe('RequestList', () => {
   });
 
   it('loads the next page', async () => {
-    const { transport, listRequests } = fakeTransport([
+    const { transport, listRequests } = feed([
       { items: [request(3)], next_cursor: 'c1' },
       { items: [request(2)], next_cursor: null },
     ]);
@@ -116,7 +85,7 @@ describe('RequestList', () => {
 
   it('speaks Russian when the locale is ru', async () => {
     i18n.set('ru');
-    const { transport } = fakeTransport([
+    const { transport } = feed([
       { items: [request(1, { error_count: 5, duration_ms: 1890.5 })], next_cursor: null },
     ]);
     render(RequestList, { transport });
@@ -126,7 +95,7 @@ describe('RequestList', () => {
   });
 
   it('unsubscribes from the stream when removed', async () => {
-    const { transport, unsubscribe } = fakeTransport([{ items: [], next_cursor: null }]);
+    const { transport, unsubscribe } = feed([{ items: [], next_cursor: null }]);
     const { unmount } = render(RequestList, { transport });
     await screen.findByText('No requests yet');
     unmount();

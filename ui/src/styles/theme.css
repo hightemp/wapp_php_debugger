@@ -32,6 +32,10 @@
   --level-debug: #6650c8;
   --level-error-soft: #fde8e8;
   --level-warning-soft: #fdf1dc;
+  --syntax-string: #1d6b40;
+  --syntax-number: #1f5fbf;
+  --syntax-keyword: #8a3ab9;
+  --syntax-null: #6b6f76;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 12%);
 }
 
@@ -52,6 +56,10 @@
   --level-debug: #b4a7ff;
   --level-error-soft: #3a1d1f;
   --level-warning-soft: #33290f;
+  --syntax-string: #7ee787;
+  --syntax-number: #79c0ff;
+  --syntax-keyword: #d2a8ff;
+  --syntax-null: #9ea8b6;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 50%);
 }
 
@@ -72,6 +80,10 @@
   --level-debug: #c9b8ff;
   --level-error-soft: #2a0000;
   --level-warning-soft: #2a2200;
+  --syntax-string: #6bff8b;
+  --syntax-number: #8fd3ff;
+  --syntax-keyword: #ffb3ff;
+  --syntax-null: #e0e0e0;
   --shadow-small: 0 0 0 1px #ffffff;
 }
 

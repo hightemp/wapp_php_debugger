@@ -51,6 +51,21 @@ describe('createHttpTransport', () => {
     expect(error).toMatchObject({ status: 0, title: 'Network error' });
   });
 
+  it('gets a request, its messages with filters and a message', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse({}));
+    const transport = createHttpTransport({ baseUrl: '', fetch: fetchMock });
+
+    await transport.getRequest(42);
+    await transport.listMessages(42, { level: ['error', 'warning'], cursor: 'c', limit: 50 });
+    await transport.getMessage(1001);
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      '/api/v1/requests/42',
+      '/api/v1/requests/42/messages?level=error%2Cwarning&cursor=c&limit=50',
+      '/api/v1/messages/1001',
+    ]);
+  });
+
   it('subscribes to the stream and parses named events', () => {
     const listeners = new Map<string, (event: MessageEvent) => void>();
     const source: EventSourceLike = {
@@ -71,5 +86,30 @@ describe('createHttpTransport', () => {
     expect(createEventSource).toHaveBeenCalledWith('/api/v1/stream');
     expect(received).toEqual([{ event: 'request_created', request_id: 7 }, { event: 'resync' }]);
     expect(source.close).toHaveBeenCalled();
+  });
+
+  it('shares one stream between subscribers and closes it after the last one leaves', () => {
+    const listeners = new Map<string, (event: MessageEvent) => void>();
+    const source: EventSourceLike = {
+      addEventListener: (name, listener) => listeners.set(name, listener),
+      close: vi.fn(),
+    };
+    const createEventSource = vi.fn().mockReturnValue(source);
+    const transport = createHttpTransport({ baseUrl: '', fetch: vi.fn(), createEventSource });
+
+    const first: unknown[] = [];
+    const second: unknown[] = [];
+    const leaveFirst = transport.subscribe((event) => first.push(event));
+    const leaveSecond = transport.subscribe((event) => second.push(event));
+    listeners.get('resync')?.(new MessageEvent('resync', { data: '{"event":"resync"}' }));
+
+    expect(createEventSource).toHaveBeenCalledTimes(1);
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(1);
+
+    leaveFirst();
+    expect(source.close).not.toHaveBeenCalled();
+    leaveSecond();
+    expect(source.close).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,15 @@
 // Viewer API client (spec/openapi.yaml). Transport hides how the UI talks to the core:
 // HTTP + SSE in the browser; in the desktop app the same API goes through the Wails asset handler.
-import type { Problem, RequestPage, StreamEvent } from './types';
+import type {
+  Level,
+  MessageDetail,
+  MessagePage,
+  MessageType,
+  Problem,
+  RequestDetail,
+  RequestPage,
+  StreamEvent,
+} from './types';
 
 export interface Version {
   version: string;
@@ -14,9 +23,20 @@ export interface ListRequestsParams {
   limit?: number;
 }
 
+export interface ListMessagesParams {
+  level?: Level[];
+  type?: MessageType;
+  tag?: string;
+  cursor?: string;
+  limit?: number;
+}
+
 export interface Transport {
   getVersion(): Promise<Version>;
   listRequests(params: ListRequestsParams): Promise<RequestPage>;
+  getRequest(id: number): Promise<RequestDetail>;
+  listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
+  getMessage(id: number): Promise<MessageDetail>;
   /** Subscribes to /api/v1/stream; returns the unsubscribe function. */
   subscribe(onEvent: (event: StreamEvent) => void): () => void;
 }
@@ -64,7 +84,8 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
-        query.set(key, String(value));
+        // Arrays use the form style without explode: level=error,warning
+        query.set(key, Array.isArray(value) ? value.join(',') : String(value));
       }
     }
     const url = `${options.baseUrl}${path}${query.size > 0 ? `?${query}` : ''}`;
@@ -86,18 +107,38 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     return (await response.json()) as T;
   }
 
+  const subscribers = new Set<(event: StreamEvent) => void>();
+  let source: EventSourceLike | null = null;
+
   return {
     getVersion: () => getJSON<Version>('/api/v1/version'),
     listRequests: (params) => getJSON<RequestPage>('/api/v1/requests', params),
+    getRequest: (id) => getJSON<RequestDetail>(`/api/v1/requests/${id}`),
+    listMessages: (requestId, params) =>
+      getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
+    getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
     subscribe(onEvent) {
-      // EventSource reconnects by itself and sends Last-Event-ID
-      const source = createEventSource(`${options.baseUrl}/api/v1/stream`);
-      for (const name of streamEventNames) {
-        source.addEventListener(name, (message) => {
-          onEvent(JSON.parse(String(message.data)) as StreamEvent);
-        });
+      // One EventSource for all subscribers; it reconnects by itself and sends Last-Event-ID
+      subscribers.add(onEvent);
+      if (!source) {
+        const opened = createEventSource(`${options.baseUrl}/api/v1/stream`);
+        for (const name of streamEventNames) {
+          opened.addEventListener(name, (message) => {
+            const event = JSON.parse(String(message.data)) as StreamEvent;
+            for (const subscriber of [...subscribers]) {
+              subscriber(event);
+            }
+          });
+        }
+        source = opened;
       }
-      return () => source.close();
+      return () => {
+        subscribers.delete(onEvent);
+        if (subscribers.size === 0 && source) {
+          source.close();
+          source = null;
+        }
+      };
     },
   };
 }
