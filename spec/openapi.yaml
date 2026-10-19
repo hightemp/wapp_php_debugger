@@ -628,6 +628,7 @@ components:
         root_path: { type: string, minLength: 1 }
         logs_dir: { type: string, minLength: 1 }
         local_path: { type: string, nullable: true, description: Local copy of the project for IDE links }
+        config_path: { type: string, nullable: true, description: 'Library dws_debugger.json; default: <root_path>/dws_debugger.json' }
         editor: { $ref: '#/components/schemas/Editor' }
         retention: { $ref: '#/components/schemas/Retention' }
 
@@ -639,12 +640,13 @@ components:
         root_path: { type: string, minLength: 1 }
         logs_dir: { type: string, minLength: 1 }
         local_path: { type: string, nullable: true }
+        config_path: { type: string, nullable: true }
         editor: { $ref: '#/components/schemas/Editor' }
         retention: { $ref: '#/components/schemas/Retention' }
 
     Project:
       type: object
-      required: [id, server_id, name, root_path, logs_dir, local_path, editor, retention, pending_files, created_at, updated_at]
+      required: [id, server_id, name, root_path, logs_dir, local_path, config_path, editor, retention, pending_files, created_at, updated_at]
       properties:
         id: { type: integer, format: int64 }
         server_id: { type: integer, format: int64 }
@@ -652,6 +654,7 @@ components:
         root_path: { type: string }
         logs_dir: { type: string }
         local_path: { type: string, nullable: true }
+        config_path: { type: string, description: Library config file the viewer switches the debugger in }
         editor: { $ref: '#/components/schemas/Editor' }
         retention: { $ref: '#/components/schemas/Retention' }
         pending_files: { type: integer, minimum: 0, description: Log files that are not fully imported yet }

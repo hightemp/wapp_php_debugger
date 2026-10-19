@@ -33,21 +33,19 @@ type LocalProject struct {
 	ProjectID int64
 }
 
-// EnsureLocalProject creates (or finds) the "local" server and a project on it.
+// EnsureLocalProject creates (or finds) the "local" server and a project on it; an existing project
+// with that name gets the given paths.
 func (s *Store) EnsureLocalProject(ctx context.Context, name, rootPath, logsDir string) (LocalProject, error) {
-	now := time.Now().UnixMilli()
-	var ids LocalProject
-	err := s.db.QueryRowContext(ctx, `
-		INSERT INTO servers (name, kind, environment, created_at, updated_at) VALUES ('local', 'local', 'local', ?, ?)
-		ON CONFLICT (name) DO UPDATE SET name = excluded.name
-		RETURNING id`, now, now).Scan(&ids.ServerID)
+	serverID, err := s.EnsureLocalServer(ctx)
 	if err != nil {
-		return ids, err
+		return LocalProject{}, err
 	}
+	now := time.Now().UnixMilli()
+	ids := LocalProject{ServerID: serverID}
 	err = s.db.QueryRowContext(ctx, `
 		INSERT INTO projects (server_id, name, root_path, logs_dir, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT (server_id, name) DO UPDATE SET root_path = excluded.root_path, logs_dir = excluded.logs_dir, updated_at = excluded.updated_at
-		RETURNING id`, ids.ServerID, name, rootPath, logsDir, now, now).Scan(&ids.ProjectID)
+		RETURNING id`, serverID, name, rootPath, logsDir, now, now).Scan(&ids.ProjectID)
 	return ids, err
 }
 

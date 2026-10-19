@@ -425,6 +425,8 @@ export interface components {
             logs_dir: string;
             /** @description Local copy of the project for IDE links */
             local_path?: string | null;
+            /** @description Library dws_debugger.json; default: <root_path>/dws_debugger.json */
+            config_path?: string | null;
             editor?: components["schemas"]["Editor"];
             retention?: components["schemas"]["Retention"];
         };
@@ -433,6 +435,7 @@ export interface components {
             root_path?: string;
             logs_dir?: string;
             local_path?: string | null;
+            config_path?: string | null;
             editor?: components["schemas"]["Editor"];
             retention?: components["schemas"]["Retention"];
         };
@@ -445,6 +448,8 @@ export interface components {
             root_path: string;
             logs_dir: string;
             local_path: string | null;
+            /** @description Library config file the viewer switches the debugger in */
+            config_path: string;
             editor: components["schemas"]["Editor"];
             retention: components["schemas"]["Retention"];
             /** @description Log files that are not fully imported yet */
