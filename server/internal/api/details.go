@@ -125,7 +125,7 @@ func (s *server) GetMessage(ctx context.Context, request GetMessageRequestObject
 	if err != nil {
 		return nil, err
 	}
-	project := pathmap.Project{Editor: links.Editor, RootPath: links.RootPath, LocalPath: links.LocalPath}
+	project := linksProject(links)
 
 	base := messageDTO(detail.MessageRow, project)
 	response := GetMessage200JSONResponse{
@@ -179,7 +179,11 @@ func (s *server) projectLinksForRequest(ctx context.Context, requestID int64) (p
 		return pathmap.Project{}, err
 	}
 	links, _, err := s.deps.Store.ProjectLinks(ctx, row.ProjectID)
-	return pathmap.Project{Editor: links.Editor, RootPath: links.RootPath, LocalPath: links.LocalPath}, err
+	return linksProject(links), err
+}
+
+func linksProject(links store.ProjectLinks) pathmap.Project {
+	return pathmap.Project{Editor: links.Editor, RootPath: links.RootPath, LocalPath: links.LocalPath, RemoteHost: links.RemoteHost}
 }
 
 func messageDTO(row store.MessageRow, project pathmap.Project) Message {

@@ -28,6 +28,14 @@ func TestEditorURL(t *testing.T) {
 		{"no file", Project{Editor: "vscode", RootPath: "/r"}, "", 1, ""},
 		{"traversal does not escape the root", Project{Editor: "vscode", RootPath: "/var/www/shop", LocalPath: "/home/dev/shop"},
 			"../../etc/passwd", 1, "vscode://file/home/dev/shop/etc/passwd:1"},
+		{"remote project without a local copy: VS Code Remote-SSH", Project{Editor: "vscode", RootPath: "/var/www/shop", RemoteHost: "deploy@stage-web"},
+			"app/Item.php", 15, "vscode://vscode-remote/ssh-remote+deploy@stage-web/var/www/shop/app/Item.php:15"},
+		{"remote project in cursor", Project{Editor: "cursor", RootPath: "/r", RemoteHost: "stage"},
+			"x.php", 0, "cursor://vscode-remote/ssh-remote+stage/r/x.php"},
+		{"remote project with a local copy opens the copy", Project{Editor: "vscode", RootPath: "/r", LocalPath: "/home/dev/r", RemoteHost: "stage"},
+			"x.php", 1, "vscode://file/home/dev/r/x.php:1"},
+		{"remote project, editor without remote files", Project{Editor: "phpstorm", RootPath: "/r", RemoteHost: "stage"},
+			"x.php", 1, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

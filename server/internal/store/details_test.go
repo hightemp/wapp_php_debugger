@@ -135,3 +135,29 @@ func TestProjectForLinks(t *testing.T) {
 		t.Fatalf("links = %+v, %v, %v", links, found, err)
 	}
 }
+
+func TestProjectLinksOnAnSSHServerCarryTheHost(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	for config, want := range map[string]string{
+		`{"host":"stage-web","user":"deploy"}`: "deploy@stage-web",
+		`{"host":"stage-web"}`:                 "stage-web",
+	} {
+		server, err := s.CreateServer(ctx, ServerInput{Name: want, Kind: "ssh", Config: config})
+		if err != nil {
+			t.Fatal(err)
+		}
+		project, err := s.CreateProject(ctx, ProjectInput{ServerID: server.ID, Name: want, RootPath: "/var/www/shop", LogsDir: "/var/www/shop/logs"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		links, _, err := s.ProjectLinks(ctx, project.ID)
+		if err != nil || links.RemoteHost != want {
+			t.Fatalf("links = %+v, %v; want host %q", links, err, want)
+		}
+	}
+	local, _ := s.EnsureLocalProject(ctx, "local", "/srv/app", "/srv/app/logs")
+	if links, _, _ := s.ProjectLinks(ctx, local.ProjectID); links.RemoteHost != "" {
+		t.Fatalf("local project has a remote host: %+v", links)
+	}
+}

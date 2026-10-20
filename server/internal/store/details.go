@@ -239,13 +239,21 @@ type ProjectLinks struct {
 	Editor    string
 	RootPath  string
 	LocalPath string
+	// RemoteHost is "user@host" of the SSH server the project lives on; empty for other servers
+	RemoteHost string
 }
 
 // ProjectLinks returns the editor and paths of a project.
 func (s *Store) ProjectLinks(ctx context.Context, projectID int64) (ProjectLinks, bool, error) {
 	var links ProjectLinks
 	var local sql.NullString
-	err := s.db.QueryRowContext(ctx, `SELECT editor, root_path, local_path FROM projects WHERE id = ?`, projectID).Scan(&links.Editor, &links.RootPath, &local)
+	err := s.db.QueryRowContext(ctx, `
+		SELECT p.editor, p.root_path, p.local_path,
+			CASE WHEN s.kind = 'ssh' THEN
+				COALESCE(NULLIF(json_extract(s.config, '$.user'), '') || '@', '') || COALESCE(json_extract(s.config, '$.host'), '')
+			ELSE '' END
+		FROM projects p JOIN servers s ON s.id = p.server_id WHERE p.id = ?`, projectID).
+		Scan(&links.Editor, &links.RootPath, &local, &links.RemoteHost)
 	if errors.Is(err, sql.ErrNoRows) {
 		return links, false, nil
 	}

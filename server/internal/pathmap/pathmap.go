@@ -13,6 +13,9 @@ type Project struct {
 	Editor    string // vscode, phpstorm, cursor, sublime or none
 	RootPath  string // project root on its server
 	LocalPath string // local copy for IDE links; empty means the server path is used
+	// RemoteHost is the SSH host of a project on a remote server ("user@alias"): without a local
+	// copy the link opens the file over VS Code Remote-SSH.
+	RemoteHost string
 }
 
 // relative returns file relative to the project root, or ok=false for an absolute path outside the root.
@@ -59,6 +62,14 @@ func EditorURL(p Project, file string, line int) string {
 	suffix := ""
 	if line > 0 {
 		suffix = ":" + strconv.Itoa(line)
+	}
+	if p.RemoteHost != "" && p.LocalPath == "" {
+		switch p.Editor {
+		case "vscode", "cursor":
+			return p.Editor + "://vscode-remote/ssh-remote+" + url.PathEscape(p.RemoteHost) + escapePath(target) + suffix
+		default:
+			return "" // the file is not on this machine
+		}
 	}
 	switch p.Editor {
 	case "phpstorm":
