@@ -72,6 +72,8 @@ jobs:
       - run: make tools
       - run: make server-lint
       - run: make server-test
+      # SSH against a real OpenSSH server in Docker: host key, SFTP, the debugger switch
+      - run: make ssh-e2e
       - run: make workflows-lint
 
   ui:

@@ -248,10 +248,14 @@ docker-build: ## Build the server image wapp-debugger:dev (see Dockerfile)
 install-test: ## Test scripts/install.sh against a fake GitHub Releases server
 	scripts/install_test.sh
 
+.PHONY: ssh-e2e
+ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, no ssh-agent)
+	scripts/ssh-e2e.sh
+
 .PHONY: scripts-lint
 scripts-lint: ## shellcheck the shell scripts (shellcheck binary, or its Docker image)
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; \
-	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh; fi
+	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh; fi
 
 .PHONY: workflows-lint
 workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows
