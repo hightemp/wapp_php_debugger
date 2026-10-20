@@ -270,7 +270,8 @@ export interface paths {
         delete: operations["deleteRequest"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Pin a request or note something about it */
+        patch: operations["markRequest"];
         trace?: never;
     };
     "/api/v1/requests/{request_id}/messages": {
@@ -720,6 +721,10 @@ export interface components {
             warning_count: number;
             /** Format: int64 */
             received_at: number;
+            /** @description Kept by retention and listed under pinned */
+            pinned: boolean;
+            /** @description What the user noted about the request */
+            note?: string;
         };
         RequestDetail: components["schemas"]["Request"] & {
             /** @enum {string} */
@@ -1440,6 +1445,8 @@ export interface operations {
                 tag?: string;
                 /** @description error — requests with errors; warning — with errors or warnings */
                 level?: "error" | "warning";
+                /** @description Only pinned requests */
+                pinned?: boolean;
                 /** @description next_cursor of the previous page */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
@@ -1502,6 +1509,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    markRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: components["parameters"]["RequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    pinned?: boolean;
+                    /** @description An empty note removes it */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Request"];
+                };
             };
             default: components["responses"]["Problem"];
         };

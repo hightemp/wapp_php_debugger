@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -184,5 +185,25 @@ func TestFeedFiltersByMethodStatusDurationAjaxTagAndLevel(t *testing.T) {
 	}
 	if response, body := get(t, e.server.URL+"/api/v1/requests?status=abc"); response.StatusCode != 400 {
 		t.Errorf("a bad status: %d %s", response.StatusCode, body)
+	}
+}
+
+func TestPinAndNoteARequest(t *testing.T) {
+	e := newTestEnv(t)
+	id := findRequest(t, e, webRequestKey)
+	url := fmt.Sprintf("%s/api/v1/requests/%d", e.server.URL, id)
+	response, body := send(t, http.MethodPatch, url, map[string]any{"pinned": true, "note": "checkout bug"})
+	if response.StatusCode != 200 || !strings.Contains(body, `"pinned":true`) || !strings.Contains(body, `"note":"checkout bug"`) {
+		t.Fatalf("mark: %d %s", response.StatusCode, body)
+	}
+	if _, detail := get(t, url); !strings.Contains(detail, `"pinned":true`) || !strings.Contains(detail, `"note":"checkout bug"`) {
+		t.Fatalf("detail: %s", detail)
+	}
+	_, body = get(t, e.server.URL+"/api/v1/requests?pinned=true")
+	if strings.Count(body, `"request_key"`) != 1 || !strings.Contains(body, webRequestKey) {
+		t.Fatalf("pinned feed: %s", body)
+	}
+	if response, _ := send(t, http.MethodPatch, e.server.URL+"/api/v1/requests/999999", map[string]any{"pinned": true}); response.StatusCode != 404 {
+		t.Fatalf("missing: %d", response.StatusCode)
 	}
 }

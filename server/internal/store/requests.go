@@ -319,6 +319,8 @@ type RequestRow struct {
 	ErrorCount    int
 	WarningCount  int
 	ReceivedAt    int64
+	Pinned        bool
+	Note          string
 }
 
 // RequestFilter holds feed parameters; zero values do not filter.
@@ -339,6 +341,7 @@ type RequestFilter struct {
 	Ajax          *bool
 	Tag           string // a message of the request has this tag
 	Level         string // error: requests with errors; warning: with errors or warnings
+	Pinned        bool   // only pinned requests
 	Limit         int
 	Cursor        string
 }
@@ -392,6 +395,9 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 		where = append(where, "EXISTS (SELECT 1 FROM messages m, json_each(m.tags) t WHERE m.request_id = r.id AND t.value = ?)")
 		args = append(args, filter.Tag)
 	}
+	if filter.Pinned {
+		where = append(where, "r.pinned = 1")
+	}
 	switch filter.Level {
 	case "error":
 		where = append(where, "r.error_count > 0")
@@ -442,7 +448,7 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 const selectRequestRows = `
 		SELECT r.id, r.project_id, p.server_id, r.request_key, COALESCE(r.parent_request_key, ''), COALESCE(f.format_version, 2),
 			r.sapi, COALESCE(r.method, ''), COALESCE(r.url, ''), r.is_ajax, r.status_code, r.exit_code, r.started_at, r.duration_ms,
-			r.finished, r.message_count, r.error_count, r.warning_count, r.received_at
+			r.finished, r.message_count, r.error_count, r.warning_count, r.received_at, r.pinned, COALESCE(r.note, '')
 		FROM requests r
 		JOIN projects p ON p.id = r.project_id
 		LEFT JOIN log_files f ON f.id = r.log_file_id`
@@ -455,7 +461,7 @@ func scanRequestRow(row rowScanner) (RequestRow, error) {
 	var r RequestRow
 	err := row.Scan(&r.ID, &r.ProjectID, &r.ServerID, &r.Key, &r.ParentKey, &r.FormatVersion, &r.Sapi, &r.Method, &r.URL,
 		&r.IsAjax, &r.StatusCode, &r.ExitCode, &r.StartedAt, &r.DurationMs, &r.Finished, &r.MessageCount, &r.ErrorCount,
-		&r.WarningCount, &r.ReceivedAt)
+		&r.WarningCount, &r.ReceivedAt, &r.Pinned, &r.Note)
 	return r, err
 }
 
@@ -509,4 +515,24 @@ func nullJSON(value json.RawMessage) any {
 		return nil
 	}
 	return string(value)
+}
+
+// MarkRequest pins or unpins a request and sets its note; nil leaves a mark as it is, an empty
+// note removes it.
+func (s *Store) MarkRequest(ctx context.Context, id int64, pinned *bool, note *string) (RequestRow, error) {
+	var noteValue any
+	if note != nil {
+		noteValue = nullString(*note)
+	}
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE requests SET pinned = COALESCE(?, pinned), note = CASE WHEN ? THEN ? ELSE note END WHERE id = ?`,
+		pinned, note != nil, noteValue, id)
+	if err != nil {
+		return RequestRow{}, err
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return RequestRow{}, ErrNotFound
+	}
+	row, _, err := s.GetRequest(ctx, id)
+	return row, err
 }

@@ -143,6 +143,9 @@ func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestOb
 	if params.Level != nil {
 		filter.Level = string(*params.Level)
 	}
+	if params.Pinned != nil {
+		filter.Pinned = *params.Pinned
+	}
 
 	page, err := s.deps.Store.ListRequests(ctx, filter)
 	if errors.Is(err, store.ErrInvalidCursor) {
@@ -184,6 +187,8 @@ func RequestDTO(r store.RequestRow) Request {
 		ErrorCount:       r.ErrorCount,
 		WarningCount:     r.WarningCount,
 		ReceivedAt:       r.ReceivedAt,
+		Pinned:           r.Pinned,
+		Note:             optional(r.Note),
 	}
 }
 
@@ -192,4 +197,16 @@ func optional(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+// MarkRequest pins a request or notes something about it.
+func (s *server) MarkRequest(ctx context.Context, request MarkRequestRequestObject) (MarkRequestResponseObject, error) {
+	row, err := s.deps.Store.MarkRequest(ctx, request.RequestId, request.Body.Pinned, request.Body.Note)
+	if errors.Is(err, store.ErrNotFound) {
+		return MarkRequestdefaultApplicationProblemPlusJSONResponse{Body: notFound("request"), StatusCode: http.StatusNotFound}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return MarkRequest200JSONResponse(RequestDTO(row)), nil
 }

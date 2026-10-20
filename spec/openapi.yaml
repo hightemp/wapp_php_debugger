@@ -432,6 +432,10 @@ paths:
           in: query
           description: error — requests with errors; warning — with errors or warnings
           schema: { type: string, enum: [error, warning] }
+        - name: pinned
+          in: query
+          description: Only pinned requests
+          schema: { type: boolean }
         - { $ref: '#/components/parameters/Cursor' }
         - { $ref: '#/components/parameters/Limit' }
       responses:
@@ -454,6 +458,28 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/RequestDetail' }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [requests]
+      operationId: markRequest
+      summary: Pin a request or note something about it
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                pinned: { type: boolean }
+                note: { type: string, maxLength: 2000, description: An empty note removes it }
+      responses:
+        '200':
+          description: The request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Request' }
         default: { $ref: '#/components/responses/Problem' }
     delete:
       tags: [requests]
@@ -973,7 +999,7 @@ components:
     Request:
       type: object
       description: A request in the feed
-      required: [id, project_id, server_id, request_key, format_version, sapi, is_ajax, started_at, finished, message_count, error_count, warning_count, received_at]
+      required: [id, project_id, server_id, request_key, format_version, sapi, is_ajax, started_at, finished, message_count, error_count, warning_count, received_at, pinned]
       properties:
         id: { type: integer, format: int64 }
         project_id: { type: integer, format: int64 }
@@ -994,6 +1020,8 @@ components:
         error_count: { type: integer, minimum: 0 }
         warning_count: { type: integer, minimum: 0 }
         received_at: { type: integer, format: int64 }
+        pinned: { type: boolean, description: Kept by retention and listed under pinned }
+        note: { type: string, description: What the user noted about the request }
       example:
         id: 42
         project_id: 1

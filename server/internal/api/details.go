@@ -36,7 +36,7 @@ func (s *server) GetRequest(ctx context.Context, request GetRequestRequestObject
 		ParentRequestKey: base.ParentRequestKey, FormatVersion: RequestDetailFormatVersion(base.FormatVersion), Sapi: base.Sapi,
 		Method: base.Method, Url: base.Url, IsAjax: base.IsAjax, StatusCode: base.StatusCode, ExitCode: base.ExitCode,
 		StartedAt: base.StartedAt, DurationMs: base.DurationMs, Finished: base.Finished, MessageCount: base.MessageCount,
-		ErrorCount: base.ErrorCount, WarningCount: base.WarningCount, ReceivedAt: base.ReceivedAt,
+		ErrorCount: base.ErrorCount, WarningCount: base.WarningCount, ReceivedAt: base.ReceivedAt, Pinned: base.Pinned, Note: base.Note,
 		Lang: &lang, Ip: optional(detail.IP), ServerIp: optional(detail.ServerIP), ServerName: optional(detail.ServerName),
 		Hostname: optional(detail.Hostname), Pid: detail.PID, ProcessUser: optional(detail.ProcessUser), AppUser: optional(detail.AppUser),
 		SessionId: optional(detail.SessionID), LibraryVersion: optional(detail.LibraryVersion), PhpVersion: optional(detail.PHPVersion),
