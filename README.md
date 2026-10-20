@@ -103,6 +103,15 @@ The main way: nothing to open on the server, no extra software there.
 
 For servers without SSH access (shared hosting). Set `http_token` (32+ characters) in the project's `dws_debugger.json` — the library then answers its own API, see [client-php/README.md](client-php/README.md#http-mode) — and add a server of kind **HTTP** with the application address and that token. Use `https://`: over plain `http://` the token and the logs travel unencrypted, and the UI warns about it. The token is kept outside the database in `secrets.json` next to it, readable by the user only, and never shown again. One HTTP server is one application, so it holds one project; the library knows its logs directory.
 
+### Many servers at once
+
+- **Finding projects.** **Find projects** on a local or SSH server walks the given directories (4 levels, 5000 directories at most, no symlinks; `vendor`, `node_modules` and `.git` are skipped) for `dws_debugger.json` and lists what it finds with paths resolved the way the library resolves them; one click adds a project.
+- **Projects by server.** The projects panel groups projects under their servers with the environment (`dev`, `stage`, `prod` in their own colors) and the live connection state; a server name opens the feed of that server. The combined feed filters by environment and names the project and server of each request.
+- **Care on stage and prod.** Clearing logs and removing a project there ask for the project name; the debugger switch asks first.
+- **Clocks.** The viewer measures how far each server's clock is off (`date` over SSH, the `Date` header in the HTTP mode) and warns when it is more than 2 seconds: the order of requests across servers would mislead.
+- **Retention.** Project settings take how many days and megabytes of requests the viewer keeps in its database; older ones go every 10 minutes, log files are not touched. Imports run at most 4 at a time and give up after 2 minutes, so a slow server does not hold the others back.
+- **Export and import.** **Servers → Export / import** gives servers and projects as YAML without secrets (tokens and host keys stay with the viewer), to keep in git or hand to a colleague; importing adds what is missing and changes nothing else. Tokens of imported HTTP servers are set again under **Token**.
+
 ## Desktop app
 
 ```sh

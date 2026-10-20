@@ -27,8 +27,12 @@ make deps     # dependencies of all components
 make test     # all tests
 make lint     # all linters
 make ci       # everything CI does
+make e2e      # browser tests (Playwright) of the built viewer on the log fixtures
+make ssh-e2e  # the viewer against a real OpenSSH server in Docker
 make help     # all other targets
 ```
+
+`make e2e` needs a Chromium for Playwright once: `cd ui && npx playwright install chromium`.
 
 ## TDD
 
