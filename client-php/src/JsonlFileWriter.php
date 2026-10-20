@@ -8,7 +8,7 @@ namespace WappDebugger;
  * Appends lines to one log file. The file is only ever appended to, so the viewer can
  * continue reading from a saved offset (locally or over SFTP).
  */
-final class JsonlFileWriter
+final class JsonlFileWriter implements Writer
 {
     private string $path;
     private string $dir;

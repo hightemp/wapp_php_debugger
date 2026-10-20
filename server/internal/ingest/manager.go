@@ -2,6 +2,8 @@ package ingest
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"log/slog"
 	"sync"
 	"time"
@@ -193,6 +195,9 @@ func (m *Manager) loop(ctx context.Context, r *running) {
 		if ctx.Err() != nil {
 			return
 		}
+		if errors.Is(err, fs.ErrNotExist) && m.takesPushedLogs(ctx, r.project.ID) {
+			err = nil // its logs come over HTTP; the directory may only exist where PHP runs
+		}
 		switch {
 		case err != nil && err.Error() != lastErr:
 			m.options.Logger.Warn("scan logs", "project", r.project.Name, "error", err)
@@ -240,4 +245,10 @@ func (m *Manager) prune(ctx context.Context, project store.Project) {
 	if removed > 0 {
 		m.options.Logger.Info("retention", "project", project.Name, "removed_requests", removed)
 	}
+}
+
+// takesPushedLogs tells a project with a push token; it may get one at any time, hence asked each time.
+func (m *Manager) takesPushedLogs(ctx context.Context, projectID int64) bool {
+	project, found, err := m.store.GetProject(ctx, projectID)
+	return err == nil && found && project.IngestEnabled
 }

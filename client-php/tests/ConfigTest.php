@@ -119,6 +119,31 @@ final class ConfigTest extends TestCase
         return ['enabled' => true, 'logs_dir' => '/tmp/logs', 'http_token' => str_repeat('t', 32)] + $values;
     }
 
+    public function testPushNeedsAnHttpAddressAndALongToken(): void
+    {
+        $token = str_repeat('p', 32);
+        $config = Config::fromArray(self::enabledWith(['push_url' => 'http://viewer.lan:8821/ingest/v2', 'push_token' => $token]));
+        self::assertSame('http://viewer.lan:8821/ingest/v2', $config->pushUrl());
+        self::assertSame($token, $config->pushToken());
+
+        foreach ([
+            'no token' => ['push_url' => 'http://viewer.lan:8821/ingest/v2'],
+            'a short token' => ['push_url' => 'http://viewer.lan:8821/ingest/v2', 'push_token' => 'short'],
+            'not http' => ['push_url' => 'file:///etc/passwd', 'push_token' => $token],
+            'not a string' => ['push_url' => 8821, 'push_token' => $token],
+        ] as $case => $values) {
+            self::assertNull(Config::fromArray(self::enabledWith($values))->pushUrl(), $case);
+        }
+    }
+
+    public function testPushIsOffOutsideAllowedEnvs(): void
+    {
+        putenv('APP_ENV=production');
+        $config = Config::fromArray(self::enabledWith(['allowed_envs' => ['dev'], 'push_url' => 'https://viewer.lan/ingest/v2', 'push_token' => str_repeat('p', 32)]));
+
+        self::assertNull($config->pushUrl());
+    }
+
     public function testWithoutAllowedEnvsAnyEnvironmentWorks(): void
     {
         putenv('APP_ENV=production');

@@ -27,6 +27,8 @@ final class Config
     private int $maxFiles;
     private int $maxLogsBytes;
     private ?string $httpToken;
+    private ?string $pushUrl = null;
+    private ?string $pushToken = null;
     /** @var list<string> */
     private array $httpAllowedIps;
     private int $httpRateLimit;
@@ -76,6 +78,13 @@ final class Config
         $this->httpToken = is_string($token) && strlen($token) >= 32 ? $token : null;
         $this->httpAllowedIps = is_array($values['http_allowed_ips'] ?? null) ? array_values(array_filter($values['http_allowed_ips'], 'is_string')) : [];
         $this->httpRateLimit = self::positiveInt($values['http_rate_limit'] ?? null, 600);
+        $pushUrl = $values['push_url'] ?? null;
+        $pushToken = $values['push_token'] ?? null;
+        // Only to the viewer's receiver over http(s), and only with a real token
+        if (is_string($pushUrl) && preg_match('~^https?://~i', $pushUrl) === 1 && is_string($pushToken) && strlen($pushToken) >= 32) {
+            $this->pushUrl = $pushUrl;
+            $this->pushToken = $pushToken;
+        }
         $globals = is_array($values['log_globals'] ?? null) ? $values['log_globals'] : ['get', 'post', 'files'];
         $globals = array_map('strtolower', array_filter($globals, 'is_string'));
         $this->logGlobals = array_values(array_intersect($globals, self::GLOBALS));
@@ -86,6 +95,8 @@ final class Config
             // A server outside allowed_envs (production) stays silent: no logs, no HTTP mode to turn them on
             $this->enabled = false;
             $this->httpToken = null;
+            $this->pushUrl = null;
+            $this->pushToken = null;
         }
     }
 
@@ -186,6 +197,18 @@ final class Config
     public function traceFrames(): int
     {
         return $this->traceFrames;
+    }
+
+    /** The viewer's receiver the events are pushed to instead of files (push_url); null writes files. */
+    public function pushUrl(): ?string
+    {
+        return $this->pushUrl;
+    }
+
+    /** The project's push token, made in the viewer (push_token). */
+    public function pushToken(): ?string
+    {
+        return $this->pushToken;
     }
 
     /** Token of the HTTP mode (at least 32 characters); null keeps the mode off. */

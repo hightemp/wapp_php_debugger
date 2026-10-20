@@ -1,10 +1,13 @@
 package ingest
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -222,4 +225,48 @@ func TestManagerSkipsAProjectWithoutASource(t *testing.T) {
 	if _, ok := e.manager.Source(project.ID); ok {
 		t.Fatal("no source, no loop")
 	}
+}
+
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// A project that takes pushed logs may have no logs directory here at all: that is not a problem.
+func TestManagerIsQuietAboutAMissingDirOfAPushedProject(t *testing.T) {
+	e := newManagerEnv(t)
+	var log syncBuffer
+	e.manager.options.Logger = slog.New(slog.NewTextHandler(&log, nil))
+	ctx := context.Background()
+	root := t.TempDir()
+	pushed, _ := e.store.CreateProject(ctx, store.ProjectInput{ServerID: e.server, Name: "pushed", RootPath: root, LogsDir: filepath.Join(root, "missing")})
+	hash := "0000000000000000000000000000000000000000000000000000000000000000"
+	if err := e.store.SetIngestToken(ctx, pushed.ID, &hash); err != nil {
+		t.Fatal(err)
+	}
+	plain, _ := e.store.CreateProject(ctx, store.ProjectInput{ServerID: e.server, Name: "plain", RootPath: root, LogsDir: filepath.Join(root, "gone")})
+	run, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if err := e.manager.Start(run); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the plain project's missing dir is reported", func() bool { return strings.Contains(log.String(), "project="+plain.Name) })
+	time.Sleep(100 * time.Millisecond)
+	if strings.Contains(log.String(), "project="+pushed.Name) {
+		t.Fatalf("warned about the pushed project:\n%s", log.String())
+	}
+	cancel()
+	e.manager.Wait()
 }

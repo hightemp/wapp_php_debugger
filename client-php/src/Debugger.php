@@ -27,14 +27,14 @@ final class Debugger
     private array $timers = [];
     /** @var list<float> running unnamed timers, a stack as in library v1 */
     private array $unnamedTimers = [];
-    private ?JsonlFileWriter $writer;
+    private ?Writer $writer;
     private string $requestId;
     private int $lastTs;
     private int $seq = 0;
     private bool $cli;
     private bool $finished = false;
 
-    private function __construct(Clock $clock, Serializer $serializer, Masker $masker, Frames $frames, int $traceFrames, ?JsonlFileWriter $writer, string $requestId, int $startedAt, bool $cli)
+    private function __construct(Clock $clock, Serializer $serializer, Masker $masker, Frames $frames, int $traceFrames, ?Writer $writer, string $requestId, int $startedAt, bool $cli)
     {
         $this->clock = $clock;
         $this->serializer = $serializer;
@@ -55,7 +55,11 @@ final class Debugger
         $requestId = Ulid::generate($now);
         $logsDir = $config->logsDir();
         $writer = null;
-        if ($config->enabled() && $logsDir !== null) {
+        $pushUrl = $config->pushUrl();
+        $pushToken = $config->pushToken();
+        if ($config->enabled() && $pushUrl !== null && $pushToken !== null) {
+            $writer = new HttpWriter($pushUrl, $pushToken);
+        } elseif ($config->enabled() && $logsDir !== null) {
             $fileName = $now . '-' . $requestId . '.jsonl';
             $rotation = new Rotation($config->maxAgeDays(), $config->maxFiles(), $config->maxLogsBytes());
             if ($rotation->due($logsDir, $now)) {
