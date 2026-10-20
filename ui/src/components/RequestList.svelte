@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Transport } from '../lib/api/client';
-  import type { Request } from '../lib/api/types';
+  import type { Project, Request, Server } from '../lib/api/types';
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
@@ -10,11 +10,14 @@
   let {
     transport,
     projectId,
+    serverId,
     selectedId,
     onselect = () => {},
   }: {
     transport: Transport;
     projectId?: number;
+    /** The feed of one server; a project wins. */
+    serverId?: number;
     selectedId?: number;
     onselect?: (id: number) => void;
   } = $props();
@@ -27,6 +30,42 @@
   let loadingMore = $state(false);
 
   type Sapi = 'all' | 'web' | 'cli';
+  type EnvironmentFilter = 'all' | Server['environment'];
+
+  // Names for the combined feed: which project on which server a request comes from
+  let servers = $state<Server[]>([]);
+  let projects = $state<Project[]>([]);
+  let environment = $state<EnvironmentFilter>('all');
+
+  async function loadNames() {
+    const [serverList, projectList] = await Promise.all([
+      transport.listServers(),
+      transport.listProjects(),
+    ]);
+    servers = serverList.items;
+    projects = projectList.items;
+  }
+
+  $effect(() => {
+    void loadNames().catch(() => {});
+  });
+
+  const combined = $derived(projectId === undefined);
+  // Environments worth filtering by: only when there are servers besides this machine
+  const environments = $derived.by((): EnvironmentFilter[] => {
+    const present = [...new Set(servers.map((server) => server.environment))];
+    return present.some((env) => env !== 'local') ? ['all', ...present] : [];
+  });
+  const scopeServer = $derived(projectId === undefined ? serverId : undefined);
+
+  function origin(request: Request): string {
+    const project = projects.find((item) => item.id === request.project_id);
+    const server = servers.find((item) => item.id === request.server_id);
+    if (!project) {
+      return '';
+    }
+    return server && server.kind !== 'local' ? `${project.name} · ${server.name}` : project.name;
+  }
   const searchDelay = 250;
 
   let searchInput = $state('');
@@ -44,17 +83,25 @@
   // Only set filters go to the API; no project means the combined feed of all projects
   const filter = $derived({
     ...(projectId === undefined ? {} : { project_id: projectId }),
+    ...(scopeServer === undefined ? {} : { server_id: scopeServer }),
+    ...(combined && scopeServer === undefined && environment !== 'all' ? { environment } : {}),
     ...(query === '' ? {} : { q: query }),
     ...(errorsOnly ? { has_errors: true } : {}),
     ...(sapi === 'all' ? {} : { sapi }),
   });
-  const filtered = $derived(query !== '' || errorsOnly || sapi !== 'all');
+  const filtered = $derived(
+    query !== '' || errorsOnly || sapi !== 'all' || (environment !== 'all' && combined),
+  );
 
   // A live request is added only when it surely matches: the text search is checked by the server.
   // Requests that gain errors after they were created show up on the next reload.
   function mayShow(request: Request): boolean {
     return (
       (projectId === undefined || request.project_id === projectId) &&
+      (scopeServer === undefined || request.server_id === scopeServer) &&
+      (environment === 'all' ||
+        !combined ||
+        servers.find((server) => server.id === request.server_id)?.environment === environment) &&
       query === '' &&
       (!errorsOnly || request.error_count > 0) &&
       (sapi === 'all' || request.sapi === sapi)
@@ -105,6 +152,13 @@
     transport.subscribe((event) => {
       if (event.event === 'request_created' && event.request && !mayShow(event.request)) {
         return;
+      }
+      if (
+        event.event === 'request_created' &&
+        event.request &&
+        !projects.some((project) => project.id === event.request?.project_id)
+      ) {
+        void loadNames().catch(() => {}); // a project added since
       }
       const update = applyStreamEvent(items, event);
       items = update.items;
@@ -168,6 +222,17 @@
         />
         <span aria-hidden="true">{i18n.t('feed.errorsOnly')}</span>
       </span>
+      {#if combined && scopeServer === undefined && environments.length > 0}
+        <SegmentedControl
+          label={i18n.t('feed.environment')}
+          options={environments.map((value) => ({
+            value,
+            label: value === 'all' ? i18n.t('feed.environmentAll') : value,
+          }))}
+          value={environment}
+          onchange={(value: EnvironmentFilter) => (environment = value)}
+        />
+      {/if}
     </div>
   </div>
 
@@ -200,6 +265,9 @@
               >{requestTitle(request)}</span
             >
             <span class="meta">
+              {#if combined && origin(request)}
+                <span class="origin">{origin(request)}</span>
+              {/if}
               {#if request.error_count > 0}
                 <span class="badge error"
                   >{i18n.t('request.errors', { count: request.error_count })}</span
@@ -231,6 +299,11 @@
 </section>
 
 <style>
+  .origin {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
   .feed {
     display: flex;
     flex-direction: column;

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
 import { ApiError } from '../lib/api/client';
 import type { RequestPage } from '../lib/api/types';
-import { fakeTransport, sampleRequest } from '../test/transport';
+import { fakeTransport, sampleProject, sampleRequest, sampleServer } from '../test/transport';
 import RequestList from './RequestList.svelte';
 
 const request = sampleRequest;
@@ -166,5 +166,73 @@ describe('RequestList', () => {
     await screen.findByText('No requests yet');
     unmount();
     expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  describe('with several servers', () => {
+    function servers() {
+      const listRequests = vi.fn(async () => ({
+        items: [
+          request(2, { project_id: 30, server_id: 3 }),
+          request(1, { project_id: 10, server_id: 1 }),
+        ],
+        next_cursor: null,
+      }));
+      const fake = fakeTransport({
+        listRequests,
+        listServers: vi.fn(async () => ({
+          items: [sampleServer(1), sampleServer(3, { name: 'prod-web', environment: 'prod' })],
+        })),
+        listProjects: vi.fn(async () => ({
+          items: [
+            sampleProject(10, { name: 'local-shop', server_id: 1 }),
+            sampleProject(30, { name: 'shop', server_id: 3 }),
+          ],
+        })),
+      });
+      return { ...fake, listRequests };
+    }
+
+    it('names the project and the server of each request in the combined feed', async () => {
+      const { transport } = servers();
+      render(RequestList, { transport });
+      const rows = await screen.findAllByRole('listitem');
+      await waitFor(() => expect(rows[0]).toHaveTextContent('shop · prod-web'));
+      expect(rows[1]).toHaveTextContent('local-shop');
+    });
+
+    it('does not repeat the project inside a project feed', async () => {
+      const { transport } = servers();
+      render(RequestList, { transport, projectId: 30 });
+      const rows = await screen.findAllByRole('listitem');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(rows[0]).not.toHaveTextContent('prod-web');
+    });
+
+    it('shows the feed of one server', async () => {
+      const { transport, listRequests } = servers();
+      render(RequestList, { transport, serverId: 3 });
+      await waitFor(() =>
+        expect(listRequests).toHaveBeenCalledWith(expect.objectContaining({ server_id: 3 })),
+      );
+    });
+
+    it('filters the combined feed by environment', async () => {
+      const { transport, listRequests } = servers();
+      render(RequestList, { transport });
+      const environments = await screen.findByRole('radiogroup', { name: 'Environment' });
+      await fireEvent.click(within(environments).getByRole('radio', { name: 'prod' }));
+      await waitFor(() =>
+        expect(listRequests).toHaveBeenLastCalledWith(
+          expect.objectContaining({ environment: 'prod' }),
+        ),
+      );
+    });
+  });
+
+  it('offers no environment filter with only the local server', async () => {
+    const { transport } = feed([{ items: [request(1)], next_cursor: null }]);
+    render(RequestList, { transport });
+    await screen.findAllByRole('listitem');
+    expect(screen.queryByRole('radiogroup', { name: 'Environment' })).not.toBeInTheDocument();
   });
 });

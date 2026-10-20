@@ -11,9 +11,17 @@
   let {
     transport,
     selectedId,
+    selectedServerId,
     onselect,
-  }: { transport: Transport; selectedId?: number; onselect: (id: number | undefined) => void } =
-    $props();
+    onselectserver = () => {},
+  }: {
+    transport: Transport;
+    selectedId?: number;
+    selectedServerId?: number;
+    onselect: (id: number | undefined) => void;
+    /** A server header shows the feed of that server. */
+    onselectserver?: (id: number) => void;
+  } = $props();
 
   let projects = $state<Project[]>([]);
   let servers = $state<Server[]>([]);
@@ -150,7 +158,9 @@
       <button
         type="button"
         class="item"
-        aria-current={selectedId === undefined ? 'true' : undefined}
+        aria-current={selectedId === undefined && selectedServerId === undefined
+          ? 'true'
+          : undefined}
         onclick={() => onselect(undefined)}
       >
         {i18n.t('projects.all')}
@@ -164,7 +174,12 @@
         <li class="group-item">
           <div class="group" role="group" aria-label={server.name}>
             <div class="server">
-              <span class="server-name">{server.name}</span>
+              <button
+                type="button"
+                class="server-name"
+                aria-current={server.id === selectedServerId ? 'true' : undefined}
+                onclick={() => onselectserver(server.id)}>{server.name}</button
+              >
               {#if server.environment !== 'local'}
                 <span class="environment" data-environment={server.environment}
                   >{server.environment}</span
@@ -345,8 +360,24 @@
   }
 
   .server-name {
+    padding: 0;
+    border: 0;
+    border-bottom: 1px dashed transparent;
+    background: none;
     color: var(--text);
+    font: inherit;
     font-weight: 600;
+    cursor: pointer;
+  }
+
+  .server-name:hover,
+  .server-name[aria-current='true'] {
+    border-bottom-color: currentcolor;
+  }
+
+  .server-name:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   .environment,

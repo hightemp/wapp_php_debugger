@@ -20,6 +20,13 @@ describe('route', () => {
     expect(formatRoute({ projectId: 3, requestId: 42 })).toBe('#/projects/3/requests/42');
   });
 
+  it('selects a server like a project; a project wins', () => {
+    expect(parseRoute('#/servers/2')).toEqual({ serverId: 2 });
+    expect(parseRoute('#/servers/2/requests/42')).toEqual({ serverId: 2, requestId: 42 });
+    expect(formatRoute({ serverId: 2, requestId: 42 })).toBe('#/servers/2/requests/42');
+    expect(formatRoute({ serverId: 2, projectId: 3 })).toBe('#/projects/3');
+  });
+
   it('ignores anything it does not understand', () => {
     expect(parseRoute('#/requests/abc')).toEqual({});
     expect(parseRoute('#/requests/-1')).toEqual({});

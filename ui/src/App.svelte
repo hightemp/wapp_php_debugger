@@ -22,6 +22,11 @@
   let version = $state('');
   let route = $state<Route>(parseRoute(window.location.hash));
 
+  // The feed the selection belongs to: a project, a server or everything
+  const scope = $derived<Route>(
+    route.projectId !== undefined ? { projectId: route.projectId } : { serverId: route.serverId },
+  );
+
   function navigate(next: Route) {
     route = next;
     const hash = formatRoute(next);
@@ -56,13 +61,16 @@
       <ProjectsPanel
         {transport}
         selectedId={route.projectId}
+        selectedServerId={route.serverId}
         onselect={(id) => navigate({ projectId: id })}
+        onselectserver={(id) => navigate({ serverId: id })}
       />
       <RequestList
         {transport}
         projectId={route.projectId}
+        serverId={route.serverId}
         selectedId={route.requestId}
-        onselect={(id) => navigate({ projectId: route.projectId, requestId: id })}
+        onselect={(id) => navigate({ ...scope, requestId: id })}
       />
     </div>
     <div class="pane">
@@ -72,8 +80,8 @@
           requestId={route.requestId}
           selectedMessageId={route.messageId}
           onselectmessage={(id) =>
-            navigate({ projectId: route.projectId, requestId: route.requestId, messageId: id })}
-          onselectrequest={(id) => navigate({ projectId: route.projectId, requestId: id })}
+            navigate({ ...scope, requestId: route.requestId, messageId: id })}
+          onselectrequest={(id) => navigate({ ...scope, requestId: id })}
         />
       {:else}
         <p class="hint">{i18n.t('detail.empty')}</p>

@@ -109,7 +109,7 @@ describe('ProjectsPanel', () => {
 describe('ProjectsPanel with several servers', () => {
   beforeEach(() => i18n.set('en'));
 
-  function setupServers(selectedId?: number) {
+  function setupServers(selectedId?: number, onselectserver = vi.fn()) {
     const fake = fakeTransport({
       listServers: vi.fn(async () => ({
         items: [
@@ -131,7 +131,7 @@ describe('ProjectsPanel with several servers', () => {
       })),
     });
     const onselect = vi.fn();
-    render(ProjectsPanel, { transport: fake.transport, selectedId, onselect });
+    render(ProjectsPanel, { transport: fake.transport, selectedId, onselect, onselectserver });
     return { ...fake, onselect };
   }
 
@@ -149,6 +149,15 @@ describe('ProjectsPanel with several servers', () => {
     expect(
       within(await group('local')).getByRole('button', { name: 'local-shop' }),
     ).toBeInTheDocument();
+  });
+
+  it('selects a server: its feed', async () => {
+    const onselectserver = vi.fn();
+    setupServers(undefined, onselectserver);
+    await fireEvent.click(
+      within(await group('prod-web')).getByRole('button', { name: 'prod-web' }),
+    );
+    expect(onselectserver).toHaveBeenCalledWith(3);
   });
 
   it('follows the connection of a server live', async () => {
