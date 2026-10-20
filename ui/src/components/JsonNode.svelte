@@ -1,5 +1,6 @@
 <script lang="ts">
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { copyText, phpPath } from '../lib/jsonPath';
   import JsonChildren from './JsonChildren.svelte';
   import JsonValue from './JsonValue.svelte';
 
@@ -8,7 +9,36 @@
     value,
     depth,
     expandDepth,
-  }: { name: string; value: unknown; depth: number; expandDepth: number } = $props();
+    path,
+    indexes,
+    filter,
+    query,
+  }: {
+    name: string;
+    value: unknown;
+    depth: number;
+    expandDepth: number;
+    path: string[];
+    indexes: boolean[];
+    filter: Set<string> | null;
+    query: string;
+  } = $props();
+
+  // The part of the key that matches the search, to mark it
+  const match = $derived.by(() => {
+    const at = query === '' ? -1 : name.toLowerCase().indexOf(query.toLowerCase());
+    return at < 0
+      ? null
+      : {
+          before: name.slice(0, at),
+          hit: name.slice(at, at + query.length),
+          after: name.slice(at + query.length),
+        };
+  });
+
+  function copy(text: string) {
+    void navigator.clipboard?.writeText(text).catch(() => {});
+  }
 
   const isContainer = $derived(value !== null && typeof value === 'object');
   const entries = $derived(
@@ -16,6 +46,8 @@
   );
   // svelte-ignore state_referenced_locally
   let expanded = $state(depth < expandDepth);
+  // A search opens the way to what it found
+  const open = $derived(filter !== null || expanded);
 
   const summary = $derived(
     Array.isArray(value)
@@ -24,26 +56,62 @@
   );
 </script>
 
+{#snippet key()}
+  <span class="key"
+    >{#if match}{match.before}<mark>{match.hit}</mark>{match.after}{:else}{name}{/if}</span
+  >
+{/snippet}
+
+{#snippet actions()}
+  <span class="actions">
+    <button
+      type="button"
+      class="copy"
+      aria-label={i18n.t('json.copyPath', { name })}
+      title={phpPath(path, indexes)}
+      onclick={() => copy(phpPath(path, indexes))}>{i18n.t('json.path')}</button
+    >
+    <button
+      type="button"
+      class="copy"
+      aria-label={i18n.t('json.copyValue', { name })}
+      onclick={() => copy(copyText(value))}>{i18n.t('json.value')}</button
+    >
+  </span>
+{/snippet}
+
 <li class="node">
   {#if isContainer && entries.length > 0}
-    <button
-      class="toggle"
-      type="button"
-      aria-expanded={expanded}
-      onclick={() => (expanded = !expanded)}
-    >
-      <span class="arrow" aria-hidden="true">{expanded ? '▾' : '▸'}</span><span class="key"
-        >{name}</span
+    <span class="row">
+      <button
+        class="toggle"
+        type="button"
+        aria-expanded={open}
+        onclick={() => (expanded = !expanded)}
       >
-    </button>
-    {#if expanded}
-      <JsonChildren class="children" {entries} depth={depth + 1} {expandDepth} />
-    {:else}
-      <span class="summary">{summary}</span>
+        <span class="arrow" aria-hidden="true">{open ? '▾' : '▸'}</span>{@render key()}
+      </button>
+      {#if !open}
+        <span class="summary">{summary}</span>
+      {/if}
+      {@render actions()}
+    </span>
+    {#if open}
+      <JsonChildren
+        class="children"
+        {entries}
+        depth={depth + 1}
+        {expandDepth}
+        {path}
+        {indexes}
+        array={Array.isArray(value)}
+        {filter}
+        {query}
+      />
     {/if}
   {:else}
-    <span class="leaf"
-      ><span class="key">{name}</span><span class="colon">:</span> <JsonValue {value} /></span
+    <span class="row leaf"
+      >{@render key()}<span class="colon">:</span> <JsonValue {value} />{@render actions()}</span
     >
   {/if}
 </li>
@@ -95,5 +163,37 @@
 
   .summary {
     margin-left: var(--space-2);
+  }
+
+  mark {
+    border-radius: 2px;
+    background: var(--level-warning-soft);
+    color: var(--text);
+  }
+
+  .actions {
+    margin-left: var(--space-2);
+    visibility: hidden;
+  }
+
+  .row:hover .actions,
+  .row:focus-within .actions {
+    visibility: visible;
+  }
+
+  .copy {
+    padding: 0 var(--space-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .copy:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 </style>

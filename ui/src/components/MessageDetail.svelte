@@ -101,7 +101,7 @@
 
     <h3 class="subtitle">{i18n.t('message.context')}</h3>
     {#if message.context}
-      <div class="block"><JsonTree value={message.context} /></div>
+      <div class="block"><JsonTree value={message.context} searchable /></div>
     {:else}
       <p class="muted">{i18n.t('message.noContext')}</p>
     {/if}

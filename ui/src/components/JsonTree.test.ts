@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
 import JsonTree from './JsonTree.svelte';
 
@@ -69,5 +69,29 @@ describe('JsonTree', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Show 50 more of 50' }));
     expect(screen.getByText('key449', { selector: '.key' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /more of/ })).not.toBeInTheDocument();
+  });
+
+  it('finds keys and values and shows the way to them', async () => {
+    render(JsonTree, { value, searchable: true, expandDepth: 0 });
+    const search = screen.getByRole('searchbox', { name: 'Search in the values' });
+    await fireEvent.input(search, { target: { value: 'price' } });
+    // The match is marked in its key; rows of what did not match are gone
+    expect(screen.getByText('price', { selector: 'mark' })).toBeInTheDocument();
+    expect(screen.getByText('rows', { selector: '.key' })).toBeInTheDocument();
+    expect(screen.queryByText('id', { selector: '.key' })).not.toBeInTheDocument();
+    await fireEvent.input(search, { target: { value: 'nothing here' } });
+    expect(screen.getByText('Nothing found')).toBeInTheDocument();
+    await fireEvent.input(search, { target: { value: '' } });
+    expect(screen.getByText('id', { selector: '.key' })).toBeInTheDocument();
+  });
+
+  it('copies the path and the value of a node', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(JsonTree, { value: { user: { id: 7 } } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Copy the path of id' }));
+    expect(writeText).toHaveBeenLastCalledWith("['user']['id']");
+    await fireEvent.click(screen.getByRole('button', { name: 'Copy the value of user' }));
+    expect(writeText).toHaveBeenLastCalledWith('{\n  "id": 7\n}');
   });
 });
