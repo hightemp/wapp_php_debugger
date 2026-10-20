@@ -232,6 +232,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a request from a log format v2 stream (an export or a log file of the library)
+         * @description The stream must be one whole request: request_start first, seq without gaps, every line an
+         *     event of format v2; otherwise 400 and nothing is saved. A request whose request_id the project
+         *     has already is not imported again: the answer points to it (created=false).
+         */
+        post: operations["importRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests": {
         parameters: {
             query?: never;
@@ -272,6 +294,28 @@ export interface paths {
         head?: never;
         /** Pin a request or note something about it */
         patch: operations["markRequest"];
+        trace?: never;
+    };
+    "/api/v1/requests/{request_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The request as a log format v2 stream, to pass it on or import it elsewhere
+         * @description The lines the library would have written: request_start, the messages, request_end when the
+         *     request finished. A request read from a v1 file comes out in v2 too; seq is numbered anew.
+         *     Child requests (AJAX) are separate requests and are exported on their own.
+         */
+        get: operations["exportRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/requests/{request_id}/messages": {
@@ -1420,6 +1464,38 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    importRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-ndjson": string;
+            };
+        };
+        responses: {
+            /** @description Where the request is */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        request_id: number;
+                        /** @description false when the project had this request already */
+                        created: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     listRequests: {
         parameters: {
             query?: {
@@ -1540,6 +1616,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Request"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    exportRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: components["parameters"]["RequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stream */
+            200: {
+                headers: {
+                    /** @description attachment; filename="request-<request_key>.jsonl" */
+                    "Content-Disposition": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-ndjson": string;
                 };
             };
             default: components["responses"]["Problem"];

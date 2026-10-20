@@ -374,6 +374,34 @@ paths:
                   removed_files: { type: integer, minimum: 0 }
         default: { $ref: '#/components/responses/Problem' }
 
+  /api/v1/projects/{project_id}/import:
+    post:
+      tags: [requests]
+      operationId: importRequest
+      summary: Add a request from a log format v2 stream (an export or a log file of the library)
+      description: |
+        The stream must be one whole request: request_start first, seq without gaps, every line an
+        event of format v2; otherwise 400 and nothing is saved. A request whose request_id the project
+        has already is not imported again: the answer points to it (created=false).
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody:
+        required: true
+        content:
+          application/x-ndjson:
+            schema: { type: string }
+      responses:
+        '200':
+          description: Where the request is
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request_id, created]
+                properties:
+                  request_id: { type: integer, format: int64 }
+                  created: { type: boolean, description: false when the project had this request already }
+        default: { $ref: '#/components/responses/Problem' }
+
   /api/v1/requests:
     get:
       tags: [requests]
@@ -489,6 +517,29 @@ paths:
       parameters: [{ $ref: '#/components/parameters/RequestId' }]
       responses:
         '204': { description: Deleted }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests/{request_id}/export:
+    get:
+      tags: [requests]
+      operationId: exportRequest
+      summary: The request as a log format v2 stream, to pass it on or import it elsewhere
+      description: |
+        The lines the library would have written: request_start, the messages, request_end when the
+        request finished. A request read from a v1 file comes out in v2 too; seq is numbered anew.
+        Child requests (AJAX) are separate requests and are exported on their own.
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      responses:
+        '200':
+          description: The stream
+          headers:
+            Content-Disposition:
+              required: true
+              schema: { type: string }
+              description: 'attachment; filename="request-<request_key>.jsonl"'
+          content:
+            application/x-ndjson:
+              schema: { type: string }
         default: { $ref: '#/components/responses/Problem' }
 
   /api/v1/requests/{request_id}/messages:
