@@ -331,8 +331,16 @@ type RequestFilter struct {
 	Query       string // words searched in messages and context, or a URL substring
 	Since       int64  // started_at at or after, ms
 	Until       int64  // started_at before, ms
-	Limit       int
-	Cursor      string
+	Method      string // HTTP method, any case
+	StatusMin   int    // status code range, inclusive; 0 means no bound
+	StatusMax   int
+	// MinDurationMs keeps requests at least this long
+	MinDurationMs float64
+	Ajax          *bool
+	Tag           string // a message of the request has this tag
+	Level         string // error: requests with errors; warning: with errors or warnings
+	Limit         int
+	Cursor        string
 }
 
 // RequestPage is a feed page; NextCursor is empty on the last page.
@@ -364,6 +372,31 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 	}
 	if filter.Until != 0 {
 		where, args = append(where, "r.started_at < ?"), append(args, filter.Until)
+	}
+	if filter.Method != "" {
+		where, args = append(where, "r.method = ?"), append(args, strings.ToUpper(filter.Method))
+	}
+	if filter.StatusMin != 0 {
+		where, args = append(where, "r.status_code >= ?"), append(args, filter.StatusMin)
+	}
+	if filter.StatusMax != 0 {
+		where, args = append(where, "r.status_code <= ?"), append(args, filter.StatusMax)
+	}
+	if filter.MinDurationMs > 0 {
+		where, args = append(where, "r.duration_ms >= ?"), append(args, filter.MinDurationMs)
+	}
+	if filter.Ajax != nil {
+		where, args = append(where, "r.is_ajax = ?"), append(args, *filter.Ajax)
+	}
+	if filter.Tag != "" {
+		where = append(where, "EXISTS (SELECT 1 FROM messages m, json_each(m.tags) t WHERE m.request_id = r.id AND t.value = ?)")
+		args = append(args, filter.Tag)
+	}
+	switch filter.Level {
+	case "error":
+		where = append(where, "r.error_count > 0")
+	case "warning":
+		where = append(where, "(r.error_count > 0 OR r.warning_count > 0)")
 	}
 	if clause, searchArgs := requestSearch(filter.Query); clause != "" {
 		where, args = append(where, clause), append(args, searchArgs...)

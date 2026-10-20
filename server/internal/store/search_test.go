@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -103,5 +104,33 @@ func TestFTSQueryQuotesEveryWord(t *testing.T) {
 		if got := ftsQuery(in); got != want {
 			t.Errorf("ftsQuery(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestFilterRequestsByWhatTheyWere(t *testing.T) {
+	s, _ := searchEnv(t)
+	yes, no := true, false
+	cases := []struct {
+		name   string
+		filter RequestFilter
+		want   []string
+	}{
+		{"method", RequestFilter{Method: "post"}, []string{ajaxKey}},
+		{"status class", RequestFilter{StatusMin: 200, StatusMax: 299}, []string{ajaxKey, webKey}},
+		{"exact status", RequestFilter{StatusMin: 201, StatusMax: 201}, []string{ajaxKey}},
+		{"slow ones", RequestFilter{MinDurationMs: 1000}, []string{cliKey}},
+		{"ajax", RequestFilter{Ajax: &yes}, []string{ajaxKey}},
+		{"not ajax", RequestFilter{Ajax: &no, Sapi: "web"}, []string{killedKey, webKey}},
+		{"tag", RequestFilter{Tag: "sql"}, []string{webKey}},
+		{"warnings or worse", RequestFilter{Level: "warning"}, []string{killedKey, cliKey, webKey}},
+		{"errors", RequestFilter{Level: "error"}, []string{cliKey}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := searchKeys(t, s, c.filter)
+			if strings.Join(got, ",") != strings.Join(c.want, ",") {
+				t.Fatalf("%s: %v, want %v", c.name, got, c.want)
+			}
+		})
 	}
 }

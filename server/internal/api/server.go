@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 	"github.com/hightemp/wapp_php_debugger/server/internal/version"
@@ -65,6 +67,19 @@ func (s *server) UpdateDesktopSettings(ctx context.Context, request UpdateDeskto
 	return UpdateDesktopSettings200JSONResponse(settings), nil
 }
 
+// statusRange reads 404 as [404, 404] and 5xx as [500, 599].
+func statusRange(status string) (int, int, bool) {
+	if len(status) != 3 || status[0] < '1' || status[0] > '5' {
+		return 0, 0, false
+	}
+	if strings.HasSuffix(status, "xx") {
+		base := int(status[0]-'0') * 100
+		return base, base + 99, true
+	}
+	code, err := strconv.Atoi(status)
+	return code, code, err == nil
+}
+
 const (
 	defaultLimit = 100
 	maxLimit     = 500
@@ -107,6 +122,26 @@ func (s *server) ListRequests(ctx context.Context, request ListRequestsRequestOb
 	}
 	if params.Cursor != nil {
 		filter.Cursor = *params.Cursor
+	}
+	if params.Method != nil {
+		filter.Method = *params.Method
+	}
+	if params.Status != nil {
+		low, high, ok := statusRange(*params.Status)
+		if !ok {
+			return ListRequestsdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem("status is a code (404) or a class (5xx)"), StatusCode: http.StatusBadRequest}, nil
+		}
+		filter.StatusMin, filter.StatusMax = low, high
+	}
+	if params.MinDurationMs != nil {
+		filter.MinDurationMs = float64(*params.MinDurationMs)
+	}
+	filter.Ajax = params.IsAjax
+	if params.Tag != nil {
+		filter.Tag = *params.Tag
+	}
+	if params.Level != nil {
+		filter.Level = string(*params.Level)
 	}
 
 	page, err := s.deps.Store.ListRequests(ctx, filter)

@@ -154,3 +154,35 @@ func TestSearchAndFilterTheFeed(t *testing.T) {
 		t.Fatalf("messages q: %s", body)
 	}
 }
+
+func TestFeedFiltersByMethodStatusDurationAjaxTagAndLevel(t *testing.T) {
+	e := newTestEnv(t)
+	count := func(query string) int {
+		t.Helper()
+		response, body := get(t, e.server.URL+"/api/v1/requests?limit=100&"+query)
+		var page RequestPage
+		if response.StatusCode != 200 || json.Unmarshal([]byte(body), &page) != nil {
+			t.Fatalf("%s: %d %s", query, response.StatusCode, body)
+		}
+		return len(page.Items)
+	}
+	for query, want := range map[string]int{
+		"method=post":               count("method=POST"),
+		"status=2xx&sapi=web":       count("status=2xx&sapi=web"),
+		"status=201":                1,
+		"is_ajax=true&status=201":   1,
+		"tag=queue":                 1,
+		"level=error&tag=queue":     1,
+		"min_duration_ms=100000000": 0,
+	} {
+		if got := count(query); got != want {
+			t.Errorf("%s: %d requests, want %d", query, got, want)
+		}
+	}
+	if count("status=2xx") == count("") {
+		t.Error("status=2xx filtered nothing out")
+	}
+	if response, body := get(t, e.server.URL+"/api/v1/requests?status=abc"); response.StatusCode != 400 {
+		t.Errorf("a bad status: %d %s", response.StatusCode, body)
+	}
+}

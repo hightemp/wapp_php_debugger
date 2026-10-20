@@ -1429,6 +1429,17 @@ export interface operations {
                 since?: number;
                 /** @description started_at before, ms */
                 until?: number;
+                /** @description HTTP method, any case */
+                method?: string;
+                /** @description A status code (404) or a class (5xx) */
+                status?: string;
+                /** @description Requests at least this long */
+                min_duration_ms?: number;
+                is_ajax?: boolean;
+                /** @description A message of the request has this tag */
+                tag?: string;
+                /** @description error — requests with errors; warning — with errors or warnings */
+                level?: "error" | "warning";
                 /** @description next_cursor of the previous page */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
