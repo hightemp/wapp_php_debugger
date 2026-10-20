@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -67,20 +68,26 @@ func run() int {
 		return 1
 	}
 
-	// The shell around the window applies saved settings; it exists once the core does
-	var sh *shell
+	// The shell around the window applies saved settings; it exists once the core does, and the
+	// core's goroutines read it, hence the atomic pointer
+	var current atomic.Pointer[shell]
 	cfg.Desktop = &app.DesktopConfig{OnSettings: func(settings api.DesktopSettings) {
-		if sh != nil {
+		if sh := current.Load(); sh != nil {
 			sh.applySettings(settings)
 		}
 	}}
+	cfg.UpdateCheck = func() bool {
+		sh := current.Load()
+		return sh != nil && sh.settings.Load().UpdateCheck
+	}
 	core, err := app.Start(context.Background(), cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	defer core.Close()
-	sh = newShell(core)
+	sh := newShell(core)
+	current.Store(sh)
 
 	var handler http.Handler = core.Handler()
 	var check *desktop.SelfTest

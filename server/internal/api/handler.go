@@ -15,6 +15,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
+	"github.com/hightemp/wapp_php_debugger/server/internal/update"
 )
 
 // ProjectRuntime runs the import of projects; the API restarts it when a project changes.
@@ -50,6 +51,12 @@ type DesktopRuntime interface {
 	UpdateSettings(ctx context.Context, settings DesktopSettings) (DesktopSettings, error)
 }
 
+// Updates tells whether a newer version is out.
+type Updates interface {
+	Last() update.Result
+	Enabled() bool // the user may switch the check off at any time
+}
+
 // Discoverer finds projects on local and SSH servers by the library config.
 type Discoverer interface {
 	Discover(ctx context.Context, server store.Server, roots []string, maxDepth int) ([]discover.Found, bool, error)
@@ -71,6 +78,7 @@ type Deps struct {
 	HTTP      HTTPRuntime    // nil: http servers cannot be added
 	Discover  Discoverer     // nil: no project search
 	Desktop   DesktopRuntime // nil in the server: no desktop settings
+	Updates   Updates        // nil: no update check
 	UI        fs.FS          // built Svelte UI (index.html and assets/)
 	Heartbeat time.Duration  // SSE heartbeat comment period; 0 means 15 seconds
 }

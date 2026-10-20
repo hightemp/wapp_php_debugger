@@ -1,6 +1,6 @@
 // Test helpers: an in-memory Transport and sample DTOs.
 import { vi } from 'vitest';
-import type { Transport } from '../lib/api/client';
+import type { Transport, UpdateInfo } from '../lib/api/client';
 import type {
   DesktopSettings,
   DiscoveredProject,
@@ -101,6 +101,12 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       version: 'v0.0.0-test',
       commit: 'abc',
       date: '',
+    })),
+    // The update check is off by default
+    getUpdates: vi.fn(async (): Promise<UpdateInfo> => ({
+      enabled: false,
+      current: 'v0.0.0-test',
+      newer: false,
     })),
     getDesktopSettings: vi.fn(async () => ({
       notifications: { enabled: true, min_level: 'error' as const, project_ids: [] as number[] },

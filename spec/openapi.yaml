@@ -546,6 +546,29 @@ paths:
               schema: { $ref: '#/components/schemas/DesktopSettings' }
         default: { $ref: '#/components/responses/Problem' }
 
+  /api/v1/updates:
+    get:
+      tags: [settings]
+      operationId: getUpdates
+      summary: Whether a newer version is out (GitHub Releases, asked at most once a day)
+      description: The check is off in the server without --update-check and in the desktop with update_check off; then enabled is false and nothing is asked.
+      responses:
+        '200':
+          description: The last answer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, current, newer]
+                properties:
+                  enabled: { type: boolean }
+                  current: { type: string }
+                  latest: { type: string }
+                  url: { type: string, description: Page of the release }
+                  newer: { type: boolean }
+                  checked_at: { type: integer, format: int64 }
+        default: { $ref: '#/components/responses/Problem' }
+
   /api/v1/settings:
     get:
       tags: [settings]

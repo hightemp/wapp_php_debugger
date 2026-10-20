@@ -1127,6 +1127,9 @@ type ServerInterface interface {
 	// StreamEvents Change stream (Server-Sent Events)
 	// (GET /api/v1/stream)
 	StreamEvents(w http.ResponseWriter, r *http.Request, params StreamEventsParams)
+	// GetUpdates Whether a newer version is out (GitHub Releases, asked at most once a day)
+	// (GET /api/v1/updates)
+	GetUpdates(w http.ResponseWriter, r *http.Request)
 	// GetVersion Viewer version
 	// (GET /api/v1/version)
 	GetVersion(w http.ResponseWriter, r *http.Request)
@@ -2001,6 +2004,20 @@ func (siw *ServerInterfaceWrapper) StreamEvents(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// GetUpdates operation middleware
+func (siw *ServerInterfaceWrapper) GetUpdates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUpdates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetVersion operation middleware
 func (siw *ServerInterfaceWrapper) GetVersion(w http.ResponseWriter, r *http.Request) {
 
@@ -2162,6 +2179,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/stream", wrapper.StreamEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/desktop/settings", wrapper.GetDesktopSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/desktop/settings", wrapper.UpdateDesktopSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/updates", wrapper.GetUpdates)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/settings", wrapper.GetSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/settings", wrapper.UpdateSettings)
 
@@ -3296,6 +3314,53 @@ func (response StreamEventsdefaultApplicationProblemPlusJSONResponse) VisitStrea
 	return err
 }
 
+type GetUpdatesRequestObject struct {
+}
+
+type GetUpdatesResponseObject interface {
+	VisitGetUpdatesResponse(w http.ResponseWriter) error
+}
+
+type GetUpdates200JSONResponse struct {
+	CheckedAt *int64  `json:"checked_at,omitempty"`
+	Current   string  `json:"current"`
+	Enabled   bool    `json:"enabled"`
+	Latest    *string `json:"latest,omitempty"`
+	Newer     bool    `json:"newer"`
+
+	// Url Page of the release
+	Url *string `json:"url,omitempty"`
+}
+
+func (response GetUpdates200JSONResponse) VisitGetUpdatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUpdatesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetUpdatesdefaultApplicationProblemPlusJSONResponse) VisitGetUpdatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetVersionRequestObject struct {
 }
 
@@ -3420,6 +3485,9 @@ type StrictServerInterface interface {
 	// StreamEvents Change stream (Server-Sent Events)
 	// (GET /api/v1/stream)
 	StreamEvents(ctx context.Context, request StreamEventsRequestObject) (StreamEventsResponseObject, error)
+	// GetUpdates Whether a newer version is out (GitHub Releases, asked at most once a day)
+	// (GET /api/v1/updates)
+	GetUpdates(ctx context.Context, request GetUpdatesRequestObject) (GetUpdatesResponseObject, error)
 	// GetVersion Viewer version
 	// (GET /api/v1/version)
 	GetVersion(ctx context.Context, request GetVersionRequestObject) (GetVersionResponseObject, error)
@@ -4240,6 +4308,30 @@ func (sh *strictHandler) StreamEvents(w http.ResponseWriter, r *http.Request, pa
 	}
 }
 
+// GetUpdates operation middleware
+func (sh *strictHandler) GetUpdates(w http.ResponseWriter, r *http.Request) {
+	var request GetUpdatesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUpdates(ctx, request.(GetUpdatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUpdates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUpdatesResponseObject); ok {
+		if err := validResponse.VisitGetUpdatesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetVersion operation middleware
 func (sh *strictHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	var request GetVersionRequestObject
@@ -4396,10 +4488,12 @@ var swaggerSpec = []string{
 	"hegWxsBjzTvuT1PrzKfIazkS3rDbGCsMg73fEZbob1e/vNFSPSFYqAnBCkU8y/RDSMhnynWTfoRsIXTv",
 	"hp0Dy2IkiL0R/cYYpnb9NZbqCFY5ungG15etfDbbzaiUplM1U/KGmRtzaQwXuC8nxXSqVbGzqkwYUYVm",
 	"RN++rimH6ZPScdF4h1yVAWIK5asYRm3Du4VQIORkjlLWMjhz5aDUAqDfiB2F0wWGQl9B7+CDy3tNStns",
-	"D1Dkk+rDXo4qktySwbxWNh08ZgjLTroPKx8ab5n50IHRAY6u9BoGuzWd0qxa4zivscaqa+HXsn/Gg0kl",
-	"t0QHwH4saKoNdzvgSyFmG3po+tb4ryD4q3FxV01CSmiZ7kkf75vv11uBfPioCb7WGQN+glVc6OlD9+fV",
-	"6tX1MDrwP3c06veHx9/1Br1Bbzj6/vvjAeh2doNlB2e7Ub2NWnqV9H/yDJ3yNy/7o3rVUaY3mbsPPt7/",
-	"vwAAAP//",
+	"D1Dkk+rDXo4qktySwbxWNh08ZgjLTroPKx8ab5n50IHRAY6u9BoGuzWd0qxa4zjjDVqdg3RdqlhU+slz",
+	"Fm0uHnp0ZCY6qtSxRosKsG7NoLEZxKdTqHZiyH7ZXS9hYvXQTsuznuW8y6X8gqh3dvt7NYt27xVZCOEo",
+	"p9Uwyn61vrO9Wqo33/0eA3dy51udn3l3cTfzSaCUYEk2Kkxub9UJ3LrbWFCaNFIM2QZysRd3sEv4hdbM",
+	"RCDbYgBIr1Do4AVVL4sJemuOJ0NDGKUPibOIIIxivDzceNN4DWVWqUO/ln1jHuw2dkt0QPfHgqaxg8CX",
+	"w9Y2stFyXcu9Cta/Uh/EPrxM17CP98336y1wPnzUgr7WEQZ+glVcyPVD92cF610lYHTgf+Zr1O8Pj7/r",
+	"DXqD3nD0/ffHA7Bp7AbLzuV2o3obtbRC6f/kGfjlb17WU/Wqk8jeZE4P+nj//wIAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

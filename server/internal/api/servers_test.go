@@ -21,6 +21,7 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
+	"github.com/hightemp/wapp_php_debugger/server/internal/update"
 )
 
 type fakeSSH struct {
@@ -494,5 +495,30 @@ func TestDesktopSettingsOnlyInTheDesktopApp(t *testing.T) {
 	settings["notifications"] = map[string]any{"enabled": true, "min_level": "info", "project_ids": []int{}}
 	if response, body := send(t, http.MethodPut, server.URL+"/api/v1/desktop/settings", settings); response.StatusCode != http.StatusBadRequest {
 		t.Fatalf("an unknown level: %d %s", response.StatusCode, body)
+	}
+}
+
+type fakeUpdates struct {
+	result  update.Result
+	enabled bool
+}
+
+func (f *fakeUpdates) Last() update.Result { return f.result }
+func (f *fakeUpdates) Enabled() bool       { return f.enabled }
+
+func TestUpdatesSayWhetherTheCheckIsOn(t *testing.T) {
+	e := newServersEnv(t)
+	if _, body := get(t, e.server.URL+"/api/v1/updates"); !strings.Contains(body, `"enabled":false`) || !strings.Contains(body, `"newer":false`) {
+		t.Fatalf("no checker: %s", body)
+	}
+	updates := &fakeUpdates{result: update.Result{Current: "v0.3.0", Latest: "v0.4.0", URL: "https://x.test", Newer: true, CheckedAt: 5}, enabled: true}
+	server := httptest.NewServer(NewHandler(Deps{Store: e.store, Broker: events.NewBroker(4), Updates: updates, UI: fstest.MapFS{"index.html": {}}}))
+	t.Cleanup(server.Close)
+	if _, body := get(t, server.URL+"/api/v1/updates"); !strings.Contains(body, `"latest":"v0.4.0"`) || !strings.Contains(body, `"newer":true`) {
+		t.Fatalf("updates: %s", body)
+	}
+	updates.enabled = false
+	if _, body := get(t, server.URL+"/api/v1/updates"); !strings.Contains(body, `"enabled":false`) || strings.Contains(body, "v0.4.0") {
+		t.Fatalf("switched off: %s", body)
 	}
 }

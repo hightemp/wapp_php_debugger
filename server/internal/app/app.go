@@ -19,6 +19,8 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/internal/ingest"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
+	"github.com/hightemp/wapp_php_debugger/server/internal/update"
+	"github.com/hightemp/wapp_php_debugger/server/internal/version"
 )
 
 // Config holds launch settings.
@@ -38,9 +40,22 @@ type Config struct {
 	HTTPClient *http.Client
 	// Desktop turns on the settings of the desktop app; nil in the server
 	Desktop *DesktopConfig
-	UI      fs.FS
-	Logger  *slog.Logger
+	// UpdateCheck turns on the daily look at GitHub Releases while it returns true; nil: never
+	UpdateCheck func() bool
+	UpdateAPI   string // GitHub API address, for tests
+	UI          fs.FS
+	Logger      *slog.Logger
 }
+
+// updates is api.Updates over the checker.
+type updates struct {
+	*update.Checker
+	enabled func() bool
+}
+
+func (u updates) Enabled() bool { return u.enabled() }
+
+var _ api.Updates = updates{}
 
 // DesktopConfig is what the desktop app adds to the core.
 type DesktopConfig struct {
@@ -106,6 +121,12 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 			broker.Publish("server_status", serverStatusEvent(serverID, status))
 		})
 	ssh := &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}
+	var updateDeps api.Updates
+	if cfg.UpdateCheck != nil {
+		checker := update.NewChecker(update.Options{Current: version.Version, API: cfg.UpdateAPI})
+		go checker.Run(ctx, cfg.UpdateCheck)
+		updateDeps = updates{Checker: checker, enabled: cfg.UpdateCheck}
+	}
 	var desktopSettings *desktop.Settings
 	var desktopRuntime api.DesktopRuntime
 	if cfg.Desktop != nil {
@@ -133,7 +154,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		db:    db,
 		store: s,
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
-			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}, Desktop: desktopRuntime}),
+			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}, Desktop: desktopRuntime, Updates: updateDeps}),
 		broker:  broker,
 		manager: manager,
 		ssh:     pool,

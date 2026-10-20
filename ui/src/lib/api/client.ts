@@ -20,6 +20,16 @@ import type {
   StreamEvent,
 } from './types';
 
+export interface UpdateInfo {
+  /** The check is on: the server with --update-check, the desktop with its setting */
+  enabled: boolean;
+  current: string;
+  latest?: string;
+  url?: string;
+  newer: boolean;
+  checked_at?: number;
+}
+
 export interface ImportResult {
   servers_created: string[];
   projects_created: string[];
@@ -57,6 +67,8 @@ export interface ListMessagesParams {
 
 export interface Transport {
   getVersion(): Promise<Version>;
+  /** The last answer of the update check. */
+  getUpdates(): Promise<UpdateInfo>;
   getDesktopSettings(): Promise<DesktopSettings>;
   updateDesktopSettings(settings: DesktopSettings): Promise<DesktopSettings>;
   listRequests(params: ListRequestsParams): Promise<RequestPage>;
@@ -186,6 +198,7 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
 
   return {
     getVersion: () => getJSON<Version>('/api/v1/version'),
+    getUpdates: () => getJSON<UpdateInfo>('/api/v1/updates'),
     getDesktopSettings: () => getJSON<DesktopSettings>('/api/v1/desktop/settings'),
     updateDesktopSettings: (settings) =>
       request<DesktopSettings>('PUT', '/api/v1/desktop/settings', {}, settings),

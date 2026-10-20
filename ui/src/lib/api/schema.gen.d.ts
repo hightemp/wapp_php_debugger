@@ -348,6 +348,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a newer version is out (GitHub Releases, asked at most once a day)
+         * @description The check is off in the server without --update-check and in the desktop with update_check off; then enabled is false and nothing is asked.
+         */
+        get: operations["getUpdates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -1565,6 +1585,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DesktopSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The last answer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        current: string;
+                        latest?: string;
+                        /** @description Page of the release */
+                        url?: string;
+                        newer: boolean;
+                        /** Format: int64 */
+                        checked_at?: number;
+                    };
                 };
             };
             default: components["responses"]["Problem"];

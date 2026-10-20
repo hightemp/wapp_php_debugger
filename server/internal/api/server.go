@@ -25,6 +25,19 @@ func (s *server) GetVersion(context.Context, GetVersionRequestObject) (GetVersio
 	return GetVersion200JSONResponse{App: app, Version: version.Version, Commit: version.Commit, Date: version.Date}, nil
 }
 
+// GetUpdates returns the last answer of the update check.
+func (s *server) GetUpdates(context.Context, GetUpdatesRequestObject) (GetUpdatesResponseObject, error) {
+	if s.deps.Updates == nil || !s.deps.Updates.Enabled() {
+		return GetUpdates200JSONResponse{Enabled: false, Current: version.Version}, nil
+	}
+	last := s.deps.Updates.Last()
+	response := GetUpdates200JSONResponse{Enabled: true, Current: last.Current, Newer: last.Newer, Latest: optional(last.Latest), Url: optional(last.URL)}
+	if last.CheckedAt != 0 {
+		response.CheckedAt = &last.CheckedAt
+	}
+	return response, nil
+}
+
 // GetDesktopSettings returns the settings of the desktop app.
 func (s *server) GetDesktopSettings(ctx context.Context, _ GetDesktopSettingsRequestObject) (GetDesktopSettingsResponseObject, error) {
 	if s.deps.Desktop == nil {

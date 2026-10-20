@@ -74,6 +74,32 @@ describe('App', () => {
     );
   });
 
+  it('tells about a newer version when the check is on', async () => {
+    const { transport } = fakeTransport({
+      getUpdates: vi.fn(async () => ({
+        enabled: true,
+        current: 'v0.3.0',
+        latest: 'v0.4.0',
+        url: 'https://github.com/hightemp/wapp_php_debugger/releases/tag/v0.4.0',
+        newer: true,
+      })),
+    });
+    render(App, { transport });
+    const link = await screen.findByRole('link', { name: 'v0.4.0 is out' });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://github.com/hightemp/wapp_php_debugger/releases/tag/v0.4.0',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('says nothing when the check is off or the version is current', async () => {
+    const { transport } = fakeTransport();
+    render(App, { transport });
+    await screen.findByText('v0.0.0-test');
+    expect(screen.queryByRole('link', { name: /is out/ })).not.toBeInTheDocument();
+  });
+
   it('opens a request and a message and keeps the selection in the URL', async () => {
     const { transport } = setup();
     render(App, { transport });

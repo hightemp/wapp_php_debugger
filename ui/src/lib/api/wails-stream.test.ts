@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWailsEventSource, isDesktop, type JSONStreamLike } from './wails-stream';
+import {
+  createWailsEventSource,
+  isDesktop,
+  openInBrowser,
+  type JSONStreamLike,
+} from './wails-stream';
 
 class FakeStream implements JSONStreamLike {
   onopen: (() => void) | null = null;
@@ -81,5 +86,13 @@ describe('isDesktop', () => {
     expect(isDesktop({ protocol: 'http:', hostname: 'wails.localhost' })).toBe(true);
     expect(isDesktop({ protocol: 'http:', hostname: '127.0.0.1' })).toBe(false);
     expect(isDesktop({ protocol: 'https:', hostname: 'debugger.example.test' })).toBe(false);
+  });
+});
+
+describe('openInBrowser', () => {
+  it('asks Wails to open the system browser', async () => {
+    const OpenURL = vi.fn(async () => {});
+    await openInBrowser('https://example.test/release', async () => ({ Browser: { OpenURL } }));
+    expect(OpenURL).toHaveBeenCalledWith('https://example.test/release');
   });
 });

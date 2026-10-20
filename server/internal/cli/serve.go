@@ -16,7 +16,12 @@ import (
 	"github.com/hightemp/wapp_php_debugger/server/web"
 )
 
-func newServeFlags(cfg *app.Config, output io.Writer) *flag.FlagSet {
+// serveFlags are the flags that are not fields of app.Config.
+type serveFlags struct {
+	updateCheck bool // the server stays offline by default
+}
+
+func newServeFlags(cfg *app.Config, extra *serveFlags, output io.Writer) *flag.FlagSet {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.Usage = func() {
@@ -31,18 +36,23 @@ func newServeFlags(cfg *app.Config, output io.Writer) *flag.FlagSet {
 	flags.StringVar(&cfg.ProjectName, "project", "", "project name (default: name of the --root directory)")
 	flags.StringVar(&cfg.ConfigPath, "config", "", "library dws_debugger.json (default: inside --root)")
 	flags.DurationVar(&cfg.ScanInterval, "scan-interval", 5*time.Second, "fallback rescan period; changes are picked up right away where the file system reports them")
+	flags.BoolVar(&extra.updateCheck, "update-check", false, "look at GitHub Releases once a day and tell the UI about a newer version")
 	return flags
 }
 
 // parseServe parses serve flags and fills in defaults.
 func parseServe(args []string, userConfigDir func() (string, error)) (app.Config, error) {
 	var cfg app.Config
-	flags := newServeFlags(&cfg, io.Discard)
+	var extra serveFlags
+	flags := newServeFlags(&cfg, &extra, io.Discard)
 	if err := flags.Parse(args); err != nil {
 		return cfg, err
 	}
 	if flags.NArg() > 0 {
 		return cfg, fmt.Errorf("unexpected argument %q", flags.Arg(0))
+	}
+	if extra.updateCheck {
+		cfg.UpdateCheck = func() bool { return true }
 	}
 	if cfg.ScanInterval <= 0 {
 		return cfg, errors.New("--scan-interval must be positive")
@@ -77,12 +87,12 @@ func parseServe(args []string, userConfigDir func() (string, error)) (app.Config
 func serve(args []string, stderr io.Writer) int {
 	cfg, err := parseServe(args, os.UserConfigDir)
 	if errors.Is(err, flag.ErrHelp) {
-		newServeFlags(&app.Config{}, stderr).Usage()
+		newServeFlags(&app.Config{}, &serveFlags{}, stderr).Usage()
 		return 0
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "serve: %v\n\n", err)
-		newServeFlags(&app.Config{}, stderr).Usage()
+		newServeFlags(&app.Config{}, &serveFlags{}, stderr).Usage()
 		return 2
 	}
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {

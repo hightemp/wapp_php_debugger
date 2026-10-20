@@ -242,3 +242,30 @@ func TestDesktopSettingsAreKeptAndApplied(t *testing.T) {
 		t.Fatalf("not kept: %+v", current)
 	}
 }
+
+func TestUpdateCheckWhenAskedFor(t *testing.T) {
+	github := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name":"v9.0.0","html_url":"https://example.test/v9"}`))
+	}))
+	t.Cleanup(github.Close)
+	ctx, cancel := context.WithCancel(context.Background())
+	core, err := Start(ctx, Config{DBPath: filepath.Join(t.TempDir(), "viewer.db"),
+		UpdateCheck: func() bool { return true }, UpdateAPI: github.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cancel(); core.Close() })
+	waitFor(t, func() bool {
+		_, body := call(t, core, http.MethodGet, "/api/v1/updates", nil)
+		return strings.Contains(body, `"latest":"v9.0.0"`)
+	})
+
+	off, err := Start(ctx, Config{DBPath: filepath.Join(t.TempDir(), "viewer.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(off.Close)
+	if _, body := call(t, off, http.MethodGet, "/api/v1/updates", nil); !strings.Contains(body, `"enabled":false`) {
+		t.Fatalf("no check asked for: %s", body)
+	}
+}

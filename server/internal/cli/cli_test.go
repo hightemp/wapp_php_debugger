@@ -60,6 +60,17 @@ func TestParseServeDefaults(t *testing.T) {
 	}
 }
 
+func TestTheUpdateCheckIsOffUnlessAsked(t *testing.T) {
+	cfg, err := parseServe(nil, func() (string, error) { return "/home/u/.config", nil })
+	if err != nil || cfg.UpdateCheck != nil {
+		t.Fatalf("by default the server never calls GitHub: %v", err)
+	}
+	cfg, err = parseServe([]string{"--update-check"}, func() (string, error) { return "/home/u/.config", nil })
+	if err != nil || cfg.UpdateCheck == nil || !cfg.UpdateCheck() {
+		t.Fatalf("--update-check: %v", err)
+	}
+}
+
 func TestParseServeLocalProject(t *testing.T) {
 	cfg, err := parseServe([]string{"--logs-dir", "/var/www/shop/tmp/logs", "--root", "/var/www/shop", "--addr", "127.0.0.1:9000", "--db", "/tmp/x.db"}, nil)
 	if err != nil {

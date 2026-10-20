@@ -86,3 +86,18 @@ export async function openWailsStream(name: string): Promise<JSONStreamLike> {
   };
   return runtime.JSONStream(name);
 }
+
+interface BrowserRuntime {
+  Browser: { OpenURL(url: string): Promise<void> };
+}
+
+async function loadRuntime(): Promise<BrowserRuntime> {
+  const runtimeUrl = '/wails/runtime.js';
+  return (await import(/* @vite-ignore */ runtimeUrl)) as BrowserRuntime;
+}
+
+/** Opens a link in the system browser: inside the desktop window a link would replace the UI. */
+export async function openInBrowser(url: string, load = loadRuntime): Promise<void> {
+  const runtime = await load();
+  await runtime.Browser.OpenURL(url);
+}

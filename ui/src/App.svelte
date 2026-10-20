@@ -7,8 +7,13 @@
   import RequestList from './components/RequestList.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
-  import { createHttpTransport, type Transport } from './lib/api/client';
-  import { createWailsEventSource, isDesktop, openWailsStream } from './lib/api/wails-stream';
+  import { createHttpTransport, type Transport, type UpdateInfo } from './lib/api/client';
+  import {
+    createWailsEventSource,
+    isDesktop,
+    openInBrowser,
+    openWailsStream,
+  } from './lib/api/wails-stream';
   import { i18n } from './lib/i18n/locale.svelte';
   import { formatRoute, parseRoute, type Route } from './lib/route';
 
@@ -23,6 +28,15 @@
   let version = $state('');
   let desktop = $state(false);
   let settingsOpen = $state(false);
+  let update = $state<UpdateInfo | undefined>(undefined);
+
+  // A newer version: asked now and every hour (the viewer itself asks GitHub once a day)
+  function checkUpdates() {
+    transport
+      .getUpdates()
+      .then((info) => (update = info.newer ? info : undefined))
+      .catch(() => (update = undefined));
+  }
   let route = $state<Route>(parseRoute(window.location.hash));
 
   // The feed the selection belongs to: a project, a server or everything
@@ -62,9 +76,14 @@
         desktop = info.app === 'desktop';
       })
       .catch(() => (version = ''));
+    checkUpdates();
+    const updates = setInterval(checkUpdates, 60 * 60 * 1000);
     const follow = () => (route = parseRoute(window.location.hash));
     window.addEventListener('hashchange', follow);
-    return () => window.removeEventListener('hashchange', follow);
+    return () => {
+      clearInterval(updates);
+      window.removeEventListener('hashchange', follow);
+    };
   });
 </script>
 
@@ -73,6 +92,22 @@
     <h1 class="title">{i18n.t('app.title')}</h1>
     {#if version}
       <span class="version">{version}</span>
+    {/if}
+    {#if update?.url}
+      {@const url = update.url}
+      <a
+        class="update"
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onclick={(event) => {
+          // Inside the desktop window the system browser opens it
+          if (isDesktop()) {
+            event.preventDefault();
+            void openInBrowser(url);
+          }
+        }}>{i18n.t('update.available', { version: update.latest ?? '' })}</a
+      >
     {/if}
     <span class="spacer"></span>
     <LanguageSwitch />
@@ -138,6 +173,14 @@
     font: inherit;
     font-size: var(--font-size-small);
     cursor: pointer;
+  }
+
+  .update {
+    padding: 0 var(--space-2);
+    border-radius: var(--radius);
+    background: var(--level-warning-soft);
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
   }
 
   .settings:focus-visible {
