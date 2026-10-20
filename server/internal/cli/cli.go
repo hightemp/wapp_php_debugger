@@ -12,6 +12,7 @@ const usage = `Usage: wapp-debugger <command>
 
 Commands:
   serve     run the viewer (serve --help for flags)
+  agent     push a logs directory to the viewer (agent --help)
   version   print version
   help      print this help
 `
@@ -26,6 +27,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "serve":
 		return serve(args[1:], stderr)
+	case "agent":
+		return runAgent(args[1:], stderr)
 	case "version", "--version":
 		fmt.Fprintf(stdout, "wapp-debugger %s\n", version.String())
 		return 0

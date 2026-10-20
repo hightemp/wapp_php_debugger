@@ -162,3 +162,25 @@ func TestParseServeTakesTheTokenFromTheEnvironment(t *testing.T) {
 		t.Fatalf("cfg = %+v, %v", cfg, err)
 	}
 }
+
+func TestParseAgent(t *testing.T) {
+	t.Setenv("WAPP_DEBUGGER_PUSH_TOKEN", "from-the-environment")
+	cfg, err := parseAgent([]string{"--logs-dir", "/var/www/app/tmp/logs", "--push", "http://viewer.lan:8821/ingest/v2"})
+	if err != nil || cfg.logsDir != "/var/www/app/tmp/logs" || cfg.url != "http://viewer.lan:8821/ingest/v2" || cfg.token != "from-the-environment" || cfg.interval != 2*time.Second {
+		t.Fatalf("agent: %+v %v", cfg, err)
+	}
+	for name, args := range map[string][]string{
+		"no logs dir": {"--push", "http://viewer.lan:8821/ingest/v2"},
+		"no address":  {"--logs-dir", "/l"},
+		"not http":    {"--logs-dir", "/l", "--push", "ftp://viewer.lan/ingest/v2"},
+		"extra":       {"--logs-dir", "/l", "--push", "http://v/ingest/v2", "more"},
+	} {
+		if _, err := parseAgent(args); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+	t.Setenv("WAPP_DEBUGGER_PUSH_TOKEN", "")
+	if _, err := parseAgent([]string{"--logs-dir", "/l", "--push", "http://v/ingest/v2"}); err == nil {
+		t.Error("no token: no error")
+	}
+}
