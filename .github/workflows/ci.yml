@@ -182,15 +182,28 @@ jobs:
       - name: Allow the WebKit sandbox on Ubuntu 24.04
         if: runner.os == 'Linux'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - name: GNU Make on Windows
+      - name: GNU Make and NSIS on Windows
         if: runner.os == 'Windows'
-        run: command -v make || choco install make -y
+        run: |
+          command -v make || choco install make -y
+          command -v makensis || choco install nsis -y
+          echo "C:/Program Files (x86)/NSIS" >> "$GITHUB_PATH"
       - run: make ui-deps
       - run: make desktop-vet
       # A real window opens: REST through the asset handler and the Wails event stream
       - run: make desktop-selftest
-      # The same archive release.yml attaches to a release
+      # The same installers release.yml attaches to a release
       - run: make desktop-package
+      - name: The AppImage starts on its own libraries
+        if: runner.os == 'Linux'
+        run: |
+          APPIMAGE_EXTRACT_AND_RUN=1 GSK_RENDERER=cairo WEBKIT_DISABLE_DMABUF_RENDERER=1 LIBGL_ALWAYS_SOFTWARE=1 \
+            xvfb-run -a -s "-screen 0 1280x800x24" dist/release-desktop/*.AppImage --self-test
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-${{ runner.os }}
+          path: dist/release-desktop
+          retention-days: 7
 
   release-snapshot:
     name: Release snapshot

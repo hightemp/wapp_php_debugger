@@ -536,7 +536,7 @@ Server (local | ssh | http)   — тип подключения, парамет�
 - [ ] Свой заголовок окна (frameless) в стиле текущей темы: продолжение п. 6.3 про замену дефолтного UI. На macOS — нативные «светофоры», на Windows/Linux — свои кнопки.
 - [x] Иконка в трее/меню-баре со счётчиком новых ошибок, быстрое меню (пауза live, последние ошибки, открыть окно). — *фаза 9: счётчик непросмотренных запросов с ошибками (сбрасывается при фокусе окна), меню: открыть, последние 5 ошибок с переходом, выход; закрытие окна прячет его в трей (настройка). Паузы live в меню нет.*
 - [x] Системные уведомления о новых ошибках (по согласию в настройках, с фильтром по проекту и уровню). — *фаза 9: о запросе — один раз, при первой ошибке (или предупреждении — по настройке), в выбранных проектах; всплеск — одной сводкой «ещё N»; клик открывает запрос; язык — как в UI.*
-- [ ] Deep links `wapp-debugger://open?project=…&request=…` из браузера, IDE или чата. — *частично: разбор ссылки (только `open` с числовыми id) и переход в UI, из аргументов (Windows, Linux) и события macOS (фаза 9); регистрация схемы — в установщиках (шаг 7).*
+- [x] Deep links `wapp-debugger://open?project=…&request=…` из браузера, IDE или чата. — *частично: разбор ссылки (только `open` с числовыми id) и переход в UI, из аргументов (Windows, Linux) и события macOS (фаза 9); регистрация схемы — в `.desktop` (Linux), реестре HKCU (Windows), `Info.plist` (macOS).*
 - [x] Один экземпляр приложения (повторный запуск активирует окно и передаёт deep link). — *фаза 9: Wails SingleInstance, ссылка из второго запуска открывается в первом окне.*
 - [ ] Автозапуск при входе в систему (опция), запоминание размера и положения окна и раскладки панелей. — *частично: автозапуск (настройка) и размер, положение, развёрнутость окна (фаза 9); раскладка панелей не запоминается.*
 - [ ] Нативное меню приложения (macOS) с горячими клавишами, совпадающими с UI. — *частично: стандартные меню macOS (приложение, правка, вид, окно) с их сочетаниями (фаза 9); своих горячих клавиш в UI пока нет.*
@@ -545,8 +545,8 @@ Server (local | ssh | http)   — тип подключения, парамет�
 
 **Сборка и поставка:**
 
-- [ ] `make desktop-dev`, `make desktop-build`, `make desktop-package` (п. 3.1). — *частично: `desktop-build`, `desktop-package` есть; `desktop-dev` — нет.*
-- [ ] Установщики: macOS `.dmg` (universal: arm64 + amd64), Windows NSIS `.exe` (WebView2 — bootstrapper в установщике), Linux AppImage и `.deb` (зависимость `libwebkit2gtk`). ❓ *Нужны ли `.rpm`, Flatpak, Homebrew cask, winget, Scoop — п. 10.32.*
+- [x] `make desktop-dev`, `make desktop-build`, `make desktop-package` (п. 3.1). — *все три; `make icons` рисует иконки из SVG.*
+- [x] Установщики: macOS `.dmg` (universal: arm64 + amd64), Windows NSIS `.exe` (WebView2 — bootstrapper в установщике), Linux AppImage и `.deb` (зависимость `libwebkit2gtk`). ❓ *Нужны ли `.rpm`, Flatpak, Homebrew cask, winget, Scoop — п. 10.32.* — *фаза 9 (`make desktop-package`, `scripts/desktop-package.sh`): Linux — `.deb` (nfpm через `wails3 tool package`) и AppImage, Windows — NSIS `setup.exe` для пользователя без прав администратора (проверка WebView2 со ссылкой на загрузку, без встроенного bootstrapper), macOS — universal `.app` в `.dmg` (ad-hoc подпись); везде — схема `wapp-debugger://`. Каналы — только GitHub Releases (п. 10.32).*
 - [ ] Подпись и нотаризация (macOS Developer ID + notarytool, Windows Authenticode) в release workflow (п. 3.2). ❓ *п. 10.28.*
 - [x] Тесты: unit-тесты слоя `transport`, smoke-тест запуска собранного приложения в CI на трёх ОС (стартует, отдаёт UI, закрывается).
 

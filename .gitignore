@@ -6,3 +6,6 @@
 
 # Local data of the removed old viewer (its database), if any is left on disk
 /legacy/
+
+# Windows resources of the desktop app, made by scripts/desktop-package.sh
+/server/cmd/wapp-debugger-desktop/*.syso

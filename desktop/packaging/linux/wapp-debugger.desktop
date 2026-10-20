@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=wapp-debugger
+Comment=Log viewer for the PHP debugger
+Exec=wapp-debugger-desktop %u
+Icon=wapp-debugger
+Terminal=false
+Categories=Development;Debugger;
+MimeType=x-scheme-handler/wapp-debugger;
+StartupWMClass=wapp-debugger

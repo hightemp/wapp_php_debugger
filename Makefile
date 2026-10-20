@@ -24,6 +24,9 @@ GORELEASER_VERSION := v2.18.3
 GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
 GORELEASER := $(TOOLS_BIN)/goreleaser
 ACTIONLINT := $(TOOLS_BIN)/actionlint
+# The Wails CLI of the version in server/go.mod: AppImage, .deb, Windows resources
+WAILS_VERSION = $(shell cd server && go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
+WAILS3 = $(TOOLS_BIN)/wails3$(EXE)
 
 .PHONY: help
 help: ## Show the list of targets
@@ -52,6 +55,9 @@ $(GOLANGCI_LINT):
 
 $(ACTIONLINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+
+$(WAILS3):
+	GOBIN=$(TOOLS_BIN) go install -tags "$(if $(filter gtk3,$(LINUX_GTK)),gtk3)" github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION)
 
 # GoReleaser: the official binary, checked against the release checksums. Building it with go install
 # needs a newer Go than the project and pulls hundreds of modules, which made CI flaky.
@@ -234,17 +240,9 @@ release: $(GORELEASER) ui-build php-bundle ## Publish a draft GitHub release for
 release-snapshot: $(GORELEASER) ui-build php-bundle ## Local release check: server archives for all OSes in dist/release
 	$(GORELEASER) release --snapshot --clean
 
-DESKTOP_ARCHIVE := $(DIST)/release-desktop/wapp-debugger-desktop_$(patsubst v%,%,$(VERSION))_$(shell go env GOOS)_$(shell go env GOARCH)
-
 .PHONY: desktop-package
-desktop-package: desktop-build ## Archive the desktop app for the current OS into dist/release-desktop (unsigned)
-	rm -rf $(DIST)/release-desktop && mkdir -p $(DIST)/release-desktop
-	@if [ "$$(go env GOOS)" = windows ]; then \
-		powershell -NoProfile -Command "Compress-Archive -Path '$(DESKTOP_BIN)','README.md' -DestinationPath '$(DESKTOP_ARCHIVE).zip'"; \
-	else \
-		tar -czf $(DESKTOP_ARCHIVE).tar.gz -C $(DIST) $(notdir $(DESKTOP_BIN)) -C $(ROOT) README.md; \
-	fi
-	@ls $(DIST)/release-desktop
+desktop-package: $(WAILS3) ## Desktop app and its installers for the current OS into dist/release-desktop (unsigned)
+	scripts/desktop-package.sh $(VERSION) $(WAILS3)
 
 .PHONY: docker-build
 docker-build: ## Build the server image wapp-debugger:dev (see Dockerfile)
@@ -263,7 +261,7 @@ ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, n
 .PHONY: scripts-lint
 scripts-lint: ## shellcheck the shell scripts (shellcheck binary, or its Docker image)
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; \
-	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh; fi
+	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh; fi
 
 .PHONY: workflows-lint
 workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows

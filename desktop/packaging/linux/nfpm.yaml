@@ -1,0 +1,29 @@
+# .deb of the desktop app (scripts/desktop-package.sh runs it from the repository root).
+name: wapp-debugger
+arch: ${GOARCH}
+platform: linux
+version: ${VERSION}
+section: devel
+priority: optional
+maintainer: hightemp <hightemp@users.noreply.github.com>
+description: |
+  Log viewer for the PHP debugger wapp-debugger: requests, messages and errors
+  of PHP projects on this machine and on servers over SSH.
+vendor: hightemp
+homepage: https://github.com/hightemp/wapp_php_debugger
+license: MIT
+depends:
+  - libgtk-4-1
+  - libwebkitgtk-6.0-4
+contents:
+  - src: ./dist/wapp-debugger-desktop
+    dst: /usr/bin/wapp-debugger-desktop
+  - src: ./desktop/packaging/linux/wapp-debugger.desktop
+    dst: /usr/share/applications/wapp-debugger.desktop
+  - src: ./desktop/icons/icon-256.png
+    dst: /usr/share/icons/hicolor/256x256/apps/wapp-debugger.png
+  - src: ./desktop/icons/icon.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/wapp-debugger.svg
+scripts:
+  postinstall: ./desktop/packaging/linux/postinstall.sh
+  postremove: ./desktop/packaging/linux/postinstall.sh

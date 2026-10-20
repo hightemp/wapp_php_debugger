@@ -71,9 +71,12 @@ jobs:
       - name: Linux dependencies (GTK4, WebKitGTK 6.0)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
-      - name: GNU Make on Windows
+      - name: GNU Make and NSIS on Windows
         if: runner.os == 'Windows'
-        run: command -v make || choco install make -y
+        run: |
+          command -v make || choco install make -y
+          command -v makensis || choco install nsis -y
+          echo "C:/Program Files (x86)/NSIS" >> "$GITHUB_PATH"
       - run: make ui-deps desktop-package
       - name: Attach to the draft release
         run: gh release upload "$GITHUB_REF_NAME" dist/release-desktop/* --clobber
