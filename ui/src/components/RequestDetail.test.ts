@@ -146,6 +146,13 @@ describe('RequestDetail', () => {
     expect(await screen.findByText('Request not found')).toBeInTheDocument();
   });
 
+  it('exports the request as a file', async () => {
+    setup();
+    const link = await screen.findByRole('link', { name: 'Export' });
+    expect(link).toHaveAttribute('href', '/api/v1/requests/42/export');
+    expect(link).toHaveAttribute('download');
+  });
+
   it('pins the request and keeps a note on it', async () => {
     const { transport } = setup({
       markRequest: vi.fn(async (id: number, patch: { pinned?: boolean; note?: string }) =>

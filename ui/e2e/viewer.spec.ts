@@ -130,3 +130,22 @@ test('the copy buttons of the context are reachable from the keyboard', async ({
   await expect(copy).toBeFocused();
   await expect(copy).toBeVisible();
 });
+
+test('a request exported as a file comes back by import', async ({ page }) => {
+  await openTheItemPage(page);
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Export' }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toMatch(/^request-.+\.jsonl$/);
+  const path = await download.path();
+
+  await page
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: 'shop' })
+    .click();
+  await page.getByLabel('Import a request').setInputFiles(path);
+  await expect(page.getByText('The project has this request already')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 2, name: /\/catalog\/item\?id=42/ }),
+  ).toBeVisible();
+});

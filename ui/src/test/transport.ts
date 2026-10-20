@@ -104,6 +104,7 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       date: '',
     })),
     // The update check is off by default
+    importRequest: vi.fn(async () => ({ request_id: 1, created: true })),
     markRequest: vi.fn(async (id: number) => sampleRequest(id)),
     getMessageSource: vi.fn(async () => ({
       file: 'x.php',

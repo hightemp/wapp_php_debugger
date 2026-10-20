@@ -39,6 +39,10 @@ const en = {
   'feed.searchHint':
     'Words or URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Errors only',
+  'transfer.export': 'Export',
+  'transfer.import': 'Import a request',
+  'transfer.exists': 'The project has this request already',
+  'transfer.failed': 'Not imported: {error}',
   'replay.curl': 'Copy as curl',
   'replay.open': 'Open again',
   'replay.xdebug': 'With Xdebug',
@@ -313,6 +317,10 @@ const ru: Record<MessageKey, Entry> = {
   'feed.searchHint':
     'Слова или URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Только с ошибками',
+  'transfer.export': 'Экспорт',
+  'transfer.import': 'Импорт запроса',
+  'transfer.exists': 'Этот запрос в проекте уже есть',
+  'transfer.failed': 'Не импортировано: {error}',
   'replay.curl': 'Копировать как curl',
   'replay.open': 'Открыть снова',
   'replay.xdebug': 'С Xdebug',

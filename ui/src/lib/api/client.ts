@@ -87,6 +87,8 @@ export interface Transport {
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
   getMessage(id: number): Promise<MessageDetail>;
+  /** Adds a request from a log format v2 stream; created=false when the project has it already. */
+  importRequest(projectId: number, text: string): Promise<{ request_id: number; created: boolean }>;
   /** Pins a request or sets its note (an empty note removes it). */
   markRequest(id: number, patch: { pinned?: boolean; note?: string }): Promise<Request>;
   /** Lines of the file around the message, or around a frame of its backtrace. */
@@ -223,6 +225,18 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     listMessages: (requestId, params) =>
       getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
     getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
+    importRequest: async (projectId, text) => {
+      const response = await exchange(
+        'POST',
+        `${options.baseUrl}/api/v1/projects/${projectId}/import`,
+        {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/x-ndjson' },
+          body: text,
+        },
+      );
+      return (await response.json()) as { request_id: number; created: boolean };
+    },
     markRequest: (id, patch) => request<Request>('PATCH', `/api/v1/requests/${id}`, {}, patch),
     getMessageSource: (id, frame) =>
       getJSON<SourcePreview>(`/api/v1/messages/${id}/source`, frame === undefined ? {} : { frame }),

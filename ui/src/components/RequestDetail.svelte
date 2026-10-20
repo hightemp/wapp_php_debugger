@@ -201,6 +201,9 @@
           aria-expanded={editingNote}
           onclick={() => (editingNote = !editingNote)}>{i18n.t('marks.note')}</button
         >
+        <a class="mark" href={`/api/v1/requests/${request.id}/export`} download
+          >{i18n.t('transfer.export')}</a
+        >
         <RequestReplay {transport} {request} {messages} />
       </div>
       {#if editingNote}
@@ -349,6 +352,10 @@
     font: inherit;
     font-size: var(--font-size-small);
     cursor: pointer;
+  }
+
+  a.mark {
+    text-decoration: none;
   }
 
   .mark[aria-pressed='true'] {

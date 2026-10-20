@@ -48,6 +48,45 @@ describe('ProjectsPanel', () => {
     expect(onselect).toHaveBeenLastCalledWith(undefined);
   });
 
+  it('imports a request into the selected project and opens it', async () => {
+    const onopenrequest = vi.fn();
+    const fake = fakeTransport({
+      listProjects: vi.fn(async () => ({ items: [sampleProject(1, { name: 'shop' })] })),
+      importRequest: vi
+        .fn()
+        .mockResolvedValueOnce({ request_id: 77, created: true })
+        .mockResolvedValueOnce({ request_id: 77, created: false })
+        .mockRejectedValueOnce(new Error('3 lines are not events of log format v2')),
+    });
+    render(ProjectsPanel, {
+      transport: fake.transport,
+      selectedId: 1,
+      onselect: vi.fn(),
+      onopenrequest,
+    });
+    const { toasts } = await import('../lib/toasts.svelte');
+    toasts.clear();
+    const input = await screen.findByLabelText('Import a request');
+    const file = new File(['{"v":2}\n'], 'request.jsonl', { type: 'application/x-ndjson' });
+    await fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(fake.transport.importRequest).toHaveBeenCalledWith(1, '{"v":2}\n'));
+    await waitFor(() => expect(onopenrequest).toHaveBeenCalledWith(1, 77));
+
+    await fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() =>
+      expect(toasts.items.at(-1)?.text).toBe('The project has this request already'),
+    );
+    expect(onopenrequest).toHaveBeenCalledTimes(2);
+
+    await fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() =>
+      expect(toasts.items.at(-1)).toMatchObject({
+        kind: 'error',
+        text: 'Not imported: 3 lines are not events of log format v2',
+      }),
+    );
+  });
+
   it('switches the debugger of the selected project', async () => {
     const { transport } = setup(1);
     const toggle = await screen.findByRole('switch', { name: 'Debugger' });

@@ -5,6 +5,7 @@
   import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { onCommand } from '../lib/commands';
+  import { toasts } from '../lib/toasts.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import ProjectDialog, { type ProjectFields } from './ProjectDialog.svelte';
   import ServersDialog from './ServersDialog.svelte';
@@ -16,6 +17,7 @@
     selectedServerId,
     onselect,
     onselectserver = () => {},
+    onopenrequest = () => {},
   }: {
     transport: Transport;
     selectedId?: number;
@@ -23,6 +25,8 @@
     onselect: (id: number | undefined) => void;
     /** A server header shows the feed of that server. */
     onselectserver?: (id: number) => void;
+    /** Opens a request of a project: the one just imported */
+    onopenrequest?: (projectId: number, requestId: number) => void;
   } = $props();
 
   let projects = $state<Project[]>([]);
@@ -68,6 +72,31 @@
   onMount(() => {
     void load().catch(() => {});
   });
+
+  // A request exported elsewhere (or a log file of the library) goes into the selected project
+  async function importRequest(event: Event & { currentTarget: HTMLInputElement }) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    const projectId = selected?.id;
+    input.value = '';
+    if (!file || projectId === undefined) {
+      return;
+    }
+    try {
+      const result = await transport.importRequest(projectId, await file.text());
+      if (!result.created) {
+        toasts.push({ text: i18n.t('transfer.exists') });
+      }
+      onopenrequest(projectId, result.request_id);
+    } catch (error) {
+      toasts.push({
+        kind: 'error',
+        text: i18n.t('transfer.failed', {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      });
+    }
+  }
 
   let panel = $state<HTMLElement>();
   $effect(() =>
@@ -246,6 +275,16 @@
       <button type="button" class="action" onclick={() => (dialog = 'edit')}
         >{i18n.t('projects.settings')}</button
       >
+      <label class="action">
+        {i18n.t('transfer.import')}
+        <input
+          class="file"
+          type="file"
+          accept=".jsonl,.ndjson,application/x-ndjson"
+          aria-label={i18n.t('transfer.import')}
+          onchange={importRequest}
+        />
+      </label>
       <button type="button" class="action" onclick={() => (confirm = 'clear')}
         >{i18n.t('projects.clear')}</button
       >
@@ -315,6 +354,24 @@
 />
 
 <style>
+  /* The file input stays reachable from the keyboard inside its label, out of sight */
+  .file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  label.action {
+    position: relative;
+    cursor: pointer;
+  }
+
+  label.action:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
   .clock {
     color: var(--level-warning);
     font-size: var(--font-size-small);

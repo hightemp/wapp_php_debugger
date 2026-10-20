@@ -286,6 +286,7 @@
         {transport}
         selectedId={route.projectId}
         selectedServerId={route.serverId}
+        onopenrequest={(projectId, requestId) => navigate({ projectId, requestId })}
         onselect={(id) => navigate({ projectId: id })}
         onselectserver={(id) => navigate({ serverId: id })}
       />
