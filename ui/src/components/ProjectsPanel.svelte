@@ -73,7 +73,8 @@
     void load().catch(() => {});
   });
 
-  // A request exported elsewhere (or a log file of the library) goes into the selected project
+  // A request exported elsewhere, a log file of the library, or a log of PHP, Laravel or nginx goes
+  // into the selected project
   async function importRequest(event: Event & { currentTarget: HTMLInputElement }) {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -83,7 +84,7 @@
       return;
     }
     try {
-      const result = await transport.importRequest(projectId, await file.text());
+      const result = await transport.importRequest(projectId, await file.text(), file.name);
       if (!result.created) {
         toasts.push({ text: i18n.t('transfer.exists') });
       }
@@ -280,7 +281,7 @@
         <input
           class="file"
           type="file"
-          accept=".jsonl,.ndjson,application/x-ndjson"
+          accept=".jsonl,.ndjson,.log,.txt,application/x-ndjson,text/plain"
           aria-label={i18n.t('transfer.import')}
           onchange={importRequest}
         />

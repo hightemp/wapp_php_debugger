@@ -408,12 +408,20 @@ paths:
     post:
       tags: [requests]
       operationId: importRequest
-      summary: Add a request from a log format v2 stream (an export or a log file of the library)
+      summary: Add a request from a log format v2 stream, or a log of PHP, Laravel or nginx
       description: |
-        The stream must be one whole request: request_start first, seq without gaps, every line an
-        event of format v2; otherwise 400 and nothing is saved. A request whose request_id the project
-        has already is not imported again: the answer points to it (created=false).
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+        A v2 stream (an export, a log file of the library) must be one whole request: request_start
+        first, seq without gaps, every line an event of format v2; otherwise 400 and nothing is saved.
+        A PHP error log, a Laravel log or an nginx error log (told by its first line) becomes one
+        request named after the file, an entry a message. A request whose request_id the project has
+        already is not imported again: the answer points to it (created=false); the same third-party
+        file gives the same request_id.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: name
+          in: query
+          description: The file name, for the request made of a third-party log
+          schema: { type: string, maxLength: 255 }
       requestBody:
         required: true
         content:

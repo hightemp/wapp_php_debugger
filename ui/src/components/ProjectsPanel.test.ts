@@ -69,7 +69,9 @@ describe('ProjectsPanel', () => {
     const input = await screen.findByLabelText('Import a request');
     const file = new File(['{"v":2}\n'], 'request.jsonl', { type: 'application/x-ndjson' });
     await fireEvent.change(input, { target: { files: [file] } });
-    await waitFor(() => expect(fake.transport.importRequest).toHaveBeenCalledWith(1, '{"v":2}\n'));
+    await waitFor(() =>
+      expect(fake.transport.importRequest).toHaveBeenCalledWith(1, '{"v":2}\n', 'request.jsonl'),
+    );
     await waitFor(() => expect(onopenrequest).toHaveBeenCalledWith(1, 77));
 
     await fireEvent.change(input, { target: { files: [file] } });

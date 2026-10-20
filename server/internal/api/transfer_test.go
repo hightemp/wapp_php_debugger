@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,4 +98,29 @@ func postNDJSON(t *testing.T, url, body string) (*http.Response, string) {
 	defer func() { _ = response.Body.Close() }()
 	data, _ := io.ReadAll(response.Body)
 	return response, string(data)
+}
+
+func TestImportAThirdPartyLog(t *testing.T) {
+	e := newTestEnv(t)
+	laravel, err := os.ReadFile(filepath.Join(filepath.Dir(specPath(t)), "fixtures/thirdparty/laravel.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	url := e.server.URL + "/api/v1/projects/1/import?name=laravel-2026-10-20.log"
+	response, body := postNDJSON(t, url, string(laravel))
+	var result ImportRequest200JSONResponse
+	_ = json.Unmarshal([]byte(body), &result)
+	if response.StatusCode != http.StatusOK || !result.Created {
+		t.Fatalf("import: %d %s", response.StatusCode, body)
+	}
+	_, detail := get(t, fmt.Sprintf("%s/api/v1/requests/%d", e.server.URL, result.RequestId))
+	if !strings.Contains(detail, `"argv":["laravel-2026-10-20.log"]`) || !strings.Contains(detail, `"error_count":1`) {
+		t.Fatalf("detail: %s", detail)
+	}
+	response, body = postNDJSON(t, url, string(laravel))
+	var again ImportRequest200JSONResponse
+	_ = json.Unmarshal([]byte(body), &again)
+	if again.Created || again.RequestId != result.RequestId {
+		t.Fatalf("again: %d %s", response.StatusCode, body)
+	}
 }

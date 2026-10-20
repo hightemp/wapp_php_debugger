@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
 // The path of a user through the viewer, on logs the real library wrote (spec/fixtures/v2-library)
@@ -200,4 +201,23 @@ test('errors of a page come in as a child of its PHP request', async ({ page, re
   await expect(
     page.getByRole('button', { name: /Cannot read properties of undefined/ }),
   ).toBeVisible();
+});
+
+test('a Laravel log comes in as a request of its own', async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: 'shop' })
+    .click();
+  await page
+    .getByLabel('Import a request')
+    .setInputFiles(
+      fileURLToPath(new URL('../../spec/fixtures/thirdparty/laravel.log', import.meta.url)),
+    );
+  await expect(page.getByRole('heading', { level: 2, name: 'CLI' })).toBeVisible();
+  await expect(page.getByText('laravel.log', { exact: true })).toBeVisible();
+  const messages = page.getByRole('list', { name: 'Messages' });
+  await expect(messages).toContainText('User logged in');
+  await expect(messages).toContainText('SQLSTATE[42S02]: Base table or view not found');
+  await page.screenshot({ path: test.info().outputPath('laravel.png') });
 });

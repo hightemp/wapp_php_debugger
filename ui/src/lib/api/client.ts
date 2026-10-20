@@ -89,8 +89,15 @@ export interface Transport {
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
   getMessage(id: number): Promise<MessageDetail>;
-  /** Adds a request from a log format v2 stream; created=false when the project has it already. */
-  importRequest(projectId: number, text: string): Promise<{ request_id: number; created: boolean }>;
+  /**
+   * Adds a request from a log format v2 stream, or a log of PHP, Laravel or nginx (named by the file);
+   * created=false when the project has it already.
+   */
+  importRequest(
+    projectId: number,
+    text: string,
+    name?: string,
+  ): Promise<{ request_id: number; created: boolean }>;
   /** Pins a request or sets its note (an empty note removes it). */
   markRequest(id: number, patch: { pinned?: boolean; note?: string }): Promise<Request>;
   /** Lines of the file around the message, or around a frame of its backtrace. */
@@ -231,10 +238,11 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     listMessages: (requestId, params) =>
       getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
     getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
-    importRequest: async (projectId, text) => {
+    importRequest: async (projectId, text, name) => {
+      const query = name ? `?name=${encodeURIComponent(name)}` : '';
       const response = await exchange(
         'POST',
-        `${options.baseUrl}/api/v1/projects/${projectId}/import`,
+        `${options.baseUrl}/api/v1/projects/${projectId}/import${query}`,
         {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/x-ndjson' },

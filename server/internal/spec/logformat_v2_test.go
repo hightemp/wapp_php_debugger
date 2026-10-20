@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/hightemp/wapp_php_debugger/server/internal/thirdparty"
 )
 
 func v2Schema(t *testing.T) *jsonschema.Schema {
@@ -145,5 +147,30 @@ func TestV2FixturesDirectoryHasNoStrayFiles(t *testing.T) {
 		if !entry.IsDir() && !strings.HasSuffix(name, ".jsonl") && name != "README.md" {
 			t.Errorf("unexpected file %s: valid fixtures are *.jsonl", name)
 		}
+	}
+}
+
+// Third-party logs are imported as v2: what the converter writes obeys the same schema.
+func TestThirdPartyLogsBecomeValidV2(t *testing.T) {
+	schema := v2Schema(t)
+	for _, file := range globFixtures(t, "fixtures/thirdparty/*.log") {
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			data, ok, err := thirdparty.Convert(filepath.Base(file), readFile(t, file))
+			if err != nil || !ok {
+				t.Fatalf("ok %v, %v", ok, err)
+			}
+			for number, line := range bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n")) {
+				value, err := decodeJSON(line)
+				if err != nil {
+					t.Fatalf("line %d: %v", number+1, err)
+				}
+				if err := schema.Validate(value); err != nil {
+					t.Fatalf("line %d: %v\n%s", number+1, err, line)
+				}
+			}
+			if err := checkV2Stream(data); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

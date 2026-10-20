@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
+	"github.com/hightemp/wapp_php_debugger/server/internal/thirdparty"
 )
 
 // importLimit bounds an imported stream: the ingest takes messages up to 1 MB, thousands of them.
@@ -43,6 +44,18 @@ func (s *server) ImportRequest(ctx context.Context, request ImportRequestRequest
 	}
 	if len(data) > importLimit {
 		return ImportRequestdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem("the stream is larger than 64 MB"), StatusCode: http.StatusBadRequest}, nil
+	}
+	// A log of PHP, Laravel or nginx comes in as a request of its own
+	name := "imported.log"
+	if request.Params.Name != nil && *request.Params.Name != "" {
+		name = *request.Params.Name
+	}
+	converted, isThirdParty, err := thirdparty.Convert(name, data)
+	if err != nil {
+		return ImportRequestdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem(err.Error()), StatusCode: http.StatusBadRequest}, nil
+	}
+	if isThirdParty {
+		data = converted
 	}
 	id, err := s.deps.Store.ImportRequest(ctx, request.ProjectId, data)
 	var exists *store.ExistsError

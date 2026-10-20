@@ -1,0 +1,7 @@
+[2026-10-20 10:00:00] local.INFO: User logged in {"user_id":7}
+[2026-10-20 10:00:05] local.ERROR: SQLSTATE[42S02]: Base table or view not found {"exception":"[object] (Illuminate\\Database\\QueryException(code: 42S02): SQLSTATE[42S02] at /var/www/shop/vendor/laravel/framework/src/Illuminate/Database/Connection.php:822)
+[stacktrace]
+#0 /var/www/shop/app/Http/Controllers/OrderController.php(25): Illuminate\\Database\\Connection->select('select * from ...')
+#1 {main}
+"}
+[2026-10-20 10:00:09] production.WARNING: Slow request [] []

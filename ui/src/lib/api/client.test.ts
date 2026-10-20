@@ -129,6 +129,29 @@ describe('createHttpTransport', () => {
     ]);
   });
 
+  it('imports a request with the name of its file and manages push tokens', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ request_id: 9, created: true }))
+      .mockResolvedValueOnce(jsonResponse({ token: 'tok' }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const transport = createHttpTransport({ baseUrl: '', fetch: fetchMock });
+    await expect(transport.importRequest(3, 'line\n', 'laravel 1.log')).resolves.toEqual({
+      request_id: 9,
+      created: true,
+    });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/projects/3/import?name=laravel%201.log');
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+      body: 'line\n',
+      headers: { 'Content-Type': 'application/x-ndjson' },
+    });
+    await expect(transport.createIngestToken(3)).resolves.toEqual({ token: 'tok' });
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/projects/3/ingest-token');
+    await transport.deleteIngestToken(3);
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ method: 'DELETE' });
+  });
+
   it('exports and imports the config as YAML text', async () => {
     const fetchMock = vi
       .fn()
