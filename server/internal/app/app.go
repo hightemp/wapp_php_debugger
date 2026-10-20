@@ -158,7 +158,8 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		db:    db,
 		store: s,
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
-			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}, Desktop: desktopRuntime, Updates: updateDeps}),
+			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}, Desktop: desktopRuntime, Updates: updateDeps,
+			IngestAddr: cfg.IngestAddr}),
 		broker:  broker,
 		manager: manager,
 		ssh:     pool,
@@ -218,6 +219,9 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 			_ = listener.Close()
 			return fmt.Errorf("ingest: %w", err)
 		}
+	}
+	if ingestListener != nil {
+		cfg.IngestAddr = ingestListener.Addr().String() // a port of 0 is known now
 	}
 	core, err := Start(ctx, cfg)
 	if err != nil {

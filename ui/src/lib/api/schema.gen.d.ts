@@ -514,6 +514,11 @@ export interface components {
             commit: string;
             /** @example 2026-10-19T14:00:00Z */
             date: string;
+            /**
+             * @description Where the receiver of pushed logs listens (serve --ingest-addr); null when it is off
+             * @example 0.0.0.0:8821
+             */
+            ingest_addr?: string | null;
         };
         /** @enum {string} */
         ServerKind: "local" | "ssh" | "http";

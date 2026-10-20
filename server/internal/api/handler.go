@@ -71,16 +71,18 @@ var (
 
 // Deps are the dependencies of the HTTP layer.
 type Deps struct {
-	Store     *store.Store
-	Broker    *events.Broker
-	Projects  ProjectRuntime
-	SSH       SSHRuntime     // nil: ssh servers show an unknown connection
-	HTTP      HTTPRuntime    // nil: http servers cannot be added
-	Discover  Discoverer     // nil: no project search
-	Desktop   DesktopRuntime // nil in the server: no desktop settings
-	Updates   Updates        // nil: no update check
-	UI        fs.FS          // built Svelte UI (index.html and assets/)
-	Heartbeat time.Duration  // SSE heartbeat comment period; 0 means 15 seconds
+	Store    *store.Store
+	Broker   *events.Broker
+	Projects ProjectRuntime
+	SSH      SSHRuntime     // nil: ssh servers show an unknown connection
+	HTTP     HTTPRuntime    // nil: http servers cannot be added
+	Discover Discoverer     // nil: no project search
+	Desktop  DesktopRuntime // nil in the server: no desktop settings
+	Updates  Updates        // nil: no update check
+	// IngestAddr is where the receiver of pushed logs listens; empty when it is off
+	IngestAddr string
+	UI         fs.FS         // built Svelte UI (index.html and assets/)
+	Heartbeat  time.Duration // SSE heartbeat comment period; 0 means 15 seconds
 }
 
 // NewHandler builds the HTTP handler: /api/v1/* per spec/openapi.yaml, the SSE stream and the UI.

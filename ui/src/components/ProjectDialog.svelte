@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { ApiError } from '../lib/api/client';
+  import { ApiError, type Transport } from '../lib/api/client';
   import type { Project, Server } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
   import Dialog from './Dialog.svelte';
+  import IngestToken from './IngestToken.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import Select from './Select.svelte';
 
@@ -22,6 +23,7 @@
     open,
     project,
     servers = [],
+    transport,
     onsave,
     onclose,
   }: {
@@ -29,6 +31,8 @@
     project?: Project;
     /** Servers a new project can go to; the choice shows when there is more than one. */
     servers?: Server[];
+    /** For settings that apply at once, like the push token; editing only */
+    transport?: Transport;
     onsave: (fields: ProjectFields) => Promise<void>;
     onclose: () => void;
   } = $props();
@@ -211,6 +215,9 @@
         onchange={(value: Editor) => (editor = value)}
       />
     </div>
+    {#if project && transport}
+      <IngestToken {transport} {project} onchange={() => {}} />
+    {/if}
     {#if failure}
       <p class="failure" role="alert">{failure}</p>
     {/if}

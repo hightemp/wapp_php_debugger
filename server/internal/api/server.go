@@ -24,7 +24,8 @@ func (s *server) GetVersion(context.Context, GetVersionRequestObject) (GetVersio
 	if s.deps.Desktop != nil {
 		app = VersionAppDesktop
 	}
-	return GetVersion200JSONResponse{App: app, Version: version.Version, Commit: version.Commit, Date: version.Date}, nil
+	return GetVersion200JSONResponse{App: app, Version: version.Version, Commit: version.Commit, Date: version.Date,
+		IngestAddr: optional(s.deps.IngestAddr)}, nil
 }
 
 // GetUpdates returns the last answer of the update check.

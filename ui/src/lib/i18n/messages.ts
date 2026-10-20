@@ -39,6 +39,19 @@ const en = {
   'feed.searchHint':
     'Words or URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Errors only',
+  'ingest.title': 'Logs pushed over HTTP',
+  'ingest.on': 'Pushed logs are on',
+  'ingest.off': 'Pushed logs are off',
+  'ingest.hint':
+    'The library sends its events to the viewer instead of a shared folder: for containers and servers without SSH.',
+  'ingest.receiverOff':
+    'The receiver is off: start the viewer with --ingest-addr (e.g. 0.0.0.0:8821).',
+  'ingest.make': 'Make a push token',
+  'ingest.renew': 'Make a new token',
+  'ingest.stop': 'Stop pushed logs',
+  'ingest.config': 'Library config',
+  'ingest.once':
+    'Put these keys into dws_debugger.json of the project. The token is shown only now; a new one replaces it.',
   'transfer.export': 'Export',
   'transfer.import': 'Import a request',
   'transfer.exists': 'The project has this request already',
@@ -340,6 +353,19 @@ const ru: Record<MessageKey, Entry> = {
   'feed.searchHint':
     'Слова или URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Только с ошибками',
+  'ingest.title': 'Логи по HTTP',
+  'ingest.on': 'Приём логов по HTTP включён',
+  'ingest.off': 'Приём логов по HTTP выключен',
+  'ingest.hint':
+    'Библиотека отправляет события в просмотрщик вместо общей папки: для контейнеров и серверов без SSH.',
+  'ingest.receiverOff':
+    'Приёмник выключен: запустите просмотрщик с --ingest-addr (например, 0.0.0.0:8821).',
+  'ingest.make': 'Создать токен',
+  'ingest.renew': 'Создать новый токен',
+  'ingest.stop': 'Выключить приём',
+  'ingest.config': 'Конфиг библиотеки',
+  'ingest.once':
+    'Добавьте эти ключи в dws_debugger.json проекта. Токен показан только сейчас; новый заменяет старый.',
   'transfer.export': 'Экспорт',
   'transfer.import': 'Импорт запроса',
   'transfer.exists': 'Этот запрос в проекте уже есть',

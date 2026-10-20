@@ -286,6 +286,9 @@ func TestRunTakesPushedLogsOnTheIngestAddress(t *testing.T) {
 			func(addr string) { ready <- addr })
 	}()
 	addr, ingestAddr := <-ready, <-ingestReady
+	if body := getBody(t, "http://"+addr+"/api/v1/version"); !strings.Contains(body, `"ingest_addr":"`+ingestAddr+`"`) {
+		t.Fatalf("the UI is not told where the receiver is: %s", body)
+	}
 
 	response, err := http.Post("http://"+addr+"/api/v1/projects/1/ingest-token", "application/json", nil)
 	if err != nil {

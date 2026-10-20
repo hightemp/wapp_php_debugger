@@ -45,6 +45,8 @@ export interface Version {
   version: string;
   commit: string;
   date: string;
+  /** Where the receiver of pushed logs listens; null when it is off */
+  ingest_addr?: string | null;
 }
 
 export interface ListRequestsParams {
@@ -115,6 +117,10 @@ export interface Transport {
   createProject(input: ProjectInput): Promise<Project>;
   updateProject(id: number, patch: ProjectPatch): Promise<Project>;
   deleteProject(id: number): Promise<void>;
+  /** A new push token of the project, shown this once; the old one stops working. */
+  createIngestToken(id: number): Promise<{ token: string }>;
+  /** Stops pushed logs of the project. */
+  deleteIngestToken(id: number): Promise<void>;
   getDebuggerState(id: number): Promise<{ enabled: boolean }>;
   setDebuggerState(id: number, enabled: boolean): Promise<{ enabled: boolean }>;
   clearProjectLogs(id: number): Promise<{ removed_files: number }>;
@@ -276,6 +282,11 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     updateProject: (id, patch) => request<Project>('PATCH', `/api/v1/projects/${id}`, {}, patch),
     deleteProject: async (id) => {
       await request<unknown>('DELETE', `/api/v1/projects/${id}`);
+    },
+    createIngestToken: (id) =>
+      request<{ token: string }>('POST', `/api/v1/projects/${id}/ingest-token`),
+    deleteIngestToken: async (id) => {
+      await request<unknown>('DELETE', `/api/v1/projects/${id}/ingest-token`);
     },
     getDebuggerState: (id) => getJSON<{ enabled: boolean }>(`/api/v1/projects/${id}/debugger`),
     setDebuggerState: (id, enabled) =>

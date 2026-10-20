@@ -71,6 +71,7 @@ export function sampleProject(id: number, overrides: Partial<Project> = {}): Pro
     editor: 'vscode',
     retention: {},
     pending_files: 0,
+    ingest_enabled: false,
     created_at: 0,
     updated_at: 0,
     ...overrides,
@@ -104,6 +105,8 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       date: '',
     })),
     // The update check is off by default
+    createIngestToken: vi.fn(async () => ({ token: 'tok_test_0123456789abcdef0123456789' })),
+    deleteIngestToken: vi.fn(async () => {}),
     importRequest: vi.fn(async () => ({ request_id: 1, created: true })),
     markRequest: vi.fn(async (id: number) => sampleRequest(id)),
     getMessageSource: vi.fn(async () => ({

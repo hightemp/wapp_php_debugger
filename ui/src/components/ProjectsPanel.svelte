@@ -314,6 +314,7 @@
 />
 <ProjectDialog
   {servers}
+  {transport}
   open={dialog !== 'none'}
   project={dialog === 'edit' ? selected : undefined}
   onsave={save}

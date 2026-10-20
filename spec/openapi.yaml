@@ -843,6 +843,11 @@ components:
         version: { type: string, example: v0.1.0 }
         commit: { type: string, example: abc1234 }
         date: { type: string, example: '2026-10-19T14:00:00Z' }
+        ingest_addr:
+          type: string
+          nullable: true
+          example: 0.0.0.0:8821
+          description: Where the receiver of pushed logs listens (serve --ingest-addr); null when it is off
 
     ServerKind:
       type: string
