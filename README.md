@@ -76,9 +76,27 @@ The one-liners work from the first published release that carries these files (v
    # open http://127.0.0.1:8820
    ```
 
-   The project root is found by `dws_debugger.json` above the logs directory. New and changed log files are imported in the background and new requests appear on the page as they happen. More projects are added in the UI ("Add project"); the debugger switch there flips `bIsOnFlag`.
+   The project root is found by `dws_debugger.json` above the logs directory. New and changed log files are imported in the background and new requests appear on the page as they happen. More projects are added in the UI ("Add project"); the debugger switch there flips `enabled` in `dws_debugger.json` (`bIsOnFlag` of a v1 config).
 
 The UI speaks English and Russian and has light, dark and high-contrast themes (switches in the header). Search looks for words in messages and their context or for a part of the URL.
+
+## Projects on other servers
+
+Servers are added under **Servers** in the projects panel; a project then goes to its server ("Add project", the server choice). **Check** on a server shows each step: the connection, the logs directory of each project (readable, writable), the library config and the PHP version.
+
+### SSH
+
+The main way: nothing to open on the server, no extra software there.
+
+- The host is a name or an alias from `~/.ssh/config`: `HostName`, `User`, `Port`, `IdentityFile`, `IdentitiesOnly` and `ProxyJump` chains are honoured. Keys come from `IdentityFile` first, then from ssh-agent (`SSH_AUTH_SOCK`). Passwords and keys with a passphrase not loaded into the agent are not supported yet.
+- Host keys are checked against `~/.ssh/known_hosts`. A new host shows its fingerprint and key type with the command to compare it on the server (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`); the confirmed key goes to the viewer's own file, `~/.ssh/known_hosts` is never written. A changed key is refused.
+- Logs are read over SFTP and polled every 2 seconds; one connection per server with keepalive and reconnection. The debugger switch rewrites `dws_debugger.json` on the server at once (a temporary file, then rename) and keeps its permissions. A **read-only** server allows neither.
+- Logs of PHP inside Docker on that server: point the project to the volume directory on the host.
+- IDE links of a remote project open the local copy when the project has one ("Local copy for IDE links"), otherwise the file on the server through VS Code (or Cursor) Remote-SSH.
+
+### HTTP mode of the library
+
+For servers without SSH access (shared hosting). Set `http_token` (32+ characters) in the project's `dws_debugger.json` — the library then answers its own API, see [client-php/README.md](client-php/README.md#http-mode) — and add a server of kind **HTTP** with the application address and that token. Use `https://`: over plain `http://` the token and the logs travel unencrypted, and the UI warns about it. The token is kept outside the database in `secrets.json` next to it, readable by the user only, and never shown again. One HTTP server is one application, so it holds one project; the library knows its logs directory.
 
 ## Desktop app
 
