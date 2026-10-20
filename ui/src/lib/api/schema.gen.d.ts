@@ -546,6 +546,11 @@ export interface components {
         };
         /** @enum {string} */
         Editor: "vscode" | "phpstorm" | "cursor" | "sublime" | "none";
+        /**
+         * @description How long the viewer keeps requests of the project in its database (the log files are not touched):
+         *     older than days, and the oldest beyond max_bytes of messages, are removed every 10 minutes. In
+         *     updateProject the object replaces both limits; null or a missing field means no limit.
+         */
         Retention: {
             days?: number | null;
             /** Format: int64 */

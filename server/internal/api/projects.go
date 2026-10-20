@@ -296,6 +296,7 @@ func (s *server) UpdateProject(ctx context.Context, request UpdateProjectRequest
 	}
 	if body.Retention != nil {
 		patch.RetentionDays, patch.RetentionMaxBytes = body.Retention.Days, body.Retention.MaxBytes
+		patch.SetRetention = true
 	}
 	project, err := s.deps.Store.UpdateProject(ctx, request.ProjectId, patch)
 	if failure, ok := storeProblem(err, "project"); ok {

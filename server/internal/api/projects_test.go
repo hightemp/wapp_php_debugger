@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -239,4 +240,23 @@ func TestServerPermissionsGuardChanges(t *testing.T) {
 	send(t, http.MethodPatch, server, map[string]any{"permissions": map[string]bool{"read_only": true, "allow_delete": true, "allow_control": true}})
 	response, body = send(t, http.MethodDelete, fmt.Sprintf("%s/api/v1/projects/%d/logs", e.server.URL, project.Id), nil)
 	assertProblem(t, response, body, 403)
+}
+
+func TestProjectRetentionIsSetAndCleared(t *testing.T) {
+	e := newProjectsEnv(t)
+	project := e.createProject(t, "shop")
+	url := fmt.Sprintf("%s/api/v1/projects/%d", e.server.URL, project.Id)
+
+	_, body := send(t, http.MethodPatch, url, map[string]any{"retention": map[string]any{"days": 14, "max_bytes": 1048576}})
+	if !strings.Contains(body, `"retention":{"days":14,"max_bytes":1048576}`) {
+		t.Fatalf("set: %s", body)
+	}
+	_, body = send(t, http.MethodPatch, url, map[string]any{"name": "shop2"})
+	if !strings.Contains(body, `"days":14`) {
+		t.Fatalf("a patch without retention keeps it: %s", body)
+	}
+	_, body = send(t, http.MethodPatch, url, map[string]any{"retention": map[string]any{"days": nil, "max_bytes": 2097152}})
+	if !strings.Contains(body, `"retention":{"max_bytes":2097152}`) {
+		t.Fatalf("days cleared: %s", body)
+	}
 }

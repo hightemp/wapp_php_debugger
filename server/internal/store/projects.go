@@ -190,6 +190,9 @@ type ProjectPatch struct {
 	Editor            *string
 	RetentionDays     *int
 	RetentionMaxBytes *int64
+	// SetRetention replaces both limits with the two fields above, nil meaning no limit;
+	// without it nil keeps a limit as it is
+	SetRetention bool
 }
 
 // UpdateProject changes a project.
@@ -222,10 +225,10 @@ func (s *Store) UpdateProject(ctx context.Context, id int64, patch ProjectPatch)
 	if patch.Editor != nil {
 		project.Editor = *patch.Editor
 	}
-	if patch.RetentionDays != nil {
+	if patch.SetRetention || patch.RetentionDays != nil {
 		project.RetentionDays = patch.RetentionDays
 	}
-	if patch.RetentionMaxBytes != nil {
+	if patch.SetRetention || patch.RetentionMaxBytes != nil {
 		project.RetentionMaxBytes = patch.RetentionMaxBytes
 	}
 	_, err = s.db.ExecContext(ctx, `

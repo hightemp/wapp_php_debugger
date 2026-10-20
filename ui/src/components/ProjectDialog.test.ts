@@ -32,6 +32,35 @@ describe('ProjectDialog', () => {
     });
   });
 
+  it('keeps the database within the retention of a project', async () => {
+    const onsave = vi.fn(async () => {});
+    render(ProjectDialog, { open: true, onsave, onclose: vi.fn() });
+    await type('Name', 'shop');
+    await type('Project root', '/var/www/shop');
+    await type('Logs directory', '/var/www/shop/tmp/logs');
+    await type('Keep requests, days', '14');
+    await type('Keep up to, MB', 'x');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await type('Keep up to, MB', '500');
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onsave).toHaveBeenCalledWith(
+      expect.objectContaining({ retention: { days: 14, max_bytes: 500 * 1024 * 1024 } }),
+    );
+  });
+
+  it('clears the retention of a project', async () => {
+    const onsave = vi.fn(async () => {});
+    const project = sampleProject(3, { name: 'shop', retention: { days: 30, max_bytes: 1048576 } });
+    render(ProjectDialog, { open: true, project, onsave, onclose: vi.fn() });
+    expect(screen.getByLabelText('Keep requests, days')).toHaveValue('30');
+    expect(screen.getByLabelText('Keep up to, MB')).toHaveValue('1');
+    await type('Keep requests, days', '');
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onsave).toHaveBeenCalledWith(
+      expect.objectContaining({ retention: { days: null, max_bytes: 1048576 } }),
+    );
+  });
+
   it('edits an existing project', async () => {
     const onsave = vi.fn(async () => {});
     const project = sampleProject(3, { name: 'shop', local_path: '/home/dev/shop' });

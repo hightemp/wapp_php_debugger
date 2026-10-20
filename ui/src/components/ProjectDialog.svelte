@@ -15,6 +15,7 @@
     local_path?: string;
     config_path?: string;
     editor: Editor;
+    retention?: { days: number | null; max_bytes: number | null };
   }
 
   let {
@@ -41,6 +42,8 @@
   let configPath = $state('');
   let editor = $state<Editor>('vscode');
   let serverId = $state<number | undefined>(undefined);
+  let keepDays = $state('');
+  let keepMegabytes = $state('');
   let saving = $state(false);
   let failure = $state('');
 
@@ -54,6 +57,10 @@
       configPath = project ? project.config_path : '';
       editor = project?.editor ?? 'vscode';
       serverId = (servers.find((server) => server.kind === 'local') ?? servers[0])?.id;
+      keepDays = project?.retention.days ? String(project.retention.days) : '';
+      keepMegabytes = project?.retention.max_bytes
+        ? String(Math.max(1, Math.round(project.retention.max_bytes / megabyte)))
+        : '';
       failure = '';
     }
   });
@@ -62,8 +69,19 @@
   const viaLibrary = $derived(
     servers.find((server) => server.id === (project?.server_id ?? serverId))?.kind === 'http',
   );
+  const megabyte = 1024 * 1024;
+  // An empty field means no limit; anything else must be a whole number above zero
+  const limit = (value: string): number | null | undefined =>
+    value.trim() === '' ? null : /^[1-9]\d{0,6}$/.test(value.trim()) ? Number(value) : undefined;
+  const retention = $derived({ days: limit(keepDays), megabytes: limit(keepMegabytes) });
+  const retentionValid = $derived(
+    retention.days !== undefined && retention.megabytes !== undefined,
+  );
   const complete = $derived(
-    name.trim() !== '' && rootPath.trim() !== '' && (viaLibrary || logsDir.trim() !== ''),
+    name.trim() !== '' &&
+      rootPath.trim() !== '' &&
+      (viaLibrary || logsDir.trim() !== '') &&
+      retentionValid,
   );
 
   async function submit(event: SubmitEvent) {
@@ -79,6 +97,19 @@
     };
     if (!project && serverId !== undefined) {
       fields.server_id = serverId;
+    }
+    const days = retention.days ?? null;
+    const megabytes = retention.megabytes ?? null;
+    const maxBytes =
+      // Unchanged megabytes keep the exact byte limit set through the API
+      project?.retention.max_bytes &&
+      keepMegabytes === String(Math.max(1, Math.round(project.retention.max_bytes / megabyte)))
+        ? project.retention.max_bytes
+        : megabytes === null
+          ? null
+          : megabytes * megabyte;
+    if (project || days !== null || maxBytes !== null) {
+      fields.retention = { days, max_bytes: maxBytes };
     }
     // A new project sends only what was filled in; an edited one sends empty values to clear them
     if (project || localPath.trim() !== '') {
@@ -148,6 +179,29 @@
         />
       </label>
     {/if}
+    <div class="row">
+      <label class="field">
+        <span>{i18n.t('project.keepDays')}</span>
+        <input
+          bind:value={keepDays}
+          inputmode="numeric"
+          placeholder={i18n.t('project.noLimit')}
+          autocomplete="off"
+          aria-invalid={retention.days === undefined}
+        />
+      </label>
+      <label class="field">
+        <span>{i18n.t('project.keepMegabytes')}</span>
+        <input
+          bind:value={keepMegabytes}
+          inputmode="numeric"
+          placeholder={i18n.t('project.noLimit')}
+          autocomplete="off"
+          aria-invalid={retention.megabytes === undefined}
+        />
+      </label>
+    </div>
+    <p class="hint">{i18n.t('project.retentionHint')}</p>
     <div class="field">
       <span>{i18n.t('project.editor')}</span>
       <SegmentedControl
@@ -196,6 +250,22 @@
   input:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 0;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  .hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  input[aria-invalid='true'] {
+    border-color: var(--level-error);
   }
 
   .failure {

@@ -788,6 +788,10 @@ components:
 
     Retention:
       type: object
+      description: |
+        How long the viewer keeps requests of the project in its database (the log files are not touched):
+        older than days, and the oldest beyond max_bytes of messages, are removed every 10 minutes. In
+        updateProject the object replaces both limits; null or a missing field means no limit.
       properties:
         days: { type: integer, minimum: 1, nullable: true }
         max_bytes: { type: integer, format: int64, minimum: 1, nullable: true }

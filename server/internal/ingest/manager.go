@@ -28,6 +28,14 @@ type ManagerOptions struct {
 	Logger             *slog.Logger
 	// OnChange is called after a scan that created or updated requests of a project.
 	OnChange func(projectID int64, created, updated []int64)
+	// MaxScans is how many projects are scanned at once, so many servers do not load the viewer at
+	// the same moment; 4
+	MaxScans int
+	// ScanTimeout ends a scan that hangs on a slow server: its slot goes to the others; 2 min
+	ScanTimeout time.Duration
+	// PruneInterval is how often the retention of a project is applied to the database; 10 min
+	PruneInterval time.Duration
+	Now           func() time.Time // the clock of retention; time.Now
 }
 
 type running struct {
@@ -43,6 +51,8 @@ type Manager struct {
 	store    *store.Store
 	importer *Importer
 	options  ManagerOptions
+
+	slots chan struct{} // MaxScans tokens
 
 	mu      sync.Mutex
 	ctx     context.Context
@@ -66,7 +76,20 @@ func NewManager(s *store.Store, options ManagerOptions) *Manager {
 	if options.Sources == nil {
 		options.Sources = LocalSources
 	}
-	return &Manager{store: s, importer: New(s), options: options, running: map[int64]*running{}}
+	if options.MaxScans == 0 {
+		options.MaxScans = 4
+	}
+	if options.ScanTimeout == 0 {
+		options.ScanTimeout = 2 * time.Minute
+	}
+	if options.PruneInterval == 0 {
+		options.PruneInterval = 10 * time.Minute
+	}
+	if options.Now == nil {
+		options.Now = time.Now
+	}
+	return &Manager{store: s, importer: New(s), options: options, slots: make(chan struct{}, options.MaxScans),
+		running: map[int64]*running{}}
 }
 
 // Start launches a loop for every project. Loops stop when ctx is canceled.
@@ -155,6 +178,7 @@ func (m *Manager) Wait() {
 
 // loop scans a local project right after file changes (debounced so a growing file is not re-read
 // per line) and every PollInterval as a fallback; a remote project every RemotePollInterval.
+// A failing source is logged once per new error: an offline server would otherwise fill the log.
 func (m *Manager) loop(ctx context.Context, r *running) {
 	var signals <-chan struct{}
 	if r.remote {
@@ -162,10 +186,20 @@ func (m *Manager) loop(ctx context.Context, r *running) {
 	} else {
 		signals = watch.Dir(ctx, r.project.LogsDir, watch.Options{PollInterval: m.options.PollInterval, Debounce: 100 * time.Millisecond})
 	}
+	lastErr := ""
+	var pruned time.Time
 	for range signals {
-		result, err := m.importer.Scan(ctx, r.project.ID, r.source)
-		if err != nil && ctx.Err() == nil {
+		result, err := m.scan(ctx, r)
+		if ctx.Err() != nil {
+			return
+		}
+		switch {
+		case err != nil && err.Error() != lastErr:
 			m.options.Logger.Warn("scan logs", "project", r.project.Name, "error", err)
+			lastErr = err.Error()
+		case err == nil && lastErr != "":
+			m.options.Logger.Info("scan logs again", "project", r.project.Name)
+			lastErr = ""
 		}
 		for name, fileErr := range result.Failed {
 			m.options.Logger.Warn("skip log file", "project", r.project.Name, "file", name, "error", fileErr)
@@ -173,5 +207,37 @@ func (m *Manager) loop(ctx context.Context, r *running) {
 		if len(result.Created)+len(result.Updated) > 0 {
 			m.options.OnChange(r.project.ID, result.Created, result.Updated)
 		}
+		if now := m.options.Now(); err == nil && now.Sub(pruned) >= m.options.PruneInterval {
+			pruned = now
+			m.prune(ctx, r.project)
+		}
+	}
+}
+
+// scan imports new log data in one of the MaxScans slots, giving up after ScanTimeout.
+func (m *Manager) scan(ctx context.Context, r *running) (ScanResult, error) {
+	select {
+	case m.slots <- struct{}{}:
+	case <-ctx.Done():
+		return ScanResult{}, ctx.Err()
+	}
+	defer func() { <-m.slots }()
+	ctx, cancel := context.WithTimeout(ctx, m.options.ScanTimeout)
+	defer cancel()
+	return m.importer.Scan(ctx, r.project.ID, r.source)
+}
+
+// prune applies the retention of the project to the viewer's database.
+func (m *Manager) prune(ctx context.Context, project store.Project) {
+	if project.RetentionDays == nil && project.RetentionMaxBytes == nil {
+		return
+	}
+	removed, err := m.store.PruneRequests(ctx, project.ID, m.options.Now(), project.RetentionDays, project.RetentionMaxBytes)
+	if err != nil {
+		m.options.Logger.Warn("apply retention", "project", project.Name, "error", err)
+		return
+	}
+	if removed > 0 {
+		m.options.Logger.Info("retention", "project", project.Name, "removed_requests", removed)
 	}
 }

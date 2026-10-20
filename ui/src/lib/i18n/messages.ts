@@ -89,6 +89,11 @@ const en = {
   'project.name': 'Name',
   'project.rootPath': 'Project root',
   'project.logsDir': 'Logs directory',
+  'project.keepDays': 'Keep requests, days',
+  'project.keepMegabytes': 'Keep up to, MB',
+  'project.noLimit': 'no limit',
+  'project.retentionHint':
+    'How much the viewer keeps in its database; older requests go every 10 minutes. Log files are not touched.',
   'project.localPath': 'Local copy for IDE links',
   'project.configPath': 'Library config (dws_debugger.json)',
   'project.optional': 'optional',
@@ -279,6 +284,11 @@ const ru: Record<MessageKey, Entry> = {
   'project.name': 'Название',
   'project.rootPath': 'Корень проекта',
   'project.logsDir': 'Папка логов',
+  'project.keepDays': 'Хранить запросы, дней',
+  'project.keepMegabytes': 'Хранить не больше, МБ',
+  'project.noLimit': 'без ограничения',
+  'project.retentionHint':
+    'Сколько просмотрщик держит в своей базе; старые запросы удаляются раз в 10 минут. Файлы логов не трогаются.',
   'project.localPath': 'Локальная копия для ссылок в IDE',
   'project.configPath': 'Конфиг библиотеки (dws_debugger.json)',
   'project.optional': 'необязательно',
