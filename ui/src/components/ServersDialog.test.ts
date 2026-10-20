@@ -106,6 +106,48 @@ describe('ServersDialog', () => {
     expect(await within(stage).findByText('Connection works')).toBeInTheDocument();
   });
 
+  it('shows the steps of each project, warnings apart from failures', async () => {
+    const { transport } = setup();
+    vi.mocked(transport.checkServer).mockResolvedValueOnce({
+      ok: false,
+      steps: [
+        { name: 'connect', ok: true, detail: 'deploy@stage:22' },
+        { name: 'sftp', ok: true },
+        { name: 'logs_dir', ok: true, project: 'shop', detail: '/var/www/shop/logs' },
+        { name: 'library_config', ok: false, optional: true, project: 'shop', detail: 'not found' },
+        { name: 'logs_dir', ok: false, project: 'blog', detail: 'permission denied' },
+        { name: 'php', ok: true, optional: true, detail: 'PHP 7.4.33 (cli)' },
+      ],
+    });
+    const stage = await row('stage');
+    await fireEvent.click(within(stage).getByRole('button', { name: 'Check' }));
+    const step = async (text: string) =>
+      (await within(stage).findByText(text, { exact: false })).closest('li');
+    expect(await step('blog · Logs directory')).toHaveAttribute('data-status', 'failed');
+    expect(await step('shop · Library config')).toHaveAttribute('data-status', 'warning');
+    expect(await step('shop · Logs directory')).toHaveAttribute('data-status', 'ok');
+    expect(await step('PHP 7.4.33 (cli)')).toHaveAttribute('data-status', 'ok');
+    expect(stage).not.toHaveTextContent('Connection works');
+  });
+
+  it('keeps the steps on success, warnings included', async () => {
+    const { transport } = setup();
+    vi.mocked(transport.checkServer).mockResolvedValueOnce({
+      ok: true,
+      steps: [
+        { name: 'connect', ok: true },
+        { name: 'php', ok: false, optional: true, detail: 'php -v: command not found' },
+      ],
+    });
+    const stage = await row('stage');
+    await fireEvent.click(within(stage).getByRole('button', { name: 'Check' }));
+    expect(await within(stage).findByText('Connection works')).toBeInTheDocument();
+    expect((await within(stage).findByText(/command not found/)).closest('li')).toHaveAttribute(
+      'data-status',
+      'warning',
+    );
+  });
+
   it('follows the connection live', async () => {
     const { emit } = setup();
     const stage = await row('stage');

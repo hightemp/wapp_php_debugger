@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Transport } from '../lib/api/client';
-  import type { Server, ServerCheck, ServerInput } from '../lib/api/types';
+  import type { Server, ServerCheck, ServerCheckStep, ServerInput } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
   import type { MessageKey } from '../lib/i18n/messages';
   import ConfirmDialog from './ConfirmDialog.svelte';
@@ -67,6 +67,10 @@
     connect: 'step.connect',
     sftp: 'step.sftp',
     local: 'step.local',
+    logs_dir: 'step.logsDir',
+    logs_dir_writable: 'step.logsDirWritable',
+    library_config: 'step.libraryConfig',
+    php: 'step.php',
   };
 
   // The host key file on the server for a key type, to compare the fingerprint with
@@ -80,10 +84,21 @@
     return { label: 'ED25519', file: 'ssh_host_ed25519_key.pub' };
   }
 
-  function stepName(name: string): string {
-    const key = stepKeys[name];
-    return key ? i18n.t(key) : name;
+  function stepName(step: ServerCheckStep): string {
+    const key = stepKeys[step.name];
+    const name = key ? i18n.t(key) : step.name;
+    return step.project ? `${step.project} · ${name}` : name;
   }
+
+  // A failed optional step is a warning: the check still passes
+  function stepStatus(step: ServerCheckStep): 'ok' | 'warning' | 'failed' {
+    if (step.ok) {
+      return 'ok';
+    }
+    return step.optional ? 'warning' : 'failed';
+  }
+
+  const stepMarks = { ok: '✓', warning: '!', failed: '✗' } as const;
 
   async function check(server: Server) {
     checks[server.id] = { status: 'checking' };
@@ -161,17 +176,16 @@
         {:else if state?.status === 'done'}
           {#if state.result.ok}
             <p class="ok">{i18n.t('servers.checkOk')}</p>
-          {:else}
-            <ul class="steps">
-              {#each state.result.steps as step (step.name)}
-                <li class:failed={!step.ok}>
-                  <span aria-hidden="true">{step.ok ? '✓' : '✗'}</span>
-                  {stepName(step.name)}{#if step.detail}: <span class="detail">{step.detail}</span
-                    >{/if}
-                </li>
-              {/each}
-            </ul>
           {/if}
+          <ul class="steps">
+            {#each state.result.steps as step, index (index)}
+              {@const status = stepStatus(step)}
+              <li data-status={status}>
+                <span aria-hidden="true">{stepMarks[status]}</span>
+                {stepName(step)}{#if step.detail}: <span class="detail">{step.detail}</span>{/if}
+              </li>
+            {/each}
+          </ul>
           {#if state.result.host_key_fingerprint}
             {@const fingerprint = state.result.host_key_fingerprint}
             {@const key = hostKey(state.result.host_key_type)}
@@ -287,8 +301,12 @@
     list-style: none;
   }
 
-  .steps .failed {
+  .steps [data-status='failed'] {
     color: var(--level-error);
+  }
+
+  .steps [data-status='warning'] {
+    color: var(--level-warning);
   }
 
   .key {

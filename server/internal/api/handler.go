@@ -26,7 +26,7 @@ type ProjectRuntime interface {
 // SSHRuntime is the SSH side of the app: connection state, checks and host keys of ssh servers.
 type SSHRuntime interface {
 	Status(serverID int64) sshconn.Status
-	Check(ctx context.Context, server store.Server) (ServerCheck, error)
+	Check(ctx context.Context, server store.Server, projects []store.Project) (ServerCheck, error)
 	// TrustHostKey trusts the key the server presents if it has the confirmed fingerprint.
 	TrustHostKey(ctx context.Context, server store.Server, fingerprint string) error
 	// Forget closes the connection: the server was removed or its settings changed.

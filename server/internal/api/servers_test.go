@@ -36,7 +36,9 @@ func (f *fakeSSH) Status(serverID int64) sshconn.Status {
 	return sshconn.Status{State: sshconn.StateUnknown}
 }
 
-func (f *fakeSSH) Check(context.Context, store.Server) (ServerCheck, error) { return f.check, nil }
+func (f *fakeSSH) Check(context.Context, store.Server, []store.Project) (ServerCheck, error) {
+	return f.check, nil
+}
 
 func (f *fakeSSH) TrustHostKey(_ context.Context, server store.Server, fingerprint string) error {
 	f.mu.Lock()

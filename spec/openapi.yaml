@@ -650,15 +650,24 @@ components:
         ok: false
         steps:
           - { name: connect, ok: true }
-          - { name: logs_dir_readable, ok: false, detail: 'permission denied: /var/www/shop/tmp/logs' }
+          - { name: logs_dir, ok: false, project: shop, detail: 'permission denied: /var/www/shop/tmp/logs' }
+          - { name: php, ok: true, optional: true, detail: 'PHP 7.4.33 (cli)' }
 
     ServerCheckStep:
       type: object
       required: [name, ok]
       properties:
-        name: { type: string }
+        name:
+          type: string
+          description: config, connect, sftp, local; per project logs_dir, logs_dir_writable, library_config; php
         ok: { type: boolean }
         detail: { type: string }
+        project:
+          type: string
+          description: Name of the project the step checks; absent for steps of the server itself
+        optional:
+          type: boolean
+          description: A failed optional step is a warning and does not fail the check
 
     ProjectInput:
       type: object

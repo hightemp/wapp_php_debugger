@@ -11,6 +11,7 @@ export type ServerConnection = Schemas['ServerConnection'];
 export type ServerInput = Schemas['ServerInput'];
 export type ServerPatch = Schemas['ServerPatch'];
 export type ServerCheck = Schemas['ServerCheck'];
+export type ServerCheckStep = Schemas['ServerCheckStep'];
 export type Environment = Schemas['Environment'];
 export type Project = Schemas['Project'];
 export type ProjectInput = Schemas['ProjectInput'];

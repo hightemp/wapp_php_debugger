@@ -422,9 +422,16 @@ export interface components {
          *           "ok": true
          *         },
          *         {
-         *           "name": "logs_dir_readable",
+         *           "name": "logs_dir",
          *           "ok": false,
+         *           "project": "shop",
          *           "detail": "permission denied: /var/www/shop/tmp/logs"
+         *         },
+         *         {
+         *           "name": "php",
+         *           "ok": true,
+         *           "optional": true,
+         *           "detail": "PHP 7.4.33 (cli)"
          *         }
          *       ]
          *     }
@@ -439,9 +446,14 @@ export interface components {
             host_key_type?: string;
         };
         ServerCheckStep: {
+            /** @description config, connect, sftp, local; per project logs_dir, logs_dir_writable, library_config; php */
             name: string;
             ok: boolean;
             detail?: string;
+            /** @description Name of the project the step checks; absent for steps of the server itself */
+            project?: string;
+            /** @description A failed optional step is a warning and does not fail the check */
+            optional?: boolean;
         };
         ProjectInput: {
             /** Format: int64 */

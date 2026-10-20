@@ -101,7 +101,11 @@ func (s *server) CheckServer(ctx context.Context, request CheckServerRequestObje
 	case srv.Kind == "local":
 		return CheckServer200JSONResponse(ServerCheck{Ok: true, Steps: []ServerCheckStep{{Name: "local", Ok: true}}}), nil
 	case srv.Kind == "ssh" && s.deps.SSH != nil:
-		check, err := s.deps.SSH.Check(ctx, srv)
+		projects, err := s.deps.Store.ListProjects(ctx, srv.ID)
+		if err != nil {
+			return nil, err
+		}
+		check, err := s.deps.SSH.Check(ctx, srv, projects)
 		if err != nil {
 			return nil, err
 		}
