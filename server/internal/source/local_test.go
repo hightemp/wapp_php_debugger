@@ -135,3 +135,9 @@ func TestLocalDoesNotFollowSymlinksOrListDirectories(t *testing.T) {
 		t.Fatalf("ReadAt via symlink err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestLocalProjectFiles(t *testing.T) {
+	sourcetest.RunProjectFiles(t, func(t *testing.T, root string) source.ProjectFiles {
+		return source.NewLocal(filepath.Join(root, "tmp", "logs"), filepath.Join(root, "dws_debugger.json"))
+	})
+}

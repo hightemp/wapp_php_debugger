@@ -491,6 +491,34 @@ paths:
               schema: { $ref: '#/components/schemas/MessageDetail' }
         default: { $ref: '#/components/responses/Problem' }
 
+  /api/v1/messages/{message_id}/source:
+    get:
+      tags: [requests]
+      operationId: getMessageSource
+      summary: Lines of the source file around the place of a message or a frame of its backtrace
+      description: |
+        The path comes from the log, never from the client. The file is read from the project's server
+        (this machine or SSH) and only inside the project root, symlinks resolved; projects in the library
+        HTTP mode have no preview (404). 403 — the file resolves outside the root; 413 — over 1 MB;
+        415 — not text.
+      parameters:
+        - { $ref: '#/components/parameters/MessageId' }
+        - name: frame
+          in: query
+          description: Index in the backtrace; without it, the place of the message itself
+          schema: { type: integer, minimum: 0 }
+        - name: around
+          in: query
+          description: Lines before and after the line
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+      responses:
+        '200':
+          description: The lines
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SourcePreview' }
+        default: { $ref: '#/components/responses/Problem' }
+
   /api/v1/stream:
     get:
       tags: [stream]
@@ -820,6 +848,16 @@ components:
         optional:
           type: boolean
           description: A failed optional step is a warning and does not fail the check
+
+    SourcePreview:
+      type: object
+      required: [file, line, first_line, lines]
+      properties:
+        file: { type: string, description: Path relative to the project root when inside it }
+        line: { type: integer, description: The line of the message or frame }
+        first_line: { type: integer, description: Number of the first line in lines }
+        lines: { type: array, items: { type: string } }
+        editor_url: { type: string }
 
     DiscoveredProject:
       type: object

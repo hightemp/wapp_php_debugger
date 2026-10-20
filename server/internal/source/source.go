@@ -19,7 +19,22 @@ var (
 	ErrOffsetBeyondEnd = errors.New("offset beyond end of file")
 	// ErrNoConfig means the project has no debugger config, so there is nothing to switch.
 	ErrNoConfig = errors.New("debugger config not found")
+	// ErrOutsideRoot means a source file resolves (through .. or symlinks) outside the project root.
+	ErrOutsideRoot = errors.New("the file is outside the project root")
+	// ErrTooLarge means a source file is over the size the preview reads.
+	ErrTooLarge = errors.New("the file is too large to preview")
 )
+
+// ProjectFiles reads source files of the project (not its logs) for the code preview. The path is
+// a server path; it must resolve, symlinks included, to a regular file inside root.
+type ProjectFiles interface {
+	ReadProjectFile(ctx context.Context, root, path string, limit int64) ([]byte, error)
+}
+
+// within reports whether path is root or inside it; both are clean and absolute.
+func within(root, path string, separator string) bool {
+	return path == root || strings.HasPrefix(path, strings.TrimSuffix(root, separator)+separator)
+}
 
 // FileInfo is a log file in the project logs directory.
 type FileInfo struct {

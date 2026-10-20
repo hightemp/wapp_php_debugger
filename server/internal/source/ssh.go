@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/pkg/sftp"
@@ -188,3 +189,89 @@ func (s *SSH) SetEnabled(ctx context.Context, enabled bool) error {
 
 // Close does nothing: the pool owns the connection.
 func (s *SSH) Close() error { return nil }
+
+var _ ProjectFiles = (*SSH)(nil)
+
+// maxLinks bounds the symlinks followed while resolving a path, as the kernel does.
+const maxLinks = 40
+
+// ReadProjectFile reads a source file of the project over SFTP. Symlinks are resolved here, one
+// component at a time: SFTP realpath does not resolve them on every server.
+func (s *SSH) ReadProjectFile(ctx context.Context, root, file string, limit int64) ([]byte, error) {
+	client, err := s.files(ctx)
+	if err != nil {
+		return nil, err
+	}
+	root, file = path.Clean(root), path.Clean(file)
+	if !within(root, file, "/") {
+		return nil, ErrOutsideRoot
+	}
+	realRoot, err := resolve(client, root)
+	if err != nil {
+		return nil, err
+	}
+	real, err := resolve(client, file)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !within(realRoot, real, "/") {
+		return nil, ErrOutsideRoot
+	}
+	info, err := client.Stat(real)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, ErrNotFound
+	}
+	if info.Size() > limit {
+		return nil, ErrTooLarge
+	}
+	f, err := client.Open(real)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	return io.ReadAll(io.LimitReader(f, limit))
+}
+
+// resolve follows the symlinks of an absolute path component by component.
+func resolve(client *sftp.Client, name string) (string, error) {
+	resolved := "/"
+	parts := strings.Split(strings.TrimPrefix(path.Clean(name), "/"), "/")
+	for links := 0; len(parts) > 0; {
+		part := parts[0]
+		parts = parts[1:]
+		if part == "" || part == "." {
+			continue
+		}
+		if part == ".." {
+			resolved = path.Dir(resolved)
+			continue
+		}
+		next := path.Join(resolved, part)
+		info, err := client.Lstat(next)
+		if err != nil {
+			return "", err
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			resolved = next
+			continue
+		}
+		if links++; links > maxLinks {
+			return "", errors.New("too many symlinks")
+		}
+		target, err := client.ReadLink(next)
+		if err != nil {
+			return "", err
+		}
+		if path.IsAbs(target) {
+			resolved = "/"
+		}
+		parts = append(strings.Split(strings.Trim(target, "/"), "/"), parts...)
+	}
+	return resolved, nil
+}

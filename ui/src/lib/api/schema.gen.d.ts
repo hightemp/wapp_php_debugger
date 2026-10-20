@@ -307,6 +307,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/messages/{message_id}/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lines of the source file around the place of a message or a frame of its backtrace
+         * @description The path comes from the log, never from the client. The file is read from the project's server
+         *     (this machine or SSH) and only inside the project root, symlinks resolved; projects in the library
+         *     HTTP mode have no preview (404). 403 — the file resolves outside the root; 413 — over 1 MB;
+         *     415 — not text.
+         */
+        get: operations["getMessageSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stream": {
         parameters: {
             query?: never;
@@ -554,6 +577,16 @@ export interface components {
             project?: string;
             /** @description A failed optional step is a warning and does not fail the check */
             optional?: boolean;
+        };
+        SourcePreview: {
+            /** @description Path relative to the project root when inside it */
+            file: string;
+            /** @description The line of the message or frame */
+            line: number;
+            /** @description Number of the first line in lines */
+            first_line: number;
+            lines: string[];
+            editor_url?: string;
         };
         DiscoveredProject: {
             /** @description Name of the project root directory */
@@ -1513,6 +1546,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageDetail"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getMessageSource: {
+        parameters: {
+            query?: {
+                /** @description Index in the backtrace; without it, the place of the message itself */
+                frame?: number;
+                /** @description Lines before and after the line */
+                around?: number;
+            };
+            header?: never;
+            path: {
+                message_id: components["parameters"]["MessageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The lines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcePreview"];
                 };
             };
             default: components["responses"]["Problem"];

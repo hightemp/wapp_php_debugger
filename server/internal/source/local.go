@@ -152,3 +152,40 @@ func (l *Local) SetEnabled(ctx context.Context, enabled bool) error {
 
 // Close does nothing.
 func (l *Local) Close() error { return nil }
+
+var _ ProjectFiles = (*Local)(nil)
+
+// ReadProjectFile reads a source file of the project; symlinks are followed, but only to inside root.
+func (l *Local) ReadProjectFile(ctx context.Context, root, path string, limit int64) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	if !within(filepath.Clean(root), filepath.Clean(path), string(filepath.Separator)) {
+		return nil, ErrOutsideRoot
+	}
+	real, err := filepath.EvalSymlinks(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !within(realRoot, real, string(filepath.Separator)) {
+		return nil, ErrOutsideRoot
+	}
+	info, err := os.Stat(real)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, ErrNotFound
+	}
+	if info.Size() > limit {
+		return nil, ErrTooLarge
+	}
+	return os.ReadFile(real)
+}

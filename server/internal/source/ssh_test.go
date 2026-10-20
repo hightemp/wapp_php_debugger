@@ -121,3 +121,10 @@ func TestSSHUnreachableServerIsAnError(t *testing.T) {
 		t.Fatal("want an error")
 	}
 }
+
+func TestSSHProjectFiles(t *testing.T) {
+	sourcetest.RunProjectFiles(t, func(t *testing.T, root string) source.ProjectFiles {
+		src, _ := newSSH(t, nil, "")
+		return src
+	})
+}
