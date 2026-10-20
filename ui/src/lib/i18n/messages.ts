@@ -36,9 +36,11 @@ const en = {
   'sql.repeated': 'Repeated {count} times ({time}) — an N+1?',
   'globals.none': 'No superglobals logged: log_globals in dws_debugger.json chooses them.',
   'detail.search': 'Search messages',
-  'feed.searchHint': 'Words in messages and context, or part of a URL',
+  'feed.searchHint':
+    'Words or URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Errors only',
   'feed.environment': 'Environment',
+  'feed.invalid': 'Not understood: {words}',
   'feed.environmentAll': 'All',
   'feed.sapi': 'Request kind',
   'feed.sapiAll': 'All',
@@ -272,9 +274,11 @@ const ru: Record<MessageKey, Entry> = {
   'globals.none':
     'Суперглобальные массивы не записаны: их выбирает log_globals в dws_debugger.json.',
   'detail.search': 'Поиск по сообщениям',
-  'feed.searchHint': 'Слова в сообщениях и контексте или часть URL',
+  'feed.searchHint':
+    'Слова или URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Только с ошибками',
   'feed.environment': 'Окружение',
+  'feed.invalid': 'Не понято: {words}',
   'feed.environmentAll': 'Все',
   'feed.sapi': 'Тип запроса',
   'feed.sapiAll': 'Все',

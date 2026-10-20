@@ -31,6 +31,7 @@ export function sampleRequest(id: number, overrides: Partial<Request> = {}): Req
     error_count: 0,
     warning_count: 0,
     received_at: 0,
+    pinned: false,
     ...overrides,
   };
 }

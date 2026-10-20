@@ -17,6 +17,7 @@ function request(id: number, overrides: Partial<Request> = {}): Request {
     error_count: 0,
     warning_count: 0,
     received_at: id * 1000,
+    pinned: false,
     ...overrides,
   };
 }

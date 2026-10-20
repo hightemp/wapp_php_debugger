@@ -4,6 +4,8 @@
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
+  import { parseFeedQuery } from '../lib/feedQuery';
+  import FilterLine from './FilterLine.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import Switch from './Switch.svelte';
   import VirtualList from './VirtualList.svelte';
@@ -81,12 +83,16 @@
     searchTimer = setTimeout(() => (query = value.trim()), searchDelay);
   }
 
+  // The filter line: conditions go to the API as parameters, the other words to the text search
+  const parsed = $derived(parseFeedQuery(query));
+  const invalid = $derived(parsed.invalid);
+
   // Only set filters go to the API; no project means the combined feed of all projects
   const filter = $derived({
     ...(projectId === undefined ? {} : { project_id: projectId }),
     ...(scopeServer === undefined ? {} : { server_id: scopeServer }),
     ...(combined && scopeServer === undefined && environment !== 'all' ? { environment } : {}),
-    ...(query === '' ? {} : { q: query }),
+    ...parsed.params,
     ...(errorsOnly ? { has_errors: true } : {}),
     ...(sapi === 'all' ? {} : { sapi }),
   });
@@ -94,19 +100,44 @@
     query !== '' || errorsOnly || sapi !== 'all' || (environment !== 'all' && combined),
   );
 
-  // A live request is added only when it surely matches: the text search is checked by the server.
-  // Requests that gain errors after they were created show up on the next reload.
-  function mayShow(request: Request): boolean {
-    return (
+  function statusMatches(code: number | null | undefined, pattern: string): boolean {
+    if (code === null || code === undefined) {
+      return false;
+    }
+    return pattern.endsWith('xx') ? String(code)[0] === pattern[0] : String(code) === pattern;
+  }
+
+  // A live request is added when it surely matches; the text search and tags are known only to the
+  // server, so with them the feed is read again instead. Requests that gain errors after they were
+  // created show up on the next reload.
+  function mayShow(request: Request): 'yes' | 'no' | 'ask' {
+    const params = filter;
+    const matches =
       (projectId === undefined || request.project_id === projectId) &&
       (scopeServer === undefined || request.server_id === scopeServer) &&
       (environment === 'all' ||
         !combined ||
         servers.find((server) => server.id === request.server_id)?.environment === environment) &&
-      query === '' &&
-      (!errorsOnly || request.error_count > 0) &&
-      (sapi === 'all' || request.sapi === sapi)
-    );
+      (!params.has_errors || request.error_count > 0) &&
+      (params.sapi === undefined || request.sapi === params.sapi) &&
+      (params.method === undefined || request.method?.toUpperCase() === params.method) &&
+      (params.status === undefined || statusMatches(request.status_code, params.status)) &&
+      (params.min_duration_ms === undefined ||
+        (request.duration_ms ?? -1) >= params.min_duration_ms) &&
+      (params.is_ajax === undefined || request.is_ajax === params.is_ajax) &&
+      (params.pinned === undefined || request.pinned === params.pinned) &&
+      (params.level !== 'error' || request.error_count > 0) &&
+      (params.level !== 'warning' || request.error_count + request.warning_count > 0);
+    if (!matches) {
+      return 'no';
+    }
+    return params.q === undefined && params.tag === undefined ? 'yes' : 'ask';
+  }
+
+  let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+  function reloadSoon() {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => void load(), 1000);
   }
 
   async function load() {
@@ -151,8 +182,14 @@
 
   $effect(() =>
     transport.subscribe((event) => {
-      if (event.event === 'request_created' && event.request && !mayShow(event.request)) {
-        return;
+      if (event.event === 'request_created' && event.request) {
+        const verdict = mayShow(event.request);
+        if (verdict === 'ask') {
+          reloadSoon();
+        }
+        if (verdict !== 'yes') {
+          return;
+        }
       }
       if (
         event.event === 'request_created' &&
@@ -196,14 +233,16 @@
   <h2 id="feed-title" class="visually-hidden">{i18n.t('feed.title')}</h2>
 
   <div class="toolbar">
-    <input
-      class="search"
-      type="search"
-      aria-label={i18n.t('feed.search')}
-      placeholder={i18n.t('feed.searchHint')}
+    <FilterLine
       value={searchInput}
-      oninput={(event) => onSearchInput(event.currentTarget.value)}
+      label={i18n.t('feed.search')}
+      placeholder={i18n.t('feed.searchHint')}
+      tags={['sql', 'http', 'globals', 'cache']}
+      oninput={onSearchInput}
     />
+    {#if invalid.length > 0}
+      <p class="invalid" role="status">{i18n.t('feed.invalid', { words: invalid.join(' ') })}</p>
+    {/if}
     <div class="filters">
       <SegmentedControl
         label={i18n.t('feed.sapi')}
@@ -305,6 +344,12 @@
 </section>
 
 <style>
+  .invalid {
+    margin: var(--space-1) 0 0;
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
+  }
+
   .origin {
     color: var(--text-muted);
     font-family: var(--font-mono);
@@ -321,20 +366,6 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     border-bottom: 1px solid var(--border);
-  }
-
-  .search {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-sunken);
-    color: var(--text);
-    font: inherit;
-  }
-
-  .search:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 0;
   }
 
   .filters {

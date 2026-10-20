@@ -48,9 +48,19 @@ export interface Version {
 
 export interface ListRequestsParams {
   project_id?: number;
+  server_id?: number;
+  environment?: Server['environment'];
   q?: string;
   has_errors?: boolean;
   sapi?: 'web' | 'cli';
+  method?: string;
+  /** A code (404) or a class (5xx) */
+  status?: string;
+  min_duration_ms?: number;
+  is_ajax?: boolean;
+  tag?: string;
+  level?: 'error' | 'warning';
+  pinned?: boolean;
   since?: number;
   until?: number;
   cursor?: string;

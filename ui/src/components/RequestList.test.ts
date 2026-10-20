@@ -116,7 +116,7 @@ describe('RequestList', () => {
     render(RequestList, { transport });
     await screen.findAllByRole('listitem');
 
-    await fireEvent.input(screen.getByRole('searchbox', { name: 'Search' }), {
+    await fireEvent.input(screen.getByRole('combobox', { name: 'Search' }), {
       target: { value: 'cache miss' },
     });
     await waitFor(() =>
@@ -234,5 +234,67 @@ describe('RequestList', () => {
     render(RequestList, { transport });
     await screen.findAllByRole('listitem');
     expect(screen.queryByRole('radiogroup', { name: 'Environment' })).not.toBeInTheDocument();
+  });
+
+  describe('the filter line', () => {
+    it('sends conditions as feed parameters and says what it could not read', async () => {
+      const { transport, listRequests } = feed([{ items: [request(1)], next_cursor: null }]);
+      render(RequestList, { transport });
+      await screen.findAllByRole('listitem');
+      const line = screen.getByRole('combobox', { name: 'Search' });
+      await fireEvent.input(line, {
+        target: { value: 'level:error status:5xx duration>1s checkout' },
+      });
+      await waitFor(() =>
+        expect(listRequests).toHaveBeenLastCalledWith({
+          limit: 100,
+          level: 'error',
+          status: '5xx',
+          min_duration_ms: 1000,
+          q: 'checkout',
+        }),
+      );
+      await fireEvent.input(line, { target: { value: 'level:fatal' } });
+      expect(await screen.findByText(/Not understood: level:fatal/)).toBeInTheDocument();
+    });
+
+    it('completes keys and values from the keyboard', async () => {
+      const { transport } = feed([{ items: [request(1)], next_cursor: null }]);
+      render(RequestList, { transport });
+      await screen.findAllByRole('listitem');
+      const line = screen.getByRole('combobox', { name: 'Search' });
+      await fireEvent.input(line, { target: { value: 'checkout lev' } });
+      expect(screen.getByRole('option', { name: 'level:' })).toBeInTheDocument();
+      await fireEvent.keyDown(line, { key: 'Enter' });
+      expect(line).toHaveValue('checkout level:');
+      await fireEvent.input(line, { target: { value: 'checkout level:' } });
+      await fireEvent.keyDown(line, { key: 'ArrowDown' });
+      expect(screen.getByRole('option', { name: 'level:warning' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await fireEvent.keyDown(line, { key: 'Tab' });
+      expect(line).toHaveValue('checkout level:warning ');
+    });
+
+    it('checks live requests against the conditions it can see', async () => {
+      const { transport, emit, listRequests } = feed([
+        { items: [request(1)], next_cursor: null },
+        { items: [request(1, { method: 'POST' })], next_cursor: null },
+      ]);
+      render(RequestList, { transport });
+      await screen.findAllByRole('listitem');
+      await fireEvent.input(screen.getByRole('combobox', { name: 'Search' }), {
+        target: { value: 'method:post' },
+      });
+      await waitFor(() =>
+        expect(listRequests).toHaveBeenLastCalledWith({ limit: 100, method: 'POST' }),
+      );
+      await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
+      emit({ event: 'request_created', request: request(9, { method: 'GET' }) });
+      emit({ event: 'request_created', request: request(10, { method: 'POST' }) });
+      await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
+      expect(screen.queryByText('GET /item/9')).not.toBeInTheDocument();
+    });
   });
 });
