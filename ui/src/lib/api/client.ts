@@ -1,6 +1,7 @@
 // Viewer API client (spec/openapi.yaml). Transport hides how the UI talks to the core:
 // HTTP + SSE in the browser; in the desktop app the same API goes through the Wails asset handler.
 import type {
+  DesktopSettings,
   DiscoveredProject,
   Level,
   MessageDetail,
@@ -27,6 +28,8 @@ export interface ImportResult {
 }
 
 export interface Version {
+  /** Which viewer answers: desktop settings exist only in the desktop app */
+  app: 'server' | 'desktop';
   version: string;
   commit: string;
   date: string;
@@ -54,6 +57,8 @@ export interface ListMessagesParams {
 
 export interface Transport {
   getVersion(): Promise<Version>;
+  getDesktopSettings(): Promise<DesktopSettings>;
+  updateDesktopSettings(settings: DesktopSettings): Promise<DesktopSettings>;
   listRequests(params: ListRequestsParams): Promise<RequestPage>;
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
@@ -181,6 +186,9 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
 
   return {
     getVersion: () => getJSON<Version>('/api/v1/version'),
+    getDesktopSettings: () => getJSON<DesktopSettings>('/api/v1/desktop/settings'),
+    updateDesktopSettings: (settings) =>
+      request<DesktopSettings>('PUT', '/api/v1/desktop/settings', {}, settings),
     listRequests: (params) => getJSON<RequestPage>('/api/v1/requests', params),
     getRequest: (id) => getJSON<RequestDetail>(`/api/v1/requests/${id}`),
     listMessages: (requestId, params) =>

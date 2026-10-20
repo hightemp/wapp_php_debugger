@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/api"
+	"github.com/hightemp/wapp_php_debugger/server/internal/desktop"
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/ingest"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
@@ -35,8 +36,16 @@ type Config struct {
 	SSH                SSHConfig // zero value: DefaultSSH()
 	// HTTPClient talks to http servers (library HTTP mode); nil: a client that checks certificates
 	HTTPClient *http.Client
-	UI         fs.FS
-	Logger     *slog.Logger
+	// Desktop turns on the settings of the desktop app; nil in the server
+	Desktop *DesktopConfig
+	UI      fs.FS
+	Logger  *slog.Logger
+}
+
+// DesktopConfig is what the desktop app adds to the core.
+type DesktopConfig struct {
+	// OnSettings applies saved settings: autostart, notifications, tray
+	OnSettings func(api.DesktopSettings)
 }
 
 // Core is the running viewer core: database, background import and HTTP handler.
@@ -48,6 +57,7 @@ type Core struct {
 	manager *ingest.Manager
 	ssh     *sshconn.Pool
 	cancel  context.CancelFunc
+	desktop *desktop.Settings
 }
 
 // Start opens the database and starts the background import of every project; Close stops it.
@@ -95,6 +105,12 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 			broker.Publish("server_status", serverStatusEvent(serverID, status))
 		})
 	ssh := &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}
+	var desktopSettings *desktop.Settings
+	var desktopRuntime api.DesktopRuntime
+	if cfg.Desktop != nil {
+		desktopSettings = desktop.NewSettings(s, cfg.Desktop.OnSettings)
+		desktopRuntime = desktopSettings
+	}
 	manager := ingest.NewManager(s, ingest.ManagerOptions{
 		PollInterval:       cfg.ScanInterval,
 		RemotePollInterval: cfg.RemoteScanInterval,
@@ -115,11 +131,12 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	return &Core{
 		db: db,
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
-			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}}),
+			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}, Desktop: desktopRuntime}),
 		broker:  broker,
 		manager: manager,
 		ssh:     pool,
 		cancel:  cancel,
+		desktop: desktopSettings,
 	}, nil
 }
 
@@ -135,6 +152,9 @@ func registerProject(ctx context.Context, s *store.Store, cfg Config) error {
 	_, err = s.UpdateProject(ctx, ids.ProjectID, store.ProjectPatch{ConfigPath: &cfg.ConfigPath})
 	return err
 }
+
+// DesktopSettings are the settings of the desktop app; nil in the server.
+func (c *Core) DesktopSettings() *desktop.Settings { return c.desktop }
 
 // Handler serves /api/v1/*, SSE and the UI.
 func (c *Core) Handler() http.Handler { return c.handler }

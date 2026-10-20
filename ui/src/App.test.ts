@@ -30,6 +30,27 @@ describe('App', () => {
     expect(await screen.findByText('v0.0.0-test')).toBeInTheDocument();
   });
 
+  it('offers the settings of the desktop app only in the desktop app', async () => {
+    const { transport } = fakeTransport();
+    render(App, { transport });
+    await screen.findByText('v0.0.0-test');
+    expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument();
+  });
+
+  it('opens the desktop settings', async () => {
+    const { transport } = fakeTransport({
+      getVersion: vi.fn(async () => ({
+        app: 'desktop' as const,
+        version: 'v1',
+        commit: '',
+        date: '',
+      })),
+    });
+    render(App, { transport });
+    await fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+  });
+
   it('opens a request and a message and keeps the selection in the URL', async () => {
     const { transport } = setup();
     render(App, { transport });

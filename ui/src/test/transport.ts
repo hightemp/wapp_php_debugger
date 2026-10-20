@@ -2,6 +2,7 @@
 import { vi } from 'vitest';
 import type { Transport } from '../lib/api/client';
 import type {
+  DesktopSettings,
   DiscoveredProject,
   MessageDetail,
   Project,
@@ -95,7 +96,19 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
   let emit: (event: StreamEvent) => void = () => {};
   const unsubscribe = vi.fn();
   const transport = {
-    getVersion: vi.fn(async () => ({ version: 'v0.0.0-test', commit: 'abc', date: '' })),
+    getVersion: vi.fn(async () => ({
+      app: 'server' as 'server' | 'desktop',
+      version: 'v0.0.0-test',
+      commit: 'abc',
+      date: '',
+    })),
+    getDesktopSettings: vi.fn(async () => ({
+      notifications: { enabled: true, min_level: 'error' as const, project_ids: [] as number[] },
+      autostart: false,
+      close_to_tray: true,
+      update_check: true,
+    })),
+    updateDesktopSettings: vi.fn(async (settings: DesktopSettings) => settings),
     listRequests: vi.fn(async () => ({ items: [], next_cursor: null })),
     getRequest: vi.fn(async (id: number) => sampleRequestDetail(id)),
     listMessages: vi.fn(async () => ({ items: [], next_cursor: null })),

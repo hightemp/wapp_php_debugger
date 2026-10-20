@@ -455,3 +455,44 @@ func postYAML(t *testing.T, url, body string) (*http.Response, string) {
 	data, _ := io.ReadAll(response.Body)
 	return response, string(data)
 }
+
+type fakeDesktop struct{ settings DesktopSettings }
+
+func (f *fakeDesktop) Settings(context.Context) (DesktopSettings, error) { return f.settings, nil }
+
+func (f *fakeDesktop) UpdateSettings(_ context.Context, settings DesktopSettings) (DesktopSettings, error) {
+	f.settings = settings
+	return settings, nil
+}
+
+func TestDesktopSettingsOnlyInTheDesktopApp(t *testing.T) {
+	e := newServersEnv(t)
+	if response, _ := get(t, e.server.URL+"/api/v1/desktop/settings"); response.StatusCode != http.StatusNotFound {
+		t.Fatalf("the server has no desktop settings: %d", response.StatusCode)
+	}
+	if _, body := get(t, e.server.URL+"/api/v1/version"); !strings.Contains(body, `"app":"server"`) {
+		t.Fatalf("version: %s", body)
+	}
+
+	desktop := &fakeDesktop{}
+	server := httptest.NewServer(NewHandler(Deps{Store: e.store, Broker: events.NewBroker(4), Desktop: desktop, UI: fstest.MapFS{"index.html": {}}}))
+	t.Cleanup(server.Close)
+	if _, body := get(t, server.URL+"/api/v1/version"); !strings.Contains(body, `"app":"desktop"`) {
+		t.Fatalf("version: %s", body)
+	}
+	settings := map[string]any{
+		"notifications": map[string]any{"enabled": true, "min_level": "warning", "project_ids": []int{3}},
+		"autostart":     true, "close_to_tray": false, "update_check": false,
+	}
+	response, body := send(t, http.MethodPut, server.URL+"/api/v1/desktop/settings", settings)
+	if response.StatusCode != http.StatusOK || desktop.settings.Notifications.MinLevel != "warning" || !desktop.settings.Autostart {
+		t.Fatalf("put: %d %s; %+v", response.StatusCode, body, desktop.settings)
+	}
+	if _, body := get(t, server.URL+"/api/v1/desktop/settings"); !strings.Contains(body, `"min_level":"warning"`) {
+		t.Fatalf("get: %s", body)
+	}
+	settings["notifications"] = map[string]any{"enabled": true, "min_level": "info", "project_ids": []int{}}
+	if response, body := send(t, http.MethodPut, server.URL+"/api/v1/desktop/settings", settings); response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("an unknown level: %d %s", response.StatusCode, body)
+	}
+}

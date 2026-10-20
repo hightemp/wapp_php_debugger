@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hightemp/wapp_php_debugger/server/internal/api"
 	"github.com/hightemp/wapp_php_debugger/server/internal/libclient/libtest"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
@@ -209,5 +210,35 @@ func TestDiscoversProjectsOnThisMachine(t *testing.T) {
 	status, body := call(t, core, http.MethodPost, fmt.Sprintf("/api/v1/servers/%d/discover", servers.Items[0].ID), map[string]any{"roots": []string{www}})
 	if status != http.StatusOK || !strings.Contains(body, `"logs_dir":"`+filepath.Join(www, "shop", "tmp", "logs")+`"`) {
 		t.Fatalf("discover: %d %s", status, body)
+	}
+}
+
+func TestDesktopSettingsAreKeptAndApplied(t *testing.T) {
+	dir := t.TempDir()
+	applied := make(chan api.DesktopSettings, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	core, err := Start(ctx, Config{DBPath: filepath.Join(dir, "desktop.db"),
+		Desktop: &DesktopConfig{OnSettings: func(s api.DesktopSettings) { applied <- s }}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cancel(); core.Close() })
+
+	status, body := call(t, core, http.MethodGet, "/api/v1/desktop/settings", nil)
+	if status != http.StatusOK || !strings.Contains(body, `"close_to_tray":true`) {
+		t.Fatalf("defaults: %d %s", status, body)
+	}
+	status, body = call(t, core, http.MethodPut, "/api/v1/desktop/settings", map[string]any{
+		"notifications": map[string]any{"enabled": false, "min_level": "error", "project_ids": []int{}},
+		"autostart":     true, "close_to_tray": true, "update_check": true,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("put: %d %s", status, body)
+	}
+	if got := <-applied; !got.Autostart || got.Notifications.Enabled {
+		t.Fatalf("applied %+v", got)
+	}
+	if current, _ := core.DesktopSettings().Settings(context.Background()); !current.Autostart {
+		t.Fatalf("not kept: %+v", current)
 	}
 }

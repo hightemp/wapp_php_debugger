@@ -18,7 +18,38 @@ var _ StrictServerInterface = (*server)(nil)
 
 // GetVersion returns the build version.
 func (s *server) GetVersion(context.Context, GetVersionRequestObject) (GetVersionResponseObject, error) {
-	return GetVersion200JSONResponse{Version: version.Version, Commit: version.Commit, Date: version.Date}, nil
+	app := VersionAppServer
+	if s.deps.Desktop != nil {
+		app = VersionAppDesktop
+	}
+	return GetVersion200JSONResponse{App: app, Version: version.Version, Commit: version.Commit, Date: version.Date}, nil
+}
+
+// GetDesktopSettings returns the settings of the desktop app.
+func (s *server) GetDesktopSettings(ctx context.Context, _ GetDesktopSettingsRequestObject) (GetDesktopSettingsResponseObject, error) {
+	if s.deps.Desktop == nil {
+		return GetDesktopSettingsdefaultApplicationProblemPlusJSONResponse{Body: notFound("desktop app"), StatusCode: http.StatusNotFound}, nil
+	}
+	settings, err := s.deps.Desktop.Settings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return GetDesktopSettings200JSONResponse(settings), nil
+}
+
+// UpdateDesktopSettings saves and applies the settings of the desktop app.
+func (s *server) UpdateDesktopSettings(ctx context.Context, request UpdateDesktopSettingsRequestObject) (UpdateDesktopSettingsResponseObject, error) {
+	if s.deps.Desktop == nil {
+		return UpdateDesktopSettingsdefaultApplicationProblemPlusJSONResponse{Body: notFound("desktop app"), StatusCode: http.StatusNotFound}, nil
+	}
+	if !request.Body.Notifications.MinLevel.Valid() {
+		return UpdateDesktopSettingsdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem("notifications.min_level is error or warning"), StatusCode: http.StatusBadRequest}, nil
+	}
+	settings, err := s.deps.Desktop.UpdateSettings(ctx, *request.Body)
+	if err != nil {
+		return nil, err
+	}
+	return UpdateDesktopSettings200JSONResponse(settings), nil
 }
 
 const (

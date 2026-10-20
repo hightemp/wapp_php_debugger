@@ -14,6 +14,7 @@ export type ServerCheck = Schemas['ServerCheck'];
 export type ServerCheckStep = Schemas['ServerCheckStep'];
 export type Environment = Schemas['Environment'];
 export type Project = Schemas['Project'];
+export type DesktopSettings = Schemas['DesktopSettings'];
 export type DiscoveredProject = Schemas['DiscoveredProject'];
 export type ProjectInput = Schemas['ProjectInput'];
 export type ProjectPatch = Schemas['ProjectPatch'];

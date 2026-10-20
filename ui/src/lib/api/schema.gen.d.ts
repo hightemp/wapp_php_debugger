@@ -330,6 +330,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/desktop/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Settings of the desktop app (404 in the server) */
+        get: operations["getDesktopSettings"];
+        /** Save the settings of the desktop app; they apply at once */
+        put: operations["updateDesktopSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -374,6 +392,11 @@ export interface components {
             }[];
         };
         Version: {
+            /**
+             * @description Which viewer answers; the UI shows desktop settings only in the desktop app
+             * @enum {string}
+             */
+            app: "server" | "desktop";
             /** @example v0.1.0 */
             version: string;
             /** @example abc1234 */
@@ -767,6 +790,37 @@ export interface components {
             /** Format: int64 */
             server_id?: number;
             connection?: components["schemas"]["ServerConnection"];
+        };
+        /**
+         * @example {
+         *       "notifications": {
+         *         "enabled": true,
+         *         "min_level": "error",
+         *         "project_ids": []
+         *       },
+         *       "autostart": false,
+         *       "close_to_tray": true,
+         *       "update_check": true
+         *     }
+         */
+        DesktopSettings: {
+            notifications: {
+                /** @description System notifications about new requests with errors */
+                enabled: boolean;
+                /**
+                 * @description error — requests with errors; warning — with errors or warnings
+                 * @enum {string}
+                 */
+                min_level: "error" | "warning";
+                /** @description Projects to notify about; empty means all */
+                project_ids: number[];
+            };
+            /** @description Start the app at login */
+            autostart: boolean;
+            /** @description Closing the window keeps the app in the tray */
+            close_to_tray: boolean;
+            /** @description Ask GitHub Releases once a day whether a newer version is out */
+            update_check: boolean;
         };
         /**
          * @description UI settings. Stored by the viewer; localStorage is only a cache.
@@ -1460,6 +1514,52 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["StreamEvent"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDesktopSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesktopSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateDesktopSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesktopSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesktopSettings"];
                 };
             };
             default: components["responses"]["Problem"];

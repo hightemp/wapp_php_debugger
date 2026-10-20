@@ -44,6 +44,12 @@ type HTTPRuntime interface {
 	Forget(serverID int64) error
 }
 
+// DesktopRuntime is the desktop app: its settings apply at once (autostart, notifications, tray).
+type DesktopRuntime interface {
+	Settings(ctx context.Context) (DesktopSettings, error)
+	UpdateSettings(ctx context.Context, settings DesktopSettings) (DesktopSettings, error)
+}
+
 // Discoverer finds projects on local and SSH servers by the library config.
 type Discoverer interface {
 	Discover(ctx context.Context, server store.Server, roots []string, maxDepth int) ([]discover.Found, bool, error)
@@ -61,11 +67,12 @@ type Deps struct {
 	Store     *store.Store
 	Broker    *events.Broker
 	Projects  ProjectRuntime
-	SSH       SSHRuntime    // nil: ssh servers show an unknown connection
-	HTTP      HTTPRuntime   // nil: http servers cannot be added
-	Discover  Discoverer    // nil: no project search
-	UI        fs.FS         // built Svelte UI (index.html and assets/)
-	Heartbeat time.Duration // SSE heartbeat comment period; 0 means 15 seconds
+	SSH       SSHRuntime     // nil: ssh servers show an unknown connection
+	HTTP      HTTPRuntime    // nil: http servers cannot be added
+	Discover  Discoverer     // nil: no project search
+	Desktop   DesktopRuntime // nil in the server: no desktop settings
+	UI        fs.FS          // built Svelte UI (index.html and assets/)
+	Heartbeat time.Duration  // SSE heartbeat comment period; 0 means 15 seconds
 }
 
 // NewHandler builds the HTTP handler: /api/v1/* per spec/openapi.yaml, the SSE stream and the UI.

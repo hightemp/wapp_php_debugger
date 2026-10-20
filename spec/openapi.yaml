@@ -517,6 +517,35 @@ paths:
               schema: { $ref: '#/components/schemas/StreamEvent' }
         default: { $ref: '#/components/responses/Problem' }
 
+  /api/v1/desktop/settings:
+    get:
+      tags: [settings]
+      operationId: getDesktopSettings
+      summary: Settings of the desktop app (404 in the server)
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DesktopSettings' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [settings]
+      operationId: updateDesktopSettings
+      summary: Save the settings of the desktop app; they apply at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DesktopSettings' }
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DesktopSettings' }
+        default: { $ref: '#/components/responses/Problem' }
+
   /api/v1/settings:
     get:
       tags: [settings]
@@ -624,8 +653,12 @@ components:
 
     Version:
       type: object
-      required: [version, commit, date]
+      required: [version, commit, date, app]
       properties:
+        app:
+          type: string
+          enum: [server, desktop]
+          description: Which viewer answers; the UI shows desktop settings only in the desktop app
         version: { type: string, example: v0.1.0 }
         commit: { type: string, example: abc1234 }
         date: { type: string, example: '2026-10-19T14:00:00Z' }
@@ -1033,6 +1066,34 @@ components:
         server_id: { type: integer, format: int64 }
         connection: { $ref: '#/components/schemas/ServerConnection' }
       example: { event: messages_added, request_id: 42, count: 3 }
+
+    DesktopSettings:
+      type: object
+      required: [notifications, autostart, close_to_tray, update_check]
+      additionalProperties: false
+      properties:
+        notifications:
+          type: object
+          required: [enabled, min_level, project_ids]
+          additionalProperties: false
+          properties:
+            enabled: { type: boolean, description: System notifications about new requests with errors }
+            min_level:
+              type: string
+              enum: [error, warning]
+              description: error — requests with errors; warning — with errors or warnings
+            project_ids:
+              type: array
+              items: { type: integer, format: int64 }
+              description: Projects to notify about; empty means all
+        autostart: { type: boolean, description: Start the app at login }
+        close_to_tray: { type: boolean, description: Closing the window keeps the app in the tray }
+        update_check: { type: boolean, description: Ask GitHub Releases once a day whether a newer version is out }
+      example:
+        notifications: { enabled: true, min_level: error, project_ids: [] }
+        autostart: false
+        close_to_tray: true
+        update_check: true
 
     Settings:
       type: object

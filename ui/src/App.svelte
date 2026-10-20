@@ -5,6 +5,7 @@
   import ProjectsPanel from './components/ProjectsPanel.svelte';
   import RequestDetail from './components/RequestDetail.svelte';
   import RequestList from './components/RequestList.svelte';
+  import SettingsDialog from './components/SettingsDialog.svelte';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport } from './lib/api/client';
   import { createWailsEventSource, isDesktop, openWailsStream } from './lib/api/wails-stream';
@@ -20,6 +21,8 @@
   }: { transport?: Transport } = $props();
 
   let version = $state('');
+  let desktop = $state(false);
+  let settingsOpen = $state(false);
   let route = $state<Route>(parseRoute(window.location.hash));
 
   // The feed the selection belongs to: a project, a server or everything
@@ -38,7 +41,10 @@
   onMount(() => {
     transport
       .getVersion()
-      .then((info) => (version = info.version))
+      .then((info) => {
+        version = info.version;
+        desktop = info.app === 'desktop';
+      })
       .catch(() => (version = ''));
     const follow = () => (route = parseRoute(window.location.hash));
     window.addEventListener('hashchange', follow);
@@ -55,6 +61,11 @@
     <span class="spacer"></span>
     <LanguageSwitch />
     <ThemeSwitch />
+    {#if desktop}
+      <button type="button" class="settings" onclick={() => (settingsOpen = true)}
+        >{i18n.t('settings.title')}</button
+      >
+    {/if}
   </header>
   <main class="panes">
     <div class="pane feed">
@@ -97,7 +108,27 @@
   </main>
 </div>
 
+{#if desktop}
+  <SettingsDialog open={settingsOpen} {transport} onclose={() => (settingsOpen = false)} />
+{/if}
+
 <style>
+  .settings {
+    padding: 2px var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .settings:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
   .app {
     display: grid;
     grid-template-rows: auto 1fr;
