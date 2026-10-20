@@ -162,6 +162,10 @@ DESKTOP_BIN := $(DIST)/wapp-debugger-desktop$(EXE)
 desktop-build: ui-build ## Build the desktop app for the current OS (requires CGO)
 	cd server && CGO_ENABLED=1 go build -tags "$(DESKTOP_TAGS)" -trimpath -ldflags "$(LDFLAGS)" -o $(DESKTOP_BIN) ./cmd/wapp-debugger-desktop
 
+.PHONY: icons
+icons: ## Render desktop/icons/icon.svg into the PNG, ICO and ICNS icons (needs ui deps and Playwright's Chromium)
+	node scripts/icons.mjs
+
 .PHONY: desktop-vet
 desktop-vet: ui-build ## go vet the desktop code (with its build tags; the embedded UI must be built)
 	cd server && CGO_ENABLED=1 go vet -tags "$(DESKTOP_TAGS)" ./cmd/wapp-debugger-desktop

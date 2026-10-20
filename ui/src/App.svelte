@@ -30,6 +30,22 @@
     route.projectId !== undefined ? { projectId: route.projectId } : { serverId: route.serverId },
   );
 
+  // System notifications of the desktop app speak the language of the UI
+  $effect(() => {
+    const locale = i18n.locale;
+    if (!desktop) {
+      return;
+    }
+    transport
+      .getDesktopSettings()
+      .then((settings) =>
+        settings.locale === locale
+          ? undefined
+          : transport.updateDesktopSettings({ ...settings, locale }),
+      )
+      .catch(() => {});
+  });
+
   function navigate(next: Route) {
     route = next;
     const hash = formatRoute(next);

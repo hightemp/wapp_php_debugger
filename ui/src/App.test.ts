@@ -51,6 +51,29 @@ describe('App', () => {
     expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
   });
 
+  it('tells the desktop app the language of its notifications', async () => {
+    const { transport } = fakeTransport({
+      getVersion: vi.fn(async () => ({
+        app: 'desktop' as const,
+        version: 'v1',
+        commit: '',
+        date: '',
+      })),
+    });
+    render(App, { transport });
+    await waitFor(() =>
+      expect(transport.updateDesktopSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ locale: 'en' }),
+      ),
+    );
+    await fireEvent.click(screen.getByRole('radio', { name: 'Русский' }));
+    await waitFor(() =>
+      expect(transport.updateDesktopSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locale: 'ru' }),
+      ),
+    );
+  });
+
   it('opens a request and a message and keeps the selection in the URL', async () => {
     const { transport } = setup();
     render(App, { transport });

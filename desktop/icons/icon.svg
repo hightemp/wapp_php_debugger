@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- wapp-debugger: log braces around a red dot, the error the viewer brings forward -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b7bf5"/>
+      <stop offset="1" stop-color="#2050c8"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M400 268 C330 268 318 300 318 360 L318 452 C318 492 296 512 248 512 C296 512 318 532 318 572 L318 664 C318 724 330 756 400 756"/>
+    <path d="M624 268 C694 268 706 300 706 360 L706 452 C706 492 728 512 776 512 C728 512 706 532 706 572 L706 664 C706 724 694 756 624 756"/>
+  </g>
+  <circle cx="512" cy="512" r="78" fill="#ff5a52" stroke="#ffffff" stroke-width="24"/>
+</svg>

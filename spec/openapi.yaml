@@ -1089,6 +1089,10 @@ components:
         autostart: { type: boolean, description: Start the app at login }
         close_to_tray: { type: boolean, description: Closing the window keeps the app in the tray }
         update_check: { type: boolean, description: Ask GitHub Releases once a day whether a newer version is out }
+        locale:
+          type: string
+          enum: [en, ru]
+          description: Language of system notifications; the UI keeps it equal to its own
       example:
         notifications: { enabled: true, min_level: error, project_ids: [] }
         autostart: false

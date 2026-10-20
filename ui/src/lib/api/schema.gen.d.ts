@@ -821,6 +821,11 @@ export interface components {
             close_to_tray: boolean;
             /** @description Ask GitHub Releases once a day whether a newer version is out */
             update_check: boolean;
+            /**
+             * @description Language of system notifications; the UI keeps it equal to its own
+             * @enum {string}
+             */
+            locale?: "en" | "ru";
         };
         /**
          * @description UI settings. Stored by the viewer; localStorage is only a cache.

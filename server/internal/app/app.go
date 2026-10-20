@@ -52,6 +52,7 @@ type DesktopConfig struct {
 // The server (Run) puts the handler on a network port, the desktop into the Wails asset handler.
 type Core struct {
 	db      interface{ Close() error }
+	store   *store.Store
 	handler http.Handler
 	broker  *events.Broker
 	manager *ingest.Manager
@@ -129,7 +130,8 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		return nil, err
 	}
 	return &Core{
-		db: db,
+		db:    db,
+		store: s,
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
 			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}, Desktop: desktopRuntime}),
 		broker:  broker,
@@ -152,6 +154,9 @@ func registerProject(ctx context.Context, s *store.Store, cfg Config) error {
 	_, err = s.UpdateProject(ctx, ids.ProjectID, store.ProjectPatch{ConfigPath: &cfg.ConfigPath})
 	return err
 }
+
+// Store is the viewer's database: the desktop keeps its window there.
+func (c *Core) Store() *store.Store { return c.store }
 
 // DesktopSettings are the settings of the desktop app; nil in the server.
 func (c *Core) DesktopSettings() *desktop.Settings { return c.desktop }
