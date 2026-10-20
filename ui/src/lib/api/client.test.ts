@@ -129,6 +129,35 @@ describe('createHttpTransport', () => {
     ]);
   });
 
+  it('exports and imports the config as YAML text', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('version: 1\nservers: []\n', {
+          status: 200,
+          headers: { 'Content-Type': 'application/yaml' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          servers_created: ['stage'],
+          projects_created: [],
+          skipped: [],
+          needs_token: [],
+        }),
+      );
+    const transport = createHttpTransport({ baseUrl: '', fetch: fetchMock });
+
+    expect(await transport.exportConfig()).toBe('version: 1\nservers: []\n');
+    const result = await transport.importConfig('version: 1\n');
+    expect(result.servers_created).toEqual(['stage']);
+    const [, importInit] = fetchMock.mock.calls[1] ?? [];
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/config');
+    expect(importInit?.method).toBe('POST');
+    expect(importInit?.body).toBe('version: 1\n');
+    expect(new Headers(importInit?.headers).get('Content-Type')).toBe('application/yaml');
+  });
+
   it('accepts 204 No Content', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     await expect(

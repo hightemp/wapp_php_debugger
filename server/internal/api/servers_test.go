@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -414,4 +416,42 @@ func TestDiscoverProjects(t *testing.T) {
 	if response, _ := send(t, http.MethodPost, fmt.Sprintf("%s/api/v1/servers/%d/discover", e.server.URL, hosting.Id), map[string]any{"roots": []string{"/"}}); response.StatusCode != http.StatusBadRequest {
 		t.Errorf("an http server: %d", response.StatusCode)
 	}
+}
+
+func TestExportAndImportConfig(t *testing.T) {
+	e := newServersEnv(t)
+	server := e.createSSHServer(t, "stage")
+	if _, err := e.store.CreateProject(context.Background(), store.ProjectInput{ServerID: server.Id, Name: "shop", RootPath: "/var/www/shop", LogsDir: "/var/www/shop/tmp/logs"}); err != nil {
+		t.Fatal(err)
+	}
+	response, exported := get(t, e.server.URL+"/api/v1/config")
+	if response.StatusCode != http.StatusOK || !strings.HasPrefix(response.Header.Get("Content-Type"), "application/yaml") || !strings.Contains(exported, "host: stage-web") {
+		t.Fatalf("export: %d %s %s", response.StatusCode, response.Header.Get("Content-Type"), exported)
+	}
+
+	other := newServersEnv(t)
+	response, body := postYAML(t, other.server.URL+"/api/v1/config", exported)
+	if response.StatusCode != http.StatusOK || !strings.Contains(body, `"servers_created":["stage"]`) || !strings.Contains(body, `"projects_created":["stage/shop"]`) {
+		t.Fatalf("import: %d %s", response.StatusCode, body)
+	}
+	projects, _ := other.store.ListProjects(context.Background(), 0)
+	if len(projects) != 1 || !slices.Contains(other.runtime.added, projects[0].ID) {
+		t.Fatalf("the imported project is not running: %+v", projects)
+	}
+
+	response, body = postYAML(t, other.server.URL+"/api/v1/config", "version: 1\nservers:\n  - {name: x, kind: ftp}\n")
+	if response.StatusCode != http.StatusBadRequest || !strings.Contains(body, "ftp") {
+		t.Fatalf("a broken file: %d %s", response.StatusCode, body)
+	}
+}
+
+func postYAML(t *testing.T, url, body string) (*http.Response, string) {
+	t.Helper()
+	response, err := http.Post(url, "application/yaml", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	data, _ := io.ReadAll(response.Body)
+	return response, string(data)
 }

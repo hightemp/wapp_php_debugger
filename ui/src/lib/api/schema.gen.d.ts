@@ -125,6 +125,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Servers and projects as a YAML file, without secrets
+         * @description Tokens of http servers and host keys are never written; the file can be shared and kept in git.
+         */
+        get: operations["exportConfig"];
+        put?: never;
+        /**
+         * Add the servers and projects of a YAML file that the viewer does not have yet
+         * @description A server is matched by name (the local one stands for this machine), a project by name on its
+         *     server; what exists is skipped, nothing is changed or removed. A file with any mistake (an unknown
+         *     key, a secret among them) is rejected whole (400). Created http servers need their token set.
+         */
+        post: operations["importConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -1019,6 +1045,60 @@ export interface operations {
                         items: components["schemas"]["DiscoveredProject"][];
                         /** @description The directory limit stopped the walk; narrow the roots */
                         truncated: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    exportConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    importConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/yaml": string;
+            };
+        };
+        responses: {
+            /** @description What was added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        servers_created: string[];
+                        /** @description server/project */
+                        projects_created: string[];
+                        /** @description server or server/project that exist already */
+                        skipped: string[];
+                        /** @description Created http servers waiting for their token */
+                        needs_token: string[];
                     };
                 };
             };

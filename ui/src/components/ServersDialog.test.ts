@@ -267,6 +267,32 @@ describe('ServersDialog', () => {
     ).toBeInTheDocument();
   });
 
+  it('sets the token of an http server', async () => {
+    const { transport } = setup([
+      sampleServer(1),
+      sampleServer(4, { name: 'hosting', kind: 'http', config: { base_url: 'https://x.test' } }),
+    ]);
+    const hosting = await row('hosting');
+    await fireEvent.click(within(hosting).getByRole('button', { name: 'Token' }));
+    const token = within(hosting).getByLabelText('Token (http_token)');
+    const save = within(hosting).getByRole('button', { name: 'Save' });
+    await fireEvent.input(token, { target: { value: 'short' } });
+    expect(save).toBeDisabled();
+    await fireEvent.input(token, { target: { value: '0123456789abcdef0123456789abcdef' } });
+    await fireEvent.click(save);
+    await waitFor(() =>
+      expect(transport.updateServer).toHaveBeenCalledWith(4, {
+        token: '0123456789abcdef0123456789abcdef',
+      }),
+    );
+  });
+
+  it('opens the export and import of the config', async () => {
+    setup();
+    await fireEvent.click(await screen.findByRole('button', { name: 'Export / import' }));
+    expect(screen.getByRole('dialog', { name: 'Export and import' })).toBeInTheDocument();
+  });
+
   it('follows the connection live', async () => {
     const { emit } = setup();
     const stage = await row('stage');

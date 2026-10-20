@@ -1,15 +1,18 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/hightemp/wapp_php_debugger/server/internal/configfile"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
@@ -250,4 +253,55 @@ func (s *server) DiscoverProjects(ctx context.Context, request DiscoverProjectsR
 		items = append(items, item)
 	}
 	return DiscoverProjects200JSONResponse{Items: items, Truncated: truncated}, nil
+}
+
+// configLimit bounds an imported file: a config of hundreds of servers is a few hundred KB.
+const configLimit = 1 << 20
+
+// ExportConfig writes servers and projects as YAML, without secrets.
+func (s *server) ExportConfig(ctx context.Context, _ ExportConfigRequestObject) (ExportConfigResponseObject, error) {
+	data, err := configfile.Export(ctx, s.deps.Store)
+	if err != nil {
+		return nil, err
+	}
+	return ExportConfig200ApplicationyamlResponse{Body: bytes.NewReader(data), ContentLength: int64(len(data))}, nil
+}
+
+// ImportConfig adds what the file has and the viewer does not, and starts the import of new projects.
+func (s *server) ImportConfig(ctx context.Context, request ImportConfigRequestObject) (ImportConfigResponseObject, error) {
+	data, err := io.ReadAll(io.LimitReader(request.Body, configLimit+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > configLimit {
+		return ImportConfigdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem("the file is larger than 1 MB"), StatusCode: http.StatusBadRequest}, nil
+	}
+	result, err := configfile.Import(ctx, s.deps.Store, data)
+	if err != nil {
+		return ImportConfigdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem(err.Error()), StatusCode: http.StatusBadRequest}, nil
+	}
+	response := ImportConfig200JSONResponse{ServersCreated: orEmpty(result.ServersCreated), Skipped: orEmpty(result.Skipped),
+		NeedsToken: orEmpty(result.NeedsToken), ProjectsCreated: []string{}}
+	servers, err := s.deps.Store.ListServers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, project := range result.Projects {
+		if s.deps.Projects != nil {
+			s.deps.Projects.Add(project)
+		}
+		for _, srv := range servers {
+			if srv.ID == project.ServerID {
+				response.ProjectsCreated = append(response.ProjectsCreated, srv.Name+"/"+project.Name)
+			}
+		}
+	}
+	return response, nil
+}
+
+func orEmpty(items []string) []string {
+	if items == nil {
+		return []string{}
+	}
+	return items
 }

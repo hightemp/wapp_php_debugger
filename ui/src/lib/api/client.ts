@@ -19,6 +19,13 @@ import type {
   StreamEvent,
 } from './types';
 
+export interface ImportResult {
+  servers_created: string[];
+  projects_created: string[];
+  skipped: string[];
+  needs_token: string[];
+}
+
 export interface Version {
   version: string;
   commit: string;
@@ -59,6 +66,10 @@ export interface Transport {
   checkServer(id: number): Promise<ServerCheck>;
   /** Trusts the host key once the user compared its fingerprint with the server. */
   trustHostKey(id: number, fingerprint: string): Promise<void>;
+  /** Servers and projects as YAML, without secrets. */
+  exportConfig(): Promise<string>;
+  /** Adds what the file has and the viewer does not. */
+  importConfig(text: string): Promise<ImportResult>;
   /** Finds projects on a server by the library config; nothing is added. */
   discoverProjects(
     id: number,
@@ -115,6 +126,25 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
   const createEventSource =
     options.createEventSource ?? ((url: string) => new EventSource(url) as EventSourceLike);
 
+  // Sends a request and turns an answer other than 2xx into an ApiError
+  async function exchange(method: string, url: string, init: RequestInit): Promise<Response> {
+    let response: Response;
+    try {
+      response = await fetchImpl(url, method === 'GET' ? { headers: init.headers } : init);
+    } catch (error) {
+      throw new ApiError({ status: 0, title: 'Network error', detail: String(error) });
+    }
+    if (!response.ok) {
+      const problem = (await response.json().catch(() => null)) as Problem | null;
+      throw new ApiError({
+        status: problem?.status ?? response.status,
+        title: problem?.title ?? response.statusText,
+        detail: problem?.detail,
+      });
+    }
+    return response;
+  }
+
   async function request<T>(
     method: string,
     path: string,
@@ -137,21 +167,7 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
             headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           };
-
-    let response: Response;
-    try {
-      response = await fetchImpl(url, method === 'GET' ? { headers: init.headers } : init);
-    } catch (error) {
-      throw new ApiError({ status: 0, title: 'Network error', detail: String(error) });
-    }
-    if (!response.ok) {
-      const problem = (await response.json().catch(() => null)) as Problem | null;
-      throw new ApiError({
-        status: problem?.status ?? response.status,
-        title: problem?.title ?? response.statusText,
-        detail: problem?.detail,
-      });
-    }
+    const response = await exchange(method, url, init);
     if (response.status === 204) {
       return undefined as T;
     }
@@ -187,6 +203,20 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
         {},
         maxDepth === undefined ? { roots } : { roots, max_depth: maxDepth },
       ),
+    exportConfig: async () => {
+      const response = await exchange('GET', `${options.baseUrl}/api/v1/config`, {
+        headers: { Accept: 'application/yaml' },
+      });
+      return response.text();
+    },
+    importConfig: async (text) => {
+      const response = await exchange('POST', `${options.baseUrl}/api/v1/config`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/yaml' },
+        body: text,
+      });
+      return (await response.json()) as ImportResult;
+    },
     listProjects: () => getJSON<{ items: Project[] }>('/api/v1/projects'),
     createProject: (input) => request<Project>('POST', '/api/v1/projects', {}, input),
     updateProject: (id, patch) => request<Project>('PATCH', `/api/v1/projects/${id}`, {}, patch),

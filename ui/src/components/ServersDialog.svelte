@@ -4,6 +4,7 @@
   import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import type { MessageKey } from '../lib/i18n/messages';
+  import ConfigDialog from './ConfigDialog.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import Dialog from './Dialog.svelte';
   import DiscoverProjects from './DiscoverProjects.svelte';
@@ -33,6 +34,34 @@
   let removing = $state<Server | undefined>(undefined);
   // Servers with the project search open
   let searching = $state<Record<number, boolean>>({});
+  let configOpen = $state(false);
+  // The http server whose token is being typed: one at a time
+  let tokenFor = $state<number | undefined>(undefined);
+  let token = $state('');
+  const minTokenLength = 32;
+
+  function toggleToken(server: Server) {
+    token = '';
+    tokenFor = tokenFor === server.id ? undefined : server.id;
+  }
+
+  async function saveToken(server: Server) {
+    if (token.length < minTokenLength) {
+      return;
+    }
+    try {
+      await transport.updateServer(server.id, { token });
+      tokenFor = undefined;
+      token = '';
+      checks[server.id] = { status: 'checking' };
+      await check(server);
+    } catch (error) {
+      checks[server.id] = {
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
 
   async function load() {
     servers = (await transport.listServers()).items;
@@ -42,6 +71,7 @@
     if (open) {
       checks = {};
       searching = {};
+      tokenFor = undefined;
       void load().catch(() => {});
     }
   });
@@ -183,6 +213,14 @@
               >{i18n.t('discover.open')}</button
             >
           {/if}
+          {#if server.kind === 'http'}
+            <button
+              type="button"
+              class="action"
+              aria-expanded={tokenFor === server.id}
+              onclick={() => toggleToken(server)}>{i18n.t('servers.token')}</button
+            >
+          {/if}
           {#if server.kind !== 'local'}
             <button type="button" class="action" onclick={() => check(server)}
               >{i18n.t('servers.check')}</button
@@ -192,6 +230,28 @@
             </button>
           {/if}
         </div>
+        {#if tokenFor === server.id}
+          <form
+            class="token"
+            onsubmit={(event) => {
+              event.preventDefault();
+              void saveToken(server);
+            }}
+          >
+            <label class="token-field">
+              <span>{i18n.t('server.token')}</span>
+              <input
+                type="password"
+                autocomplete="off"
+                placeholder={i18n.t('server.tokenHint')}
+                bind:value={token}
+              />
+            </label>
+            <button type="submit" class="action primary" disabled={token.length < minTokenLength}
+              >{i18n.t('project.save')}</button
+            >
+          </form>
+        {/if}
         {#if searching[server.id]}
           <DiscoverProjects {server} {transport} onadded={onchange} />
         {/if}
@@ -238,12 +298,24 @@
     {/each}
   </ul>
   {#snippet footer()}
+    <button type="button" class="action" onclick={() => (configOpen = true)}
+      >{i18n.t('config.open')}</button
+    >
     <button type="button" class="action primary" onclick={() => (adding = true)}
       >{i18n.t('servers.add')}</button
     >
   {/snippet}
 </Dialog>
 
+<ConfigDialog
+  open={configOpen}
+  {transport}
+  onclose={() => (configOpen = false)}
+  onchange={() => {
+    void load().catch(() => {});
+    onchange();
+  }}
+/>
 <ServerDialog open={adding} onsave={add} onclose={() => (adding = false)} />
 <ConfirmDialog
   open={removing !== undefined}
@@ -361,6 +433,35 @@
 
   .key-type {
     font-weight: 600;
+  }
+
+  .token {
+    display: flex;
+    gap: var(--space-2);
+    align-items: end;
+    margin-top: var(--space-3);
+  }
+
+  .token-field {
+    display: grid;
+    flex: 1;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  .token-field input {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    color: var(--text);
+    font: inherit;
+  }
+
+  .action:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .action {

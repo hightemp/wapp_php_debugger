@@ -202,6 +202,47 @@ paths:
                     description: The directory limit stopped the walk; narrow the roots
         default: { $ref: '#/components/responses/Problem' }
 
+  /api/v1/config:
+    get:
+      tags: [servers]
+      operationId: exportConfig
+      summary: Servers and projects as a YAML file, without secrets
+      description: Tokens of http servers and host keys are never written; the file can be shared and kept in git.
+      responses:
+        '200':
+          description: The file
+          content:
+            application/yaml:
+              schema: { type: string }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [servers]
+      operationId: importConfig
+      summary: Add the servers and projects of a YAML file that the viewer does not have yet
+      description: |
+        A server is matched by name (the local one stands for this machine), a project by name on its
+        server; what exists is skipped, nothing is changed or removed. A file with any mistake (an unknown
+        key, a secret among them) is rejected whole (400). Created http servers need their token set.
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema: { type: string }
+      responses:
+        '200':
+          description: What was added
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [servers_created, projects_created, skipped, needs_token]
+                properties:
+                  servers_created: { type: array, items: { type: string } }
+                  projects_created: { type: array, items: { type: string }, description: 'server/project' }
+                  skipped: { type: array, items: { type: string }, description: 'server or server/project that exist already' }
+                  needs_token: { type: array, items: { type: string }, description: Created http servers waiting for their token }
+        default: { $ref: '#/components/responses/Problem' }
+
   /api/v1/projects:
     get:
       tags: [projects]

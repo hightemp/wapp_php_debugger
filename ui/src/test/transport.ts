@@ -109,6 +109,13 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       steps: [] as { name: string; ok: boolean; detail?: string }[],
     })),
     trustHostKey: vi.fn(async () => undefined),
+    exportConfig: vi.fn(async () => 'version: 1\nservers: []\n'),
+    importConfig: vi.fn(async () => ({
+      servers_created: [] as string[],
+      projects_created: [] as string[],
+      skipped: [] as string[],
+      needs_token: [] as string[],
+    })),
     discoverProjects: vi.fn(async () => ({ items: [] as DiscoveredProject[], truncated: false })),
     listProjects: vi.fn(async () => ({ items: [] as Project[] })),
     createProject: vi.fn(async () => sampleProject(1)),
