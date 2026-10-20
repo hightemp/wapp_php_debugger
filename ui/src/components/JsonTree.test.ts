@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
 import JsonTree from './JsonTree.svelte';
@@ -91,6 +91,8 @@ describe('JsonTree', () => {
     render(JsonTree, { value: { user: { id: 7 } } });
     await fireEvent.click(screen.getByRole('button', { name: 'Copy the path of id' }));
     expect(writeText).toHaveBeenLastCalledWith("['user']['id']");
+    const { toasts } = await import('../lib/toasts.svelte');
+    await waitFor(() => expect(toasts.items.at(-1)?.text).toContain("Copied: ['user']['id']"));
     await fireEvent.click(screen.getByRole('button', { name: 'Copy the value of user' }));
     expect(writeText).toHaveBeenLastCalledWith('{\n  "id": 7\n}');
   });

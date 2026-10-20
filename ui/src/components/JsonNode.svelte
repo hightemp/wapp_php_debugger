@@ -1,6 +1,7 @@
 <script lang="ts">
   import { i18n } from '../lib/i18n/locale.svelte';
   import { copyText, phpPath } from '../lib/jsonPath';
+  import { toasts } from '../lib/toasts.svelte';
   import JsonChildren from './JsonChildren.svelte';
   import JsonValue from './JsonValue.svelte';
 
@@ -37,7 +38,16 @@
   });
 
   function copy(text: string) {
-    void navigator.clipboard?.writeText(text).catch(() => {});
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() =>
+        toasts.push({
+          text: i18n.t('toasts.copied', {
+            text: text.length > 60 ? `${text.slice(0, 60)}…` : text,
+          }),
+        }),
+      )
+      .catch(() => {});
   }
 
   const isContainer = $derived(value !== null && typeof value === 'object');
@@ -171,14 +181,15 @@
     color: var(--text);
   }
 
+  /* Faded, not hidden: the buttons stay in the Tab order and show when focused */
   .actions {
     margin-left: var(--space-2);
-    visibility: hidden;
+    opacity: 0;
   }
 
   .row:hover .actions,
   .row:focus-within .actions {
-    visibility: visible;
+    opacity: 1;
   }
 
   .copy {

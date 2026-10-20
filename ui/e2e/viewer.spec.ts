@@ -121,3 +121,12 @@ test('the code around a message, read from the project', async ({ page }) => {
   await expect(code).toContainText("__d(DWS_INFO, 'Loading the item'");
   await expect(code.locator('[data-current]')).toHaveText('13');
 });
+
+test('the copy buttons of the context are reachable from the keyboard', async ({ page }) => {
+  await openTheItemPage(page);
+  await page.getByRole('button', { name: /Loading the item/ }).click();
+  const copy = page.getByRole('button', { name: 'Copy the path of item_id' });
+  await copy.focus();
+  await expect(copy).toBeFocused();
+  await expect(copy).toBeVisible();
+});

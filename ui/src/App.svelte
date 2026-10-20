@@ -8,6 +8,7 @@
   import CommandPalette, { type PaletteCommand } from './components/CommandPalette.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import ShortcutsDialog from './components/ShortcutsDialog.svelte';
+  import Toaster from './components/Toaster.svelte';
   import { emitCommand } from './lib/commands';
   import { themePreferences } from './lib/theme';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
@@ -328,6 +329,7 @@
   onclose={() => (paletteOpen = false)}
 />
 <ShortcutsDialog open={helpOpen} onclose={() => (helpOpen = false)} />
+<Toaster />
 
 {#if desktop}
   <SettingsDialog open={settingsOpen} {transport} onclose={() => (settingsOpen = false)} />

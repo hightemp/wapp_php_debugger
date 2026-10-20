@@ -329,4 +329,20 @@ describe('RequestList', () => {
     expect(listRequests).toHaveBeenCalledTimes(2);
     expect(screen.getByRole('button', { name: 'Pause' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('tells about a failing request the feed does not show', async () => {
+    const { toasts } = await import('../lib/toasts.svelte');
+    toasts.clear();
+    const { transport, emit } = feed([{ items: [request(1)], next_cursor: null }]);
+    render(RequestList, { transport, projectId: 1 });
+    await screen.findAllByRole('listitem');
+    emit({ event: 'request_created', request: request(9, { project_id: 2, error_count: 2 }) });
+    emit({ event: 'request_created', request: request(10, { project_id: 2 }) });
+    await waitFor(() => expect(toasts.items).toHaveLength(1));
+    expect(toasts.items[0]).toMatchObject({
+      kind: 'error',
+      link: { href: '#/projects/2/requests/9' },
+    });
+    expect(toasts.items[0]?.text).toContain('GET /item/9');
+  });
 });

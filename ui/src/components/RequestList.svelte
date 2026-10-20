@@ -5,6 +5,7 @@
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
   import { onCommand } from '../lib/commands';
+  import { toasts } from '../lib/toasts.svelte';
   import { parseFeedQuery } from '../lib/feedQuery';
   import FilterLine from './FilterLine.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
@@ -206,6 +207,27 @@
 
   $effect(() =>
     transport.subscribe((event) => {
+      // A failing request the feed does not show now still gets a word
+      if (
+        event.event === 'request_created' &&
+        event.request &&
+        event.request.error_count > 0 &&
+        (paused || mayShow(event.request) === 'no')
+      ) {
+        const failing = event.request;
+        const project = projects.find((item) => item.id === failing.project_id);
+        toasts.push({
+          kind: 'error',
+          text: i18n.t('toasts.failing', {
+            project: project?.name ?? '',
+            request: requestTitle(failing),
+          }),
+          link: {
+            label: i18n.t('toasts.open'),
+            href: `#/projects/${failing.project_id}/requests/${failing.id}`,
+          },
+        });
+      }
       if (paused && event.event === 'request_created') {
         if (event.request && mayShow(event.request) !== 'no') {
           waiting += 1;
