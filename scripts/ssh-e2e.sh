@@ -13,6 +13,21 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# Registries rate-limit now and then: a few tries before giving up
+pulled=0
+for attempt in 1 2 3 4; do
+	if docker pull -q "$image" >/dev/null; then
+		pulled=1
+		break
+	fi
+	echo "docker pull failed (attempt $attempt), retrying" >&2
+	sleep $((attempt * 10))
+done
+if [ "$pulled" -ne 1 ]; then
+	echo "cannot pull $image" >&2
+	exit 1
+fi
+
 ssh-keygen -q -t ed25519 -N '' -C wapp-debugger-e2e -f "$work/id"
 docker run -d --name "$name" \
 	-e PUBLIC_KEY="$(cat "$work/id.pub")" -e USER_NAME=dev \
