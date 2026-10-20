@@ -4,6 +4,7 @@
   import type { Project, Server } from '../lib/api/types';
   import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { onCommand } from '../lib/commands';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import ProjectDialog, { type ProjectFields } from './ProjectDialog.svelte';
   import ServersDialog from './ServersDialog.svelte';
@@ -67,6 +68,19 @@
   onMount(() => {
     void load().catch(() => {});
   });
+
+  let panel = $state<HTMLElement>();
+  $effect(() =>
+    onCommand((command) => {
+      if (command.type === 'open-servers') {
+        serversOpen = true;
+      } else if (command.type === 'add-project') {
+        dialog = 'create';
+      } else if (command.type === 'focus-projects') {
+        panel?.querySelector<HTMLElement>('.list button')?.focus();
+      }
+    }),
+  );
 
   // The connection state of servers follows the stream
   $effect(() =>
@@ -143,7 +157,7 @@
   }
 </script>
 
-<nav class="projects" aria-label={i18n.t('projects.label')}>
+<nav class="projects" aria-label={i18n.t('projects.label')} bind:this={panel}>
   <div class="head">
     <h2 class="title">{i18n.t('projects.label')}</h2>
     <button type="button" class="add" onclick={() => (serversOpen = true)}

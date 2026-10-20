@@ -1,6 +1,7 @@
 <script lang="ts">
   // The filter line of the feed: free text and conditions (level:error status:5xx …), with
   // completions as a combobox (WAI-ARIA): arrows choose, Enter or Tab take one, Escape closes.
+  import { onCommand } from '../lib/commands';
   import { suggestions as complete } from '../lib/feedQuery';
 
   let {
@@ -18,6 +19,16 @@
   } = $props();
 
   const id = `filter-${Math.random().toString(36).slice(2)}`;
+  let input = $state<HTMLInputElement>();
+
+  // "/" and the palette bring the focus here
+  $effect(() =>
+    onCommand((command) => {
+      if (command.type === 'focus-filter') {
+        input?.focus();
+      }
+    }),
+  );
   let open = $state(false);
   let active = $state(0);
   const options = $derived(open ? complete(value, tags) : []);
@@ -61,6 +72,7 @@
 
 <div class="line">
   <input
+    bind:this={input}
     class="search"
     type="text"
     role="combobox"

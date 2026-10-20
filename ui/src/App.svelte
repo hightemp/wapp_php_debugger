@@ -5,7 +5,11 @@
   import ProjectsPanel from './components/ProjectsPanel.svelte';
   import RequestDetail from './components/RequestDetail.svelte';
   import RequestList from './components/RequestList.svelte';
+  import CommandPalette, { type PaletteCommand } from './components/CommandPalette.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
+  import ShortcutsDialog from './components/ShortcutsDialog.svelte';
+  import { emitCommand } from './lib/commands';
+  import { themePreferences } from './lib/theme';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport, type UpdateInfo } from './lib/api/client';
   import {
@@ -59,6 +63,163 @@
       )
       .catch(() => {});
   });
+
+  let paletteOpen = $state(false);
+  let helpOpen = $state(false);
+  let commands = $state<PaletteCommand[]>([]);
+
+  // Commands of the palette: projects and servers as they are now, then the actions
+  async function openPalette() {
+    const [projects, servers] = await Promise.all([
+      transport.listProjects().catch(() => ({ items: [] })),
+      transport.listServers().catch(() => ({ items: [] })),
+    ]);
+    commands = [
+      { id: 'all', label: i18n.t('palette.all'), run: () => navigate({}) },
+      ...projects.items.map((project) => ({
+        id: `project-${project.id}`,
+        label: i18n.t('palette.project', { name: project.name }),
+        run: () => navigate({ projectId: project.id }),
+      })),
+      ...servers.items
+        .filter((server) => server.kind !== 'local')
+        .map((server) => ({
+          id: `server-${server.id}`,
+          label: i18n.t('palette.server', { name: server.name }),
+          hint: server.environment,
+          run: () => navigate({ serverId: server.id }),
+        })),
+      {
+        id: 'pinned',
+        label: i18n.t('palette.pinned'),
+        run: () => emitCommand({ type: 'filter', text: 'pinned:yes' }),
+      },
+      {
+        id: 'errors',
+        label: i18n.t('palette.errors'),
+        run: () => emitCommand({ type: 'filter', text: 'level:error' }),
+      },
+      {
+        id: 'servers',
+        label: i18n.t('palette.servers'),
+        run: () => emitCommand({ type: 'open-servers' }),
+      },
+      {
+        id: 'add-project',
+        label: i18n.t('palette.addProject'),
+        run: () => emitCommand({ type: 'add-project' }),
+      },
+      ...themePreferences.map((theme) => ({
+        id: `theme-${theme}`,
+        label: i18n.t('palette.theme', { theme: i18n.t(`theme.${theme}`) }),
+        run: () => emitCommand({ type: 'theme', theme }),
+      })),
+      { id: 'lang-en', label: 'Language: English', run: () => i18n.set('en') },
+      { id: 'lang-ru', label: 'Язык: русский', run: () => i18n.set('ru') },
+      ...(desktop
+        ? [{ id: 'settings', label: i18n.t('settings.title'), run: () => (settingsOpen = true) }]
+        : []),
+      { id: 'help', label: i18n.t('keys.title'), hint: '?', run: () => (helpOpen = true) },
+    ];
+    paletteOpen = true;
+  }
+
+  // The rows of a list in the page, to move through them with the keyboard
+  function step(
+    selector: string,
+    attribute: string,
+    current: number | undefined,
+    delta: number,
+  ): number | undefined {
+    const ids = [...document.querySelectorAll<HTMLElement>(selector)].map((row) =>
+      Number(row.getAttribute(attribute)),
+    );
+    if (ids.length === 0) {
+      return undefined;
+    }
+    const index = current === undefined ? -1 : ids.indexOf(current);
+    const next = ids[Math.min(ids.length - 1, Math.max(0, index + delta))];
+    document
+      .querySelector(`${selector}[${attribute}="${next}"]`)
+      ?.scrollIntoView?.({ block: 'nearest' });
+    return next;
+  }
+
+  let pendingG = 0;
+
+  function onKeydown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      void openPalette();
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    const typing = target?.closest('input, textarea, select, [contenteditable="true"]') !== null;
+    // Dialogs answer their own keys; typing is left alone
+    if (
+      typing ||
+      document.querySelector('[aria-modal="true"]') ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    const now = Date.now();
+    if (event.key === 'p' && now - pendingG < 1000) {
+      emitCommand({ type: 'focus-projects' });
+      pendingG = 0;
+      return;
+    }
+    pendingG = event.key === 'g' ? now : 0;
+    switch (event.key) {
+      case 'j':
+      case 'k': {
+        const next = step(
+          'li.item[data-request-id]',
+          'data-request-id',
+          route.requestId,
+          event.key === 'j' ? 1 : -1,
+        );
+        if (next !== undefined) {
+          navigate({ ...scope, requestId: next });
+        }
+        break;
+      }
+      case 'J':
+      case 'K': {
+        if (route.requestId === undefined) {
+          break;
+        }
+        const next = step(
+          'li.message[data-message-id]',
+          'data-message-id',
+          route.messageId,
+          event.key === 'J' ? 1 : -1,
+        );
+        if (next !== undefined) {
+          navigate({ ...scope, requestId: route.requestId, messageId: next });
+        }
+        break;
+      }
+      case 'Escape':
+        if (route.messageId !== undefined) {
+          navigate({ ...scope, requestId: route.requestId });
+        } else if (route.requestId !== undefined) {
+          navigate(scope);
+        }
+        break;
+      case '/':
+        event.preventDefault();
+        emitCommand({ type: 'focus-filter' });
+        break;
+      case '?':
+        helpOpen = true;
+        break;
+      default:
+        return;
+    }
+  }
 
   function navigate(next: Route) {
     route = next;
@@ -158,6 +319,15 @@
     </div>
   </main>
 </div>
+
+<svelte:window onkeydown={onKeydown} />
+<CommandPalette
+  open={paletteOpen}
+  {commands}
+  onfilter={(text) => emitCommand({ type: 'filter', text })}
+  onclose={() => (paletteOpen = false)}
+/>
+<ShortcutsDialog open={helpOpen} onclose={() => (helpOpen = false)} />
 
 {#if desktop}
   <SettingsDialog open={settingsOpen} {transport} onclose={() => (settingsOpen = false)} />

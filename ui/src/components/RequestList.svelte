@@ -4,6 +4,7 @@
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
+  import { onCommand } from '../lib/commands';
   import { parseFeedQuery } from '../lib/feedQuery';
   import FilterLine from './FilterLine.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
@@ -145,6 +146,17 @@
       void load();
     }
   }
+
+  // The palette filters the feed at once
+  $effect(() =>
+    onCommand((command) => {
+      if (command.type === 'filter') {
+        clearTimeout(searchTimer);
+        searchInput = command.text;
+        query = command.text.trim();
+      }
+    }),
+  );
 
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
   function reloadSoon() {
@@ -321,6 +333,7 @@
       {#snippet row(request: Request, index: number)}
         <li
           class="item"
+          data-request-id={request.id}
           aria-posinset={index + 1}
           aria-setsize={items.length}
           aria-current={request.id === selectedId ? 'true' : undefined}

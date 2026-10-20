@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { onCommand } from '../lib/commands';
   import { i18n } from '../lib/i18n/locale.svelte';
   import {
     applyTheme,
@@ -25,6 +26,14 @@
     saveThemePreference(localStorage, preference);
     applyTheme(document.documentElement, preference, systemPrefersDark());
   }
+
+  $effect(() =>
+    onCommand((command) => {
+      if (command.type === 'theme') {
+        choose(command.theme);
+      }
+    }),
+  );
 
   onMount(() => {
     applyTheme(document.documentElement, current, systemPrefersDark());

@@ -303,6 +303,7 @@
             {#snippet row(message: Message, index: number)}
               <li
                 class="message"
+                data-message-id={message.id}
                 aria-posinset={index + 1}
                 aria-setsize={messages.length}
                 data-level={message.level}
