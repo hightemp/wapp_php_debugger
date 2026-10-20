@@ -103,6 +103,23 @@ The main way: nothing to open on the server, no extra software there.
 
 For servers without SSH access (shared hosting). Set `http_token` (32+ characters) in the project's `dws_debugger.json` — the library then answers its own API, see [client-php/README.md](client-php/README.md#http-mode) — and add a server of kind **HTTP** with the application address and that token. Use `https://`: over plain `http://` the token and the logs travel unencrypted, and the UI warns about it. The token is kept outside the database in `secrets.json` next to it, readable by the user only, and never shown again. One HTTP server is one application, so it holds one project; the library knows its logs directory.
 
+### Push logs to the viewer
+
+For containers, pods and servers the viewer cannot reach: the logs come to the viewer instead.
+
+1. Start the viewer with a receiver: `wapp-debugger serve --ingest-addr 0.0.0.0:8821`. Only the receiver (`POST /ingest/v2`, [`spec/ingest.yaml`](spec/ingest.yaml)) is on that address; the UI and its API stay on `--addr`, on localhost.
+2. In the project settings, **Make a push token**. It is shown once, with the keys for `dws_debugger.json`:
+   ```json
+   "push_url": "http://viewer.lan:8821/ingest/v2",
+   "push_token": "…"
+   ```
+   With them the library sends its events to the viewer instead of writing files: in batches, every second in a long run, the rest when the request ends. One failed send (2 s timeout) stops logging for that request, so a missing viewer never slows the application down twice. `https://` needs the `openssl` extension, like any HTTPS in PHP.
+3. Or leave the library writing files and run the agent next to them: `WAPP_DEBUGGER_PUSH_TOKEN=… wapp-debugger agent --logs-dir /var/www/app/tmp/logs --push http://viewer.lan:8821/ingest/v2`. It sends new lines as they are written and retries what the viewer missed; after a restart it sends the files again and the viewer keeps one copy of every event.
+
+**Errors of pages.** With pushing on, `<?= \WappDebugger\Debugger::instance()->jsTag() ?>` in the page prints the tag of `debugger.js`: uncaught errors with their stack, unhandled rejections and `console.error`/`warn` of the page arrive as a child of the PHP request that printed it. The page carries the token, so use it on dev and stage only. Chrome lets a page reach a receiver in the local network from a page in the same network, or from an HTTPS page.
+
+**Logs of others.** **Import a request** in the project panel takes, besides exports and log files of the library, a PHP error log (`php_errors.log`), a Laravel log (`storage/logs/*.log`) and an nginx error log: the file becomes one request named after it, its entries messages with their levels, files, lines and stacks.
+
 ### Many servers at once
 
 - **Finding projects.** **Find projects** on a local or SSH server walks the given directories (4 levels, 5000 directories at most, no symlinks; `vendor`, `node_modules` and `.git` are skipped) for `dws_debugger.json` and lists what it finds with paths resolved the way the library resolves them; one click adds a project.

@@ -136,9 +136,16 @@ PSR-3 levels map onto the five levels above (`critical`, `alert`, `emergency` �
 | `mask_keys` | `[]` | More keys to write as `***` |
 | `log_globals` | `["get", "post", "files"]` | Superglobals logged at start; add `server`, `session`, `cookie` when needed — they hold secrets |
 | `max_age_days`, `max_files`, `max_logs_size` | `30`, `5000`, `268435456` | Old logs are deleted past these limits (bytes for the size); `0` turns a limit off |
+| `push_url`, `push_token` | none | Send the events to the viewer's receiver instead of files (`http(s)://…/ingest/v2`, the project's push token, 32+ characters); see [Pushing to the viewer](#pushing-to-the-viewer) |
 | `http_token` | none | Turns the HTTP mode on (at least 32 characters) |
 | `http_allowed_ips` | `[]` | Addresses or CIDR networks allowed to use the HTTP mode; empty means any |
 | `http_rate_limit` | `600` | HTTP mode requests per minute |
+
+## Pushing to the viewer
+
+With `push_url` and `push_token` (made in the viewer's project settings, `serve --ingest-addr`) the events go to the viewer over HTTP instead of files: in batches of 100, every second in a long run, the rest when the request ends. PHP streams send them — no extension is needed (`https://` needs `openssl`, like any HTTPS in PHP). One failed send (2 s timeout) stops logging for that request. `allowed_envs` turns pushing off like the rest.
+
+`Debugger::instance()->jsTag()` prints the `<script>` tag of the viewer's JS client for the page: its uncaught errors, unhandled rejections and `console.error`/`warn` come in as a child of this request. It is empty when pushing is off. The token is in the page, so this is for dev and stage.
 
 ## HTTP mode
 
