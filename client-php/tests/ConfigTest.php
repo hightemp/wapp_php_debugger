@@ -101,4 +101,79 @@ final class ConfigTest extends TestCase
         self::assertSame(0750, $config->dirMode());
         self::assertSame(0664, Config::fromArray(['file_mode' => '0999'])->fileMode(), 'not octal: the default');
     }
+
+    protected function tearDown(): void
+    {
+        putenv('APP_ENV');
+        putenv('STAGE');
+        unset($_SERVER['APP_ENV'], $_ENV['APP_ENV']);
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    private static function enabledWith(array $values): array
+    {
+        return ['enabled' => true, 'logs_dir' => '/tmp/logs', 'http_token' => str_repeat('t', 32)] + $values;
+    }
+
+    public function testWithoutAllowedEnvsAnyEnvironmentWorks(): void
+    {
+        putenv('APP_ENV=production');
+
+        self::assertTrue(Config::fromArray(self::enabledWith([]))->enabled());
+    }
+
+    public function testAllowedEnvsLetTheDebuggerWorkOnlyThere(): void
+    {
+        $values = self::enabledWith(['allowed_envs' => ['local', 'dev', 'stage']]);
+
+        putenv('APP_ENV=dev');
+        $config = Config::fromArray($values);
+        self::assertTrue($config->enabled());
+        self::assertNotNull($config->httpToken());
+
+        putenv('APP_ENV=production');
+        $config = Config::fromArray($values);
+        self::assertFalse($config->enabled(), 'a production server stays silent even with enabled: true');
+        self::assertNull($config->httpToken(), 'and the HTTP mode cannot turn it on');
+    }
+
+    public function testAnUnknownEnvironmentIsNotAllowed(): void
+    {
+        $config = Config::fromArray(self::enabledWith(['allowed_envs' => ['dev']]));
+
+        self::assertFalse($config->enabled(), 'no APP_ENV at all: off, the safe side');
+    }
+
+    public function testTheEnvironmentComesFromServerAndEnvToo(): void
+    {
+        $values = self::enabledWith(['allowed_envs' => ['dev']]);
+
+        $_SERVER['APP_ENV'] = 'dev'; // SetEnv of Apache, fastcgi_param of nginx
+        self::assertTrue(Config::fromArray($values)->enabled());
+        unset($_SERVER['APP_ENV']);
+
+        $_ENV['APP_ENV'] = 'dev';
+        self::assertTrue(Config::fromArray($values)->enabled());
+    }
+
+    public function testTheVariableNameIsConfigurable(): void
+    {
+        putenv('APP_ENV=dev');
+        putenv('STAGE=prod');
+
+        self::assertFalse(Config::fromArray(self::enabledWith(['allowed_envs' => ['dev'], 'env_var' => 'STAGE']))->enabled());
+    }
+
+    public function testAllowedEnvsIgnoreCaseAndJunk(): void
+    {
+        putenv('APP_ENV=Dev');
+
+        self::assertTrue(Config::fromArray(self::enabledWith(['allowed_envs' => ['DEV', 7, null]]))->enabled());
+        self::assertTrue(Config::fromArray(self::enabledWith(['allowed_envs' => 'dev']))->enabled(), 'a string is one environment');
+        self::assertFalse(Config::fromArray(self::enabledWith(['allowed_envs' => 'prod']))->enabled());
+    }
 }

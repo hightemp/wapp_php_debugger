@@ -98,6 +98,8 @@ PSR-3 levels map onto the five levels above (`critical`, `alert`, `emergency` �
 | Key | Default | Meaning |
 |---|---|---|
 | `enabled` | `false` | Write logs |
+| `allowed_envs` | none | Environments the debugger may work in, by `env_var`, e.g. `["local", "dev", "stage"]`. Elsewhere — or with the variable unset — it is off whatever `enabled` says, and so is the HTTP mode: a config copied to production stays silent |
+| `env_var` | `"APP_ENV"` | Variable with the environment name: `getenv()`, then `$_SERVER` (`SetEnv`, `fastcgi_param`), then `$_ENV`; case does not matter |
 | `project_root` | directory of the file | Paths in the logs are relative to it |
 | `logs_dir` | `<project_root>/tmp/logs` | Where the log files go; must be writable by PHP |
 | `file_mode`, `dir_mode` | `"0664"`, `"0775"` | Modes of new files and directories (the viewer often runs as another user) |

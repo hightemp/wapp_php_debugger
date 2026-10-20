@@ -82,6 +82,36 @@ final class Config
         if ($this->logsDir === null) {
             $this->enabled = false;
         }
+        if (!self::environmentAllowed($values)) {
+            // A server outside allowed_envs (production) stays silent: no logs, no HTTP mode to turn them on
+            $this->enabled = false;
+            $this->httpToken = null;
+        }
+    }
+
+    /**
+     * allowed_envs lists the environments the debugger may work in, by the variable env_var (APP_ENV).
+     * Without the list any environment is allowed; with it, an unknown environment is not.
+     *
+     * @param array<string, mixed> $values
+     */
+    private static function environmentAllowed(array $values): bool
+    {
+        $allowed = $values['allowed_envs'] ?? null;
+        if (is_string($allowed)) {
+            $allowed = [$allowed];
+        }
+        if (!is_array($allowed)) {
+            return true;
+        }
+        $allowed = array_map('strtolower', array_filter($allowed, 'is_string'));
+        $name = self::stringOrNull($values['env_var'] ?? null) ?? 'APP_ENV';
+        $current = getenv($name);
+        if (!is_string($current) || $current === '') {
+            $current = $_SERVER[$name] ?? $_ENV[$name] ?? null;
+        }
+
+        return is_string($current) && in_array(strtolower($current), $allowed, true);
     }
 
     /**
