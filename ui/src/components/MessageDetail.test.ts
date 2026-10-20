@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
 import { fakeTransport, sampleMessage } from '../test/transport';
@@ -76,5 +76,32 @@ describe('MessageDetail', () => {
     const { transport } = fakeTransport();
     render(MessageDetail, { transport, messageId: 1 });
     expect(await screen.findByText('No context')).toBeInTheDocument();
+  });
+
+  it('opens the code around the message and around a frame', async () => {
+    const { transport } = fakeTransport({
+      getMessage: vi.fn(async () =>
+        sampleMessage(1001, {
+          message: 'Loading item',
+          source: { file: 'app/Item.php', line: 31 },
+          trace: [
+            { file: 'app/Item.php', line: 31, function: 'show' },
+            { file: 'public/index.php', line: 12, function: 'dispatch' },
+          ],
+        }),
+      ),
+      getMessageSource: vi.fn(async () => ({
+        file: 'x.php',
+        line: 1,
+        first_line: 1,
+        lines: ['<?php'],
+      })),
+    });
+    render(MessageDetail, { transport, messageId: 1001 });
+    await fireEvent.click(await screen.findByRole('button', { name: 'Show the code' }));
+    await waitFor(() => expect(transport.getMessageSource).toHaveBeenCalledWith(1001, undefined));
+    const frames = screen.getAllByRole('button', { name: 'Code of this frame' });
+    await fireEvent.click(frames[1] as HTMLElement);
+    await waitFor(() => expect(transport.getMessageSource).toHaveBeenCalledWith(1001, 1));
   });
 });

@@ -17,6 +17,7 @@ import type {
   ServerInput,
   ServerPatch,
   RequestPage,
+  SourcePreview,
   StreamEvent,
 } from './types';
 
@@ -75,6 +76,8 @@ export interface Transport {
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
   getMessage(id: number): Promise<MessageDetail>;
+  /** Lines of the file around the message, or around a frame of its backtrace. */
+  getMessageSource(id: number, frame?: number): Promise<SourcePreview>;
   listServers(): Promise<{ items: Server[] }>;
   createServer(input: ServerInput): Promise<Server>;
   updateServer(id: number, patch: ServerPatch): Promise<Server>;
@@ -207,6 +210,8 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     listMessages: (requestId, params) =>
       getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
     getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
+    getMessageSource: (id, frame) =>
+      getJSON<SourcePreview>(`/api/v1/messages/${id}/source`, frame === undefined ? {} : { frame }),
     listServers: () => getJSON<{ items: Server[] }>('/api/v1/servers'),
     createServer: (input) => request<Server>('POST', '/api/v1/servers', {}, input),
     updateServer: (id, patch) => request<Server>('PATCH', `/api/v1/servers/${id}`, {}, patch),

@@ -23,6 +23,7 @@ export type RequestDetail = Schemas['RequestDetail'];
 export type RequestPage = Schemas['RequestPage'];
 export type Message = Schemas['Message'];
 export type MessageDetail = Schemas['MessageDetail'];
+export type SourcePreview = Schemas['SourcePreview'];
 export type MessagePage = Schemas['MessagePage'];
 export type StreamEvent = Schemas['StreamEvent'];
 export type Settings = Schemas['Settings'];

@@ -111,3 +111,13 @@ test('the views of a request: timeline, SQL, superglobals', async ({ page }) => 
   await expect(globals).toContainText('$_GET');
   await expect(globals).toContainText('id');
 });
+
+test('the code around a message, read from the project', async ({ page }) => {
+  await openTheItemPage(page);
+  await page.getByRole('button', { name: /Loading the item/ }).click();
+  const message = page.getByRole('region', { name: 'Message' });
+  await message.getByRole('button', { name: 'Show the code' }).click();
+  const code = message.getByRole('region', { name: 'public/index.php:13' });
+  await expect(code).toContainText("__d(DWS_INFO, 'Loading the item'");
+  await expect(code.locator('[data-current]')).toHaveText('13');
+});

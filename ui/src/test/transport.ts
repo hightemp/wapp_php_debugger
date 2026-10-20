@@ -103,6 +103,12 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       date: '',
     })),
     // The update check is off by default
+    getMessageSource: vi.fn(async () => ({
+      file: 'x.php',
+      line: 1,
+      first_line: 1,
+      lines: [] as string[],
+    })),
     getUpdates: vi.fn(async (): Promise<UpdateInfo> => ({
       enabled: false,
       current: 'v0.0.0-test',

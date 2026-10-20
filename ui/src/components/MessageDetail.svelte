@@ -3,6 +3,7 @@
   import type { MessageDetail } from '../lib/api/types';
   import { formatDuration, formatTime } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import CodePreview from './CodePreview.svelte';
   import JsonTree from './JsonTree.svelte';
 
   type Frame = NonNullable<MessageDetail['source']>;
@@ -12,6 +13,21 @@
   let message = $state<MessageDetail | null>(null);
   let status = $state<'loading' | 'ready' | 'not-found' | 'error'>('loading');
   let errorMessage = $state('');
+  // The code under the place of the message and under the frames the user opened
+  let showCode = $state(false);
+  let openFrames = $state<number[]>([]);
+
+  function toggleFrame(index: number) {
+    openFrames = openFrames.includes(index)
+      ? openFrames.filter((item) => item !== index)
+      : [...openFrames, index];
+  }
+
+  $effect(() => {
+    void messageId;
+    showCode = false;
+    openFrames = [];
+  });
 
   $effect(() => {
     const id = messageId;
@@ -71,7 +87,16 @@
         {:else}
           <span>{location(message.source)}</span>
         {/if}
+        <button
+          type="button"
+          class="code-toggle"
+          aria-expanded={showCode}
+          onclick={() => (showCode = !showCode)}>{i18n.t('code.show')}</button
+        >
       </p>
+      {#if showCode}
+        <CodePreview {transport} {messageId} />
+      {/if}
     {/if}
 
     <h3 class="subtitle">{i18n.t('message.context')}</h3>
@@ -104,6 +129,18 @@
               <span class="callee">{callee(frame)}</span>
             {/if}
             <span class="muted">{location(frame)}</span>
+            {#if frame.file}
+              <button
+                type="button"
+                class="code-toggle"
+                aria-label={i18n.t('code.frame')}
+                aria-expanded={openFrames.includes(index)}
+                onclick={() => toggleFrame(index)}>{i18n.t('code.short')}</button
+              >
+            {/if}
+            {#if openFrames.includes(index)}
+              <CodePreview {transport} {messageId} frame={index} />
+            {/if}
           </li>
         {/each}
       </ol>
@@ -112,6 +149,28 @@
 </section>
 
 <style>
+  .code-toggle {
+    margin-left: var(--space-2);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .code-toggle[aria-expanded='true'] {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .code-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
   .message {
     padding: var(--space-3) var(--space-4);
     overflow: auto;

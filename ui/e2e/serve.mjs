@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import {
     copyFileSync,
+    cpSync,
     mkdirSync,
     mkdtempSync,
     readdirSync,
@@ -22,6 +23,8 @@ const work = mkdtempSync(join(tmpdir(), 'wapp-debugger-e2e-'));
 const root = join(work, 'shop');
 const logs = join(root, 'tmp', 'logs');
 mkdirSync(logs, { recursive: true });
+// The sources of the application that wrote the fixtures: the code preview reads them
+cpSync(join(fixtures, 'generator', 'app'), root, { recursive: true });
 writeFileSync(join(root, 'dws_debugger.json'), '{"enabled": true, "logs_dir": "tmp/logs"}\n');
 for (const name of readdirSync(fixtures).filter((file) => file.endsWith('.jsonl'))) {
     const first = JSON.parse(readFileSync(join(fixtures, name), 'utf8').split('\n')[0]);
