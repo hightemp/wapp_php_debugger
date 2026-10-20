@@ -30,4 +30,28 @@ final class Masker
         return preg_match(self::DEFAULT_PATTERN, str_replace('-', '_', $key)) === 1
             || in_array(strtolower($key), $this->extraKeys, true);
     }
+
+    /**
+     * Hides the values of secret query parameters: https://pay.test/?id=7&token=*** — the rest of the
+     * URL is kept as it is.
+     */
+    public function url(string $url): string
+    {
+        $parts = explode('?', $url, 2);
+        if (count($parts) < 2) {
+            return $url;
+        }
+        $hash = strpos($parts[1], '#');
+        $query = $hash === false ? $parts[1] : substr($parts[1], 0, $hash);
+        $fragment = $hash === false ? '' : substr($parts[1], $hash);
+        $pairs = explode('&', $query);
+        foreach ($pairs as $index => $pair) {
+            [$key] = explode('=', $pair, 2);
+            if ($key !== '' && $this->isSecret(rawurldecode($key))) {
+                $pairs[$index] = $key . '=' . self::MASK;
+            }
+        }
+
+        return $parts[0] . '?' . implode('&', $pairs) . $fragment;
+    }
 }

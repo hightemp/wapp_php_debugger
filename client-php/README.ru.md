@@ -82,6 +82,34 @@ $debugger->stopTimer('render');
 - веб: передавайте id страницы в заголовке `X-Wapp-Debugger-Parent` её AJAX-запросов; страница берёт его из `Debugger::instance()->requestId()`;
 - CLI: ничего делать не нужно — библиотека сама выставляет `WAPP_DEBUGGER_PARENT` для процессов, запущенных из запроса.
 
+## SQL и HTTP-запросы
+
+Запросы к базе и исходящие HTTP-запросы пишутся с длительностью; просмотрщик показывает их на вкладке SQL (с отметкой повторяющихся — N+1) и на шкале времени запроса.
+
+```php
+use WappDebugger\Debugger;
+use WappDebugger\Sql;
+
+Sql::watch($pdo);                 // каждый подготовленный запрос $pdo пишет себя сам: SQL, параметры, строки, время
+$pdo->prepare('SELECT * FROM orders WHERE user_id = ?')->execute([$userId]);
+
+// Всё остальное — вручную
+$started = Debugger::instance()->monotonicMs();
+$rows = $legacyDb->query($sql);
+Debugger::instance()->sql($sql, $params, Debugger::instance()->monotonicMs() - $started, count($rows));
+Debugger::instance()->http('GET', $url, $status, $durationMs);     // или ..., null, $durationMs, $error
+```
+
+`PDO::query()` и `PDO::exec()` идут в обход `Sql::watch()`: такие запросы подготовьте или запишите вручную. Параметры маскируются как любой контекст, секретные параметры в URL — тоже (`?token=***`). Упавший запрос пишется ошибкой с текстом, исключение уходит в приложение как обычно.
+
+Guzzle (самой библиотеке Guzzle не нужен):
+
+```php
+$stack = GuzzleHttp\HandlerStack::create();
+$stack->push(WappDebugger\Bridge\GuzzleMiddleware::create());
+$client = new GuzzleHttp\Client(['handler' => $stack]);
+```
+
 ## PSR-3 и Monolog
 
 ```php

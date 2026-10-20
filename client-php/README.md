@@ -82,6 +82,34 @@ A page and its AJAX calls, or a job and the processes it starts, are linked in t
 - web: send the page's id in the `X-Wapp-Debugger-Parent` header of its AJAX calls; the page gets it from `Debugger::instance()->requestId()`;
 - CLI: nothing to do — the library sets `WAPP_DEBUGGER_PARENT` for processes started from a request.
 
+## SQL and HTTP calls
+
+Queries and outgoing requests are written with their duration; the viewer lists them on the SQL tab (with repeated queries — N+1 — pointed out) and on the request timeline.
+
+```php
+use WappDebugger\Debugger;
+use WappDebugger\Sql;
+
+Sql::watch($pdo);                 // every prepared statement of $pdo logs itself: SQL, parameters, rows, time
+$pdo->prepare('SELECT * FROM orders WHERE user_id = ?')->execute([$userId]);
+
+// Anything else, by hand
+$started = Debugger::instance()->monotonicMs();
+$rows = $legacyDb->query($sql);
+Debugger::instance()->sql($sql, $params, Debugger::instance()->monotonicMs() - $started, count($rows));
+Debugger::instance()->http('GET', $url, $status, $durationMs);     // or ..., null, $durationMs, $error
+```
+
+`PDO::query()` and `PDO::exec()` bypass the statements of `Sql::watch()`: prepare such queries or log them by hand. Parameters are masked like any context, secret query parameters of URLs too (`?token=***`). A failing statement is logged as an error with its message, and the exception goes on to the application.
+
+Guzzle (no Guzzle needed by the library itself):
+
+```php
+$stack = GuzzleHttp\HandlerStack::create();
+$stack->push(WappDebugger\Bridge\GuzzleMiddleware::create());
+$client = new GuzzleHttp\Client(['handler' => $stack]);
+```
+
 ## PSR-3 and Monolog
 
 ```php

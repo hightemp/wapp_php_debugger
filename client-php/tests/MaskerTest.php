@@ -44,4 +44,13 @@ final class MaskerTest extends TestCase
         self::assertTrue($masker->isSecret('CVV'));
         self::assertTrue($masker->isSecret('password'), 'the defaults stay');
     }
+
+    public function testUrlsKeepAllButSecretQueryValues(): void
+    {
+        $masker = new Masker(['sid']);
+
+        self::assertSame('https://a.test/p', $masker->url('https://a.test/p'));
+        self::assertSame('https://a.test/p?id=7&token=***#top', $masker->url('https://a.test/p?id=7&token=abc#top'));
+        self::assertSame('https://a.test/?sid=***&flag&api%5Fkey=***', $masker->url('https://a.test/?sid=1&flag&api%5Fkey=k'));
+    }
 }

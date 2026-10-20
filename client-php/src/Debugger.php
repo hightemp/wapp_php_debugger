@@ -19,6 +19,7 @@ final class Debugger
 
     private Clock $clock;
     private Serializer $serializer;
+    private Masker $masker;
     private Frames $frames;
     private int $traceFrames;
     private float $startedMonotonic;
@@ -33,10 +34,11 @@ final class Debugger
     private bool $cli;
     private bool $finished = false;
 
-    private function __construct(Clock $clock, Serializer $serializer, Frames $frames, int $traceFrames, ?JsonlFileWriter $writer, string $requestId, int $startedAt, bool $cli)
+    private function __construct(Clock $clock, Serializer $serializer, Masker $masker, Frames $frames, int $traceFrames, ?JsonlFileWriter $writer, string $requestId, int $startedAt, bool $cli)
     {
         $this->clock = $clock;
         $this->serializer = $serializer;
+        $this->masker = $masker;
         $this->frames = $frames;
         $this->traceFrames = $traceFrames;
         $this->startedMonotonic = $clock->monotonicMs();
@@ -62,8 +64,9 @@ final class Debugger
             $writer = new JsonlFileWriter($logsDir, $fileName, $config->fileMode(), $config->dirMode());
         }
 
-        $serializer = new Serializer(new Masker($config->maskKeys()), $config->maxDepth(), $config->maxItems(), $config->maxStringBytes());
-        $debugger = new self($clock, $serializer, new Frames($config->projectRoot()), $config->traceFrames(), $writer, $requestId, $now, $request->isCli());
+        $masker = new Masker($config->maskKeys());
+        $serializer = new Serializer($masker, $config->maxDepth(), $config->maxItems(), $config->maxStringBytes());
+        $debugger = new self($clock, $serializer, $masker, new Frames($config->projectRoot()), $config->traceFrames(), $writer, $requestId, $now, $request->isCli());
         if ($writer !== null) {
             // Child processes (exec, proc_open, cron jobs started from here) link themselves to this request
             putenv(RequestInfo::PARENT_ENV . '=' . $requestId);
@@ -140,6 +143,50 @@ final class Debugger
      */
     public function log(string $level, string $message, array $context = [], array $tags = []): void
     {
+        $this->write($level, $message, $context, $tags, null);
+    }
+
+    /**
+     * An SQL query that has run: the SQL tab of the viewer lists queries with their time and finds
+     * repeated ones (N+1). Parameters are masked like any context.
+     *
+     * @param array<array-key, mixed> $params
+     */
+    public function sql(string $sql, array $params = [], ?float $durationMs = null, ?int $rows = null): void
+    {
+        $context = $params === [] ? [] : ['params' => $params];
+        if ($rows !== null) {
+            $context['rows'] = $rows;
+        }
+        $this->write(Level::DEBUG, $sql, $context, ['sql'], $durationMs);
+    }
+
+    /**
+     * An outgoing HTTP request that has ended: a response status, or the error that stopped it.
+     * Secret query parameters of the URL are masked.
+     */
+    public function http(string $method, string $url, ?int $status = null, ?float $durationMs = null, ?string $error = null): void
+    {
+        $context = $status !== null ? ['status' => $status] : [];
+        if ($error !== null) {
+            $context['error'] = $error;
+        }
+        $failed = $error !== null || ($status !== null && $status >= 400);
+        $this->write($failed ? Level::WARNING : Level::INFO, strtoupper($method) . ' ' . $this->masker->url($url), $context, ['http'], $durationMs);
+    }
+
+    /** A monotonic clock in ms, to time an operation for sql() and http(). */
+    public function monotonicMs(): float
+    {
+        return $this->clock->monotonicMs();
+    }
+
+    /**
+     * @param array<array-key, mixed> $context
+     * @param list<string>            $tags
+     */
+    private function write(string $level, string $message, array $context, array $tags, ?float $durationMs): void
+    {
         if (!$this->enabled()) {
             return;
         }
@@ -150,6 +197,9 @@ final class Debugger
         }
         if ($context !== []) {
             $fields['context'] = (object) $this->serializer->normalize($context);
+        }
+        if ($durationMs !== null) {
+            $fields['duration_ms'] = round(max(0.0, $durationMs), 3);
         }
         $stack = $this->frames->callStack();
         if ($stack['source'] !== null) {
