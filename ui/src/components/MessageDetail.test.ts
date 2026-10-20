@@ -37,6 +37,8 @@ describe('MessageDetail', () => {
     render(MessageDetail, { transport, messageId: 1001 });
 
     expect(await screen.findByText('Loading item')).toBeInTheDocument();
+    // A landmark, so screen readers (and e2e tests) find the pane
+    expect(screen.getByRole('region', { name: 'Message' })).toHaveTextContent('Loading item');
     expect(screen.getByRole('link', { name: 'app/Item.php:31' })).toHaveAttribute(
       'href',
       'vscode://file/home/dev/shop/app/Item.php:31',

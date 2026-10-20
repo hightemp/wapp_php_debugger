@@ -194,6 +194,10 @@ ui-lint: ## ESLint, Prettier and svelte-check
 ui-test: ## UI tests (Vitest)
 	cd ui && npm test
 
+.PHONY: e2e
+e2e: build ## Browser tests (Playwright) of the built viewer on the v2 fixtures
+	cd ui && NO_PROXY='*' no_proxy='*' npx playwright test
+
 .PHONY: ui-build
 ui-build: ## Build the UI into server/web/dist
 	cd ui && npm run build

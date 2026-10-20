@@ -38,7 +38,7 @@
   }
 </script>
 
-<section class="message" aria-live="polite">
+<section class="message" aria-label={i18n.t('message.title')} aria-live="polite">
   {#if status === 'not-found'}
     <p class="state">{i18n.t('message.notFound')}</p>
   {:else if status === 'error'}
