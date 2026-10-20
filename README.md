@@ -114,12 +114,29 @@ For servers without SSH access (shared hosting). Set `http_token` (32+ character
 
 ## Desktop app
 
-```sh
-make desktop-build                                 # needs GTK4 + WebKitGTK 6.0 on Linux
-dist/wapp-debugger-desktop --logs-dir /var/www/app/tmp/logs
-```
+The same viewer in a window, without a network port. Installers are attached to every [release](https://github.com/hightemp/wapp_php_debugger/releases):
 
-The same viewer in a window, without a network port; `--logs-dir` is optional here too.
+| System | File | Notes |
+|---|---|---|
+| Linux | `.deb`, `.AppImage`, `.tar.gz` | the `.deb` needs `libgtk-4-1` and `libwebkitgtk-6.0-4` (Ubuntu 24.04, Debian 13); the AppImage carries its libraries |
+| Windows | `_setup.exe`, `.zip` | installs for the current user, no administrator rights; needs the WebView2 runtime (built into Windows 11) |
+| macOS | `.dmg`, `.tar.gz` | one app for Apple silicon and Intel, macOS 11+ |
+
+**First start.** The apps are not signed yet (plan 10.28), so the system asks once:
+
+- macOS: right-click the app → **Open** → **Open**; or `xattr -dr com.apple.quarantine /Applications/wapp-debugger.app`;
+- Windows: SmartScreen → **More info** → **Run anyway**;
+- Linux: `sudo apt install ./wapp-debugger-desktop_*.deb`, or `chmod +x` the AppImage.
+
+What the desktop adds to the browser version (**Settings** in the header):
+
+- an icon in the tray (the menu bar on macOS) with the number of new requests with errors and a menu of the last ones; closing the window keeps the app there;
+- system notifications about new requests with errors — or warnings too — in all or chosen projects; a burst comes as one notice; a click opens the request;
+- links `wapp-debugger://open?project=3&request=42&message=1001` open the request in the app (from a chat, a ticket, a script); the installers register the scheme, a second start hands the link to the running window;
+- start at login; the window comes back where it was;
+- a notice in the header when a newer version is out (GitHub Releases once a day; can be switched off).
+
+From source: `make desktop-build` (needs GTK4 + WebKitGTK 6.0 on Linux), then `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` is optional here too. `make desktop-package` builds the installers of the current system; more in [desktop/README.md](desktop/README.md).
 
 ## Docker
 

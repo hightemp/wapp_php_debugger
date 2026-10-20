@@ -111,12 +111,29 @@ wapp-debugger serve --logs-dir /var/www/app/tmp/logs   # откройте http:/
 
 ## Десктоп-версия
 
-```sh
-make desktop-build                                 # в Linux нужны GTK4 + WebKitGTK 6.0
-dist/wapp-debugger-desktop --logs-dir /var/www/app/tmp/logs
-```
+Тот же просмотрщик в окне, без сетевого порта. Установщики приложены к каждому [релизу](https://github.com/hightemp/wapp_php_debugger/releases):
 
-Тот же просмотрщик в окне, без сетевого порта; `--logs-dir` здесь тоже необязателен.
+| Система | Файл | Примечания |
+|---|---|---|
+| Linux | `.deb`, `.AppImage`, `.tar.gz` | `.deb` нужны `libgtk-4-1` и `libwebkitgtk-6.0-4` (Ubuntu 24.04, Debian 13); AppImage везёт библиотеки с собой |
+| Windows | `_setup.exe`, `.zip` | ставится для текущего пользователя, без прав администратора; нужен WebView2 (в Windows 11 он есть) |
+| macOS | `.dmg`, `.tar.gz` | одно приложение для Apple silicon и Intel, macOS 11+ |
+
+**Первый запуск.** Приложения пока не подписаны (п. 10.28 плана), поэтому система один раз спросит:
+
+- macOS: правый клик по приложению → **Открыть** → **Открыть**; или `xattr -dr com.apple.quarantine /Applications/wapp-debugger.app`;
+- Windows: SmartScreen → **Подробнее** → **Выполнить в любом случае**;
+- Linux: `sudo apt install ./wapp-debugger-desktop_*.deb` или `chmod +x` для AppImage.
+
+Что десктоп добавляет к браузерной версии (**«Настройки»** в шапке):
+
+- значок в трее (в строке меню на macOS) с числом новых запросов с ошибками и меню последних; закрытое окно оставляет приложение там;
+- системные уведомления о новых запросах с ошибками — или и с предупреждениями — во всех или выбранных проектах; всплеск приходит одним уведомлением; клик открывает запрос;
+- ссылки `wapp-debugger://open?project=3&request=42&message=1001` открывают запрос в приложении (из чата, задачи, скрипта); установщики регистрируют схему, повторный запуск передаёт ссылку уже открытому окну;
+- запуск при входе в систему; окно открывается там, где было;
+- сообщение в шапке о новой версии (GitHub Releases раз в сутки; отключается).
+
+Из исходников: `make desktop-build` (в Linux нужны GTK4 + WebKitGTK 6.0), затем `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` и здесь необязателен. `make desktop-package` собирает установщики текущей системы; подробнее — в [desktop/README.md](desktop/README.md).
 
 ## Docker
 
