@@ -689,7 +689,8 @@ export interface components {
          *       "message_count": 6,
          *       "error_count": 0,
          *       "warning_count": 2,
-         *       "received_at": 1792400000310
+         *       "received_at": 1792400000310,
+         *       "pinned": false
          *     }
          */
         Request: {
