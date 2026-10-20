@@ -1,5 +1,5 @@
 <script lang="ts">
-  import JsonNode from './JsonNode.svelte';
+  import JsonChildren from './JsonChildren.svelte';
   import JsonValue from './JsonValue.svelte';
 
   // expandDepth: how many levels are open initially (deeper ones start collapsed)
@@ -16,11 +16,7 @@
   {#if entries === null || entries.length === 0}
     <JsonValue {value} />
   {:else}
-    <ul class="root">
-      {#each entries as [name, child] (name)}
-        <JsonNode {name} value={child} depth={1} {expandDepth} />
-      {/each}
-    </ul>
+    <JsonChildren class="root" {entries} depth={1} {expandDepth} />
   {/if}
 </div>
 
@@ -31,7 +27,7 @@
     line-height: 1.6;
   }
 
-  .root {
+  .json :global(.root) {
     margin: 0;
     padding: 0;
   }

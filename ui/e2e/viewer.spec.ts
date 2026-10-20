@@ -67,3 +67,26 @@ for (const theme of ['Light', 'Dark', 'High contrast']) {
     });
   });
 }
+
+test('a request with thousands of messages scrolls whole', async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('region', { name: 'Requests' })
+    .getByRole('button', { name: /3000 messages/ })
+    .click();
+  const list = page.getByRole('list', { name: 'Messages' });
+  await expect(list.getByRole('listitem').first()).toHaveAttribute('aria-setsize', '3000');
+  // Only the rows near the viewport are in the page
+  expect(await list.getByRole('listitem').count()).toBeLessThan(200);
+
+  await list.evaluate((element) => {
+    let node: HTMLElement | null = element;
+    while (node && getComputedStyle(node).overflowY !== 'auto') {
+      node = node.parentElement;
+    }
+    node?.scrollTo(0, node.scrollHeight);
+  });
+  await expect(list.getByRole('button', { name: /step 3000\b/ })).toBeVisible();
+  await list.getByRole('button', { name: /step 3000\b/ }).click();
+  await expect(page.getByRole('region', { name: 'Message' })).toContainText('row');
+});

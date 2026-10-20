@@ -58,4 +58,16 @@ describe('JsonTree', () => {
     render(JsonTree, { value: 'just text' });
     expect(screen.getByText('"just text"')).toHaveAttribute('data-type', 'string');
   });
+
+  it('shows a big object in parts', async () => {
+    const big = Object.fromEntries(Array.from({ length: 450 }, (_, i) => [`key${i}`, i]));
+    render(JsonTree, { value: { big } });
+    expect(screen.getByText('key199', { selector: '.key' })).toBeInTheDocument();
+    expect(screen.queryByText('key200', { selector: '.key' })).not.toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Show 200 more of 250' }));
+    expect(screen.getByText('key399', { selector: '.key' })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Show 50 more of 50' }));
+    expect(screen.getByText('key449', { selector: '.key' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /more of/ })).not.toBeInTheDocument();
+  });
 });

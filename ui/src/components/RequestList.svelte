@@ -6,6 +6,7 @@
   import { applyStreamEvent } from '../lib/requests';
   import SegmentedControl from './SegmentedControl.svelte';
   import Switch from './Switch.svelte';
+  import VirtualList from './VirtualList.svelte';
 
   let {
     transport,
@@ -251,9 +252,14 @@
       <p class="hint">{i18n.t('feed.emptyHint')}</p>
     </div>
   {:else}
-    <ul class="list">
-      {#each items as request (request.id)}
-        <li class="item" aria-current={request.id === selectedId ? 'true' : undefined}>
+    <VirtualList {items} key={(request) => request.id} label={i18n.t('feed.title')}>
+      {#snippet row(request: Request, index: number)}
+        <li
+          class="item"
+          aria-posinset={index + 1}
+          aria-setsize={items.length}
+          aria-current={request.id === selectedId ? 'true' : undefined}
+        >
           <button
             type="button"
             class="row"
@@ -288,8 +294,8 @@
             </span>
           </button>
         </li>
-      {/each}
-    </ul>
+      {/snippet}
+    </VirtualList>
     {#if nextCursor}
       <button type="button" class="action more" onclick={loadMore} disabled={loadingMore}>
         {i18n.t('feed.loadMore')}
@@ -344,12 +350,6 @@
     align-items: center;
     color: var(--text-muted);
     font-size: var(--font-size-small);
-  }
-
-  .list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
   }
 
   .item[aria-current='true'] .row {
@@ -407,7 +407,7 @@
 
   .meta {
     grid-column: 2;
-    flex-wrap: wrap;
+    overflow: hidden;
     display: flex;
     gap: var(--space-3);
     align-items: center;

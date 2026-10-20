@@ -106,6 +106,24 @@ describe('RequestDetail', () => {
     expect(transport.listMessages).toHaveBeenCalledTimes(2);
   });
 
+  it('shows every message of a long request, page after page', async () => {
+    const page = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) =>
+        sampleMessage(from + i, { message: `step ${from + i}` }),
+      );
+    const listMessages = vi
+      .fn()
+      .mockResolvedValueOnce({ items: page(1, 500), next_cursor: 'c1' })
+      .mockResolvedValueOnce({ items: page(501, 120), next_cursor: null });
+    setup({ listMessages });
+    await waitFor(() => expect(listMessages).toHaveBeenCalledTimes(2));
+    expect(listMessages).toHaveBeenLastCalledWith(42, { limit: 500, cursor: 'c1' });
+    const list = await screen.findByRole('list', { name: 'Messages' });
+    await waitFor(() =>
+      expect(within(list).getAllByRole('listitem')[0]).toHaveAttribute('aria-setsize', '620'),
+    );
+  });
+
   it('names levels in the UI language', async () => {
     i18n.set('ru');
     setup();

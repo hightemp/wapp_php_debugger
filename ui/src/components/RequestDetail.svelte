@@ -3,6 +3,7 @@
   import type { Level, Message, RequestDetail } from '../lib/api/types';
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import VirtualList from './VirtualList.svelte';
 
   let {
     transport,
@@ -19,8 +20,10 @@
   } = $props();
 
   const levels: Level[] = ['error', 'warning', 'info', 'message', 'debug'];
-  // Messages of one request rarely exceed this; paging inside a request comes later
-  const messageLimit = 500;
+  // Messages come page by page until the request is whole; the list renders only what is in view
+  const messagePage = 500;
+  const messagesMax = 100_000;
+  let loadGeneration = 0;
 
   let request = $state<RequestDetail | null>(null);
   let messages = $state<Message[]>([]);
@@ -51,15 +54,32 @@
   }
 
   async function loadMessages(id: number, filter: Level[], search: string) {
+    const generation = ++loadGeneration;
+    const params = {
+      ...(filter.length > 0 ? { level: filter } : {}),
+      ...(search === '' ? {} : { q: search }),
+      limit: messagePage,
+    };
     try {
-      const page = await transport.listMessages(id, {
-        ...(filter.length > 0 ? { level: filter } : {}),
-        ...(search === '' ? {} : { q: search }),
-        limit: messageLimit,
-      });
-      messages = page.items;
+      let page = await transport.listMessages(id, params);
+      if (generation !== loadGeneration) {
+        return;
+      }
+      let loaded = page.items;
+      messages = loaded;
+      // A newer load (another request, filter or a live update) takes over
+      while (page.next_cursor && loaded.length < messagesMax) {
+        page = await transport.listMessages(id, { ...params, cursor: page.next_cursor });
+        if (generation !== loadGeneration) {
+          return;
+        }
+        loaded = [...loaded, ...page.items];
+        messages = loaded;
+      }
     } catch {
-      messages = [];
+      if (generation === loadGeneration) {
+        messages = [];
+      }
     }
   }
 
@@ -169,10 +189,12 @@
     {#if messages.length === 0}
       <p class="state">{i18n.t('detail.noMessages')}</p>
     {:else}
-      <ul class="messages">
-        {#each messages as message (message.id)}
+      <VirtualList items={messages} key={(message) => message.id} label={i18n.t('detail.messages')}>
+        {#snippet row(message: Message, index: number)}
           <li
             class="message"
+            aria-posinset={index + 1}
+            aria-setsize={messages.length}
             data-level={message.level}
             aria-label={i18n.t('detail.messageLabel', { seq: message.seq })}
             aria-current={message.id === selectedMessageId ? 'true' : undefined}
@@ -190,8 +212,8 @@
               {/if}
             </button>
           </li>
-        {/each}
-      </ul>
+        {/snippet}
+      </VirtualList>
     {/if}
   {/if}
 </section>
@@ -297,13 +319,6 @@
   .chip[aria-pressed='true'] {
     border-color: var(--accent);
     color: var(--text);
-  }
-
-  .messages {
-    margin: 0;
-    padding: 0;
-    overflow: auto;
-    list-style: none;
   }
 
   .message {

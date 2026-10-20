@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from '../lib/i18n/locale.svelte';
-  import JsonNode from './JsonNode.svelte';
+  import JsonChildren from './JsonChildren.svelte';
   import JsonValue from './JsonValue.svelte';
 
   let {
@@ -37,11 +37,7 @@
       >
     </button>
     {#if expanded}
-      <ul class="children">
-        {#each entries as [childName, child] (childName)}
-          <JsonNode name={childName} value={child} depth={depth + 1} {expandDepth} />
-        {/each}
-      </ul>
+      <JsonChildren class="children" {entries} depth={depth + 1} {expandDepth} />
     {:else}
       <span class="summary">{summary}</span>
     {/if}
@@ -57,7 +53,7 @@
     list-style: none;
   }
 
-  .children {
+  .node :global(.children) {
     margin: 0;
     padding-left: var(--space-4);
     border-left: 1px solid var(--border);

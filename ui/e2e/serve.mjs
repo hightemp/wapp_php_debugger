@@ -28,6 +28,53 @@ for (const name of readdirSync(fixtures).filter((file) => file.endsWith('.jsonl'
     copyFileSync(join(fixtures, name), join(logs, `${first.ts}-${first.request_id}.jsonl`));
 }
 
+// A long CLI run: thousands of messages in one request (virtual lists, paging of messages)
+const bigId = '01M5AKMCB0000000000000BIG1';
+const bigStart = 1792431240000;
+const lines = [
+    {
+        v: 2,
+        type: 'request_start',
+        request_id: bigId,
+        seq: 1,
+        ts: bigStart,
+        lang: 'php',
+        library_version: '2.0.0',
+        php_version: '7.4.33',
+        sapi: 'cli',
+        argv: ['/var/www/app/cli/import.php'],
+        hostname: 'fixture',
+        pid: 99,
+    },
+];
+for (let i = 1; i <= 3000; i++) {
+    lines.push({
+        v: 2,
+        type: 'message',
+        request_id: bigId,
+        seq: i + 1,
+        ts: bigStart + i,
+        level: 'info',
+        message: `step ${i}`,
+        tags: ['import'],
+        context: { row: i },
+    });
+}
+lines.push({
+    v: 2,
+    type: 'request_end',
+    request_id: bigId,
+    seq: 3002,
+    ts: bigStart + 3001,
+    duration_ms: 3001,
+    memory_peak_bytes: 2097152,
+    exit_code: 0,
+});
+writeFileSync(
+    join(logs, `${bigStart}-${bigId}.jsonl`),
+    lines.map((line) => JSON.stringify(line)).join('\n') + '\n',
+);
+
 const viewer = spawn(
     join(repo, 'dist', process.platform === 'win32' ? 'wapp-debugger.exe' : 'wapp-debugger'),
     ['serve', '--addr', `127.0.0.1:${port}`, '--db', join(work, 'viewer.db'), '--logs-dir', logs],
