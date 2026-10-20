@@ -58,7 +58,13 @@
     }
   });
 
-  const complete = $derived(name.trim() !== '' && rootPath.trim() !== '' && logsDir.trim() !== '');
+  // An http server is one application: its library knows the logs directory and the config
+  const viaLibrary = $derived(
+    servers.find((server) => server.id === (project?.server_id ?? serverId))?.kind === 'http',
+  );
+  const complete = $derived(
+    name.trim() !== '' && rootPath.trim() !== '' && (viaLibrary || logsDir.trim() !== ''),
+  );
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -68,7 +74,7 @@
     const fields: ProjectFields = {
       name: name.trim(),
       root_path: rootPath.trim(),
-      logs_dir: logsDir.trim(),
+      logs_dir: viaLibrary ? (project?.logs_dir ?? '/') : logsDir.trim(),
       editor,
     };
     if (!project && serverId !== undefined) {
@@ -79,8 +85,9 @@
       fields.local_path = localPath.trim();
     }
     if (
-      (project && configPath.trim() !== project.config_path) ||
-      (!project && configPath.trim() !== '')
+      !viaLibrary &&
+      ((project && configPath.trim() !== project.config_path) ||
+        (!project && configPath.trim() !== ''))
     ) {
       fields.config_path = configPath.trim();
     }
@@ -106,7 +113,7 @@
           options={servers.map((server) => ({
             value: server.id,
             label: server.name,
-            hint: server.kind === 'local' ? undefined : (server.config.host ?? undefined),
+            hint: server.config.host ?? server.config.base_url ?? undefined,
           }))}
           value={serverId}
           onchange={(value: number) => (serverId = value)}
@@ -121,18 +128,26 @@
       <span>{i18n.t('project.rootPath')}</span>
       <input bind:value={rootPath} placeholder="/var/www/app" autocomplete="off" />
     </label>
-    <label class="field">
-      <span>{i18n.t('project.logsDir')}</span>
-      <input bind:value={logsDir} placeholder="/var/www/app/tmp/logs" autocomplete="off" />
-    </label>
+    {#if !viaLibrary}
+      <label class="field">
+        <span>{i18n.t('project.logsDir')}</span>
+        <input bind:value={logsDir} placeholder="/var/www/app/tmp/logs" autocomplete="off" />
+      </label>
+    {/if}
     <label class="field">
       <span>{i18n.t('project.localPath')}</span>
       <input bind:value={localPath} placeholder={i18n.t('project.optional')} autocomplete="off" />
     </label>
-    <label class="field">
-      <span>{i18n.t('project.configPath')}</span>
-      <input bind:value={configPath} placeholder={i18n.t('project.optional')} autocomplete="off" />
-    </label>
+    {#if !viaLibrary}
+      <label class="field">
+        <span>{i18n.t('project.configPath')}</span>
+        <input
+          bind:value={configPath}
+          placeholder={i18n.t('project.optional')}
+          autocomplete="off"
+        />
+      </label>
+    {/if}
     <div class="field">
       <span>{i18n.t('project.editor')}</span>
       <SegmentedControl

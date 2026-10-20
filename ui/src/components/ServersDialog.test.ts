@@ -50,7 +50,7 @@ describe('ServersDialog', () => {
   it('adds an SSH server', async () => {
     const { transport, onchange } = setup();
     await fireEvent.click(await screen.findByRole('button', { name: 'Add server' }));
-    const form = screen.getByRole('dialog', { name: 'New SSH server' });
+    const form = screen.getByRole('dialog', { name: 'New server' });
     await fireEvent.input(within(form).getByLabelText('Name'), { target: { value: 'prod' } });
     await fireEvent.input(within(form).getByLabelText('Host or ~/.ssh/config alias'), {
       target: { value: 'prod-web' },
@@ -74,6 +74,50 @@ describe('ServersDialog', () => {
     );
     expect(await row('prod')).toBeInTheDocument();
     expect(onchange).toHaveBeenCalled();
+  });
+
+  it('adds a server in the library HTTP mode, warning about plain http', async () => {
+    const { transport } = setup();
+    await fireEvent.click(await screen.findByRole('button', { name: 'Add server' }));
+    const form = screen.getByRole('dialog', { name: 'New server' });
+    await fireEvent.click(within(form).getByRole('radio', { name: 'HTTP' }));
+    expect(within(form).queryByLabelText('User')).not.toBeInTheDocument();
+    await fireEvent.input(within(form).getByLabelText('Name'), { target: { value: 'hosting' } });
+    const address = within(form).getByLabelText('Application address');
+    await fireEvent.input(address, { target: { value: 'http://shop.example.test' } });
+    expect(within(form).getByText(/unencrypted/)).toBeInTheDocument();
+    await fireEvent.input(address, { target: { value: 'https://shop.example.test' } });
+    expect(within(form).queryByText(/unencrypted/)).not.toBeInTheDocument();
+
+    const save = within(form).getByRole('button', { name: 'Save' });
+    const token = within(form).getByLabelText('Token (http_token)');
+    expect(token).toHaveAttribute('type', 'password');
+    await fireEvent.input(token, { target: { value: 'short' } });
+    expect(save).toBeDisabled();
+    await fireEvent.input(token, { target: { value: '0123456789abcdef0123456789abcdef' } });
+    await fireEvent.click(save);
+
+    await waitFor(() =>
+      expect(transport.createServer).toHaveBeenCalledWith({
+        name: 'hosting',
+        kind: 'http',
+        environment: 'dev',
+        config: { base_url: 'https://shop.example.test' },
+        token: '0123456789abcdef0123456789abcdef',
+      }),
+    );
+  });
+
+  it('shows the address of an http server', async () => {
+    setup([
+      sampleServer(1),
+      sampleServer(4, {
+        name: 'hosting',
+        kind: 'http',
+        config: { base_url: 'https://shop.example.test' },
+      }),
+    ]);
+    expect(await row('hosting')).toHaveTextContent('https://shop.example.test');
   });
 
   it('checks a server and trusts an unknown host key after confirmation', async () => {

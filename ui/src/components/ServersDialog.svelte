@@ -57,6 +57,9 @@
     if (server.kind === 'local') {
       return i18n.t('servers.thisMachine');
     }
+    if (server.kind === 'http') {
+      return server.config.base_url ?? '';
+    }
     const { host = '', user, port } = server.config;
     return `${user ? `${user}@` : ''}${host}${port ? `:${port}` : ''}`;
   }
@@ -71,6 +74,8 @@
     logs_dir_writable: 'step.logsDirWritable',
     library_config: 'step.libraryConfig',
     php: 'step.php',
+    tls: 'step.tls',
+    library: 'step.library',
   };
 
   // The host key file on the server for a key type, to compare the fingerprint with

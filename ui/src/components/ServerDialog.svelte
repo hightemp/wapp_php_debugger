@@ -7,6 +7,10 @@
   import Switch from './Switch.svelte';
 
   type Environment = 'dev' | 'stage' | 'prod';
+  type Kind = 'ssh' | 'http';
+
+  // What the library asks of http_token
+  const minTokenLength = 32;
 
   let {
     open,
@@ -15,7 +19,10 @@
   }: { open: boolean; onsave: (input: ServerInput) => Promise<void>; onclose: () => void } =
     $props();
 
+  let kind = $state<Kind>('ssh');
   let name = $state('');
+  let baseUrl = $state('');
+  let token = $state('');
   let host = $state('');
   let user = $state('');
   let port = $state('');
@@ -27,20 +34,55 @@
 
   $effect(() => {
     if (open) {
-      name = host = user = port = jumpHosts = failure = '';
+      name = host = user = port = jumpHosts = baseUrl = token = failure = '';
+      kind = 'ssh';
       environment = 'dev';
       readOnly = false;
     }
   });
 
   const portValid = $derived(port.trim() === '' || /^\d{1,5}$/.test(port.trim()));
-  const complete = $derived(name.trim() !== '' && host.trim() !== '' && portValid);
+  const urlValid = $derived(/^https?:\/\/[^/\s]+/i.test(baseUrl.trim()));
+  // The token and the logs would travel unencrypted
+  const plainHttp = $derived(/^http:\/\//i.test(baseUrl.trim()));
+  const complete = $derived(
+    name.trim() !== '' &&
+      (kind === 'ssh'
+        ? host.trim() !== '' && portValid
+        : urlValid && token.length >= minTokenLength),
+  );
+
+  function httpInput(): ServerInput {
+    return {
+      name: name.trim(),
+      kind: 'http',
+      environment,
+      config: { base_url: baseUrl.trim() },
+      token,
+    };
+  }
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (!complete || saving) {
       return;
     }
+    const input = kind === 'http' ? httpInput() : sshInput();
+    if (readOnly) {
+      input.permissions = { read_only: true, allow_delete: false, allow_control: false };
+    }
+    saving = true;
+    failure = '';
+    try {
+      await onsave(input);
+    } catch (error) {
+      failure = error instanceof ApiError && error.detail ? error.detail : String(error);
+    } finally {
+      saving = false;
+    }
+  }
+
+  function sshInput(): ServerInput {
     // Only what was filled in: the rest comes from ~/.ssh/config
     const config: NonNullable<ServerInput['config']> = { host: host.trim() };
     if (user.trim() !== '') {
@@ -56,52 +98,78 @@
     if (jumps.length > 0) {
       config.jump_hosts = jumps;
     }
-    const input: ServerInput = { name: name.trim(), kind: 'ssh', environment, config };
-    if (readOnly) {
-      input.permissions = { read_only: true, allow_delete: false, allow_control: false };
-    }
-    saving = true;
-    failure = '';
-    try {
-      await onsave(input);
-    } catch (error) {
-      failure = error instanceof ApiError && error.detail ? error.detail : String(error);
-    } finally {
-      saving = false;
-    }
+    return { name: name.trim(), kind: 'ssh', environment, config };
   }
 </script>
 
 <Dialog {open} title={i18n.t('server.newTitle')} {onclose}>
   <form id="server-form" class="form" onsubmit={submit}>
+    <div class="field">
+      <span>{i18n.t('server.kind')}</span>
+      <SegmentedControl
+        label={i18n.t('server.kind')}
+        options={[
+          { value: 'ssh', label: 'SSH' },
+          { value: 'http', label: 'HTTP' },
+        ]}
+        value={kind}
+        onchange={(value: Kind) => (kind = value)}
+      />
+    </div>
     <label class="field">
       <span>{i18n.t('server.name')}</span>
       <input bind:value={name} placeholder="stage" autocomplete="off" />
     </label>
-    <label class="field">
-      <span>{i18n.t('server.host')}</span>
-      <input bind:value={host} placeholder="stage-web" autocomplete="off" />
-    </label>
-    <div class="row">
+    {#if kind === 'ssh'}
       <label class="field">
-        <span>{i18n.t('server.user')}</span>
-        <input bind:value={user} placeholder="deploy" autocomplete="off" />
+        <span>{i18n.t('server.host')}</span>
+        <input bind:value={host} placeholder="stage-web" autocomplete="off" />
       </label>
-      <label class="field port">
-        <span>{i18n.t('server.port')}</span>
+      <div class="row">
+        <label class="field">
+          <span>{i18n.t('server.user')}</span>
+          <input bind:value={user} placeholder="deploy" autocomplete="off" />
+        </label>
+        <label class="field port">
+          <span>{i18n.t('server.port')}</span>
+          <input
+            bind:value={port}
+            placeholder="22"
+            inputmode="numeric"
+            autocomplete="off"
+            aria-invalid={!portValid}
+          />
+        </label>
+      </div>
+      <label class="field">
+        <span>{i18n.t('server.jumpHosts')}</span>
+        <input bind:value={jumpHosts} placeholder={i18n.t('server.jumpHint')} autocomplete="off" />
+      </label>
+    {:else}
+      <p class="hint">{i18n.t('server.httpHint')}</p>
+      <label class="field">
+        <span>{i18n.t('server.baseUrl')}</span>
         <input
-          bind:value={port}
-          placeholder="22"
-          inputmode="numeric"
+          bind:value={baseUrl}
+          placeholder="https://shop.example.test"
           autocomplete="off"
-          aria-invalid={!portValid}
+          aria-invalid={baseUrl.trim() !== '' && !urlValid}
         />
       </label>
-    </div>
-    <label class="field">
-      <span>{i18n.t('server.jumpHosts')}</span>
-      <input bind:value={jumpHosts} placeholder={i18n.t('server.jumpHint')} autocomplete="off" />
-    </label>
+      {#if plainHttp}
+        <p class="warning" role="status">{i18n.t('server.plainHttp')}</p>
+      {/if}
+      <label class="field">
+        <span>{i18n.t('server.token')}</span>
+        <input
+          type="password"
+          bind:value={token}
+          placeholder={i18n.t('server.tokenHint')}
+          autocomplete="off"
+          aria-invalid={token !== '' && token.length < minTokenLength}
+        />
+      </label>
+    {/if}
     <div class="field">
       <span>{i18n.t('server.environment')}</span>
       <SegmentedControl
@@ -184,7 +252,15 @@
   }
 
   .hint {
+    margin: 0;
     color: var(--text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  .warning {
+    margin: 0;
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
   }
 
   .failure {

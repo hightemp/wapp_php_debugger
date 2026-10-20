@@ -80,6 +80,37 @@ describe('ProjectDialog', () => {
     expect(onsave).toHaveBeenCalledWith(expect.objectContaining({ server_id: 2, name: 'shop' }));
   });
 
+  it('asks an http server for no logs directory: the library knows it', async () => {
+    const onsave = vi.fn(async () => {});
+    render(ProjectDialog, {
+      open: true,
+      servers: [
+        sampleServer(1),
+        sampleServer(3, {
+          name: 'hosting',
+          kind: 'http',
+          config: { base_url: 'https://shop.example.test' },
+        }),
+      ],
+      onsave,
+      onclose: vi.fn(),
+    });
+    await fireEvent.click(screen.getByRole('combobox', { name: 'Server' }));
+    await fireEvent.click(screen.getByRole('option', { name: /hosting/ }));
+    expect(screen.queryByLabelText('Logs directory')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Library config (dws_debugger.json)')).not.toBeInTheDocument();
+
+    await type('Name', 'shop');
+    await type('Project root', '/home/u/shop');
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onsave).toHaveBeenCalledWith(
+      expect.objectContaining({ server_id: 3, name: 'shop', logs_dir: '/' }),
+    );
+    expect(onsave).toHaveBeenCalledWith(
+      expect.not.objectContaining({ config_path: expect.anything() }),
+    );
+  });
+
   it('asks for no server when there is one, or when editing', () => {
     render(ProjectDialog, {
       open: true,
