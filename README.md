@@ -69,14 +69,19 @@ The one-liners work from the first published release that carries these files (v
 
    Errors, exceptions and fatal errors are logged by themselves, secrets are masked. PSR-3, Monolog, all the settings and the upgrade from library v1 are in [client-php/README.md](client-php/README.md). Old projects can keep library v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): the viewer reads both.
 
-3. **Run the viewer** on the logs directory:
+3. **Run the viewer**:
 
    ```sh
-   dist/wapp-debugger serve --logs-dir /var/www/app/tmp/logs
+   dist/wapp-debugger serve                                   # empty: add projects in the UI
+   dist/wapp-debugger serve --logs-dir /var/www/app/tmp/logs  # or start with one local project
    # open http://127.0.0.1:8820
    ```
 
-   The project root is found by `dws_debugger.json` above the logs directory. New and changed log files are imported in the background and new requests appear on the page as they happen. More projects are added in the UI ("Add project"); the debugger switch there flips `enabled` in `dws_debugger.json` (`bIsOnFlag` of a v1 config).
+   `--logs-dir` is optional. Without it the viewer starts with no projects: add them in the UI ("Add project") — on this machine, or on an SSH or HTTP server added under "Servers" (see [below](#projects-on-other-servers)). Projects are kept in the database, so later runs need no flags; running with the same `--logs-dir` again adds no duplicate.
+
+   With `--logs-dir`, the project root is found by `dws_debugger.json` above the logs directory (else it is the parent directory); `--root`, `--project` and `--config` set the root, the name and the config path explicitly. New and changed log files are imported in the background and new requests appear on the page as they happen. The debugger switch of a project flips `enabled` in `dws_debugger.json` (`bIsOnFlag` of a v1 config).
+
+   Other flags: `--addr` (default `127.0.0.1:8820`; another address needs a token), `--token` (better `$WAPP_DEBUGGER_TOKEN`, out of the process list), `--db` (the database, by default in the user config directory; `secrets.json` with tokens of HTTP servers lives next to it), `--scan-interval` (fallback rescan of local directories, 5 s). `wapp-debugger serve --help` lists them all.
 
 The UI speaks English and Russian and has light, dark and high-contrast themes (switches in the header). Search looks for words in messages and their context or for a part of the URL.
 
@@ -105,7 +110,7 @@ make desktop-build                                 # needs GTK4 + WebKitGTK 6.0 
 dist/wapp-debugger-desktop --logs-dir /var/www/app/tmp/logs
 ```
 
-The same viewer in a window, without a network port.
+The same viewer in a window, without a network port; `--logs-dir` is optional here too.
 
 ## Docker
 
