@@ -90,3 +90,24 @@ test('a request with thousands of messages scrolls whole', async ({ page }) => {
   await list.getByRole('button', { name: /step 3000\b/ }).click();
   await expect(page.getByRole('region', { name: 'Message' })).toContainText('row');
 });
+
+test('the views of a request: timeline, SQL, superglobals', async ({ page }) => {
+  await openTheItemPage(page);
+  const tabs = page.getByRole('tablist', { name: 'Request views' });
+
+  await tabs.getByRole('tab', { name: /SQL/ }).click();
+  const sql = page.getByRole('tabpanel', { name: /SQL/ });
+  await expect(sql).toContainText('1 query');
+  await expect(sql).toContainText('SELECT * FROM items WHERE id = ?');
+
+  await tabs.getByRole('tab', { name: 'Timeline' }).click();
+  const timeline = page.getByRole('tabpanel', { name: 'Timeline' });
+  await expect(timeline.getByRole('button', { name: /Loading the item/ })).toBeVisible();
+  await timeline.getByRole('button', { name: /db/ }).click();
+  await expect(page.getByRole('region', { name: 'Message' })).toContainText('db');
+
+  await tabs.getByRole('tab', { name: 'Superglobals' }).click();
+  const globals = page.getByRole('tabpanel', { name: 'Superglobals' });
+  await expect(globals).toContainText('$_GET');
+  await expect(globals).toContainText('id');
+});

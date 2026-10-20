@@ -99,11 +99,13 @@ describe('RequestDetail', () => {
   it('reloads when the request is updated live', async () => {
     const { transport, emit } = setup();
     await screen.findAllByRole('listitem', { name: /message/i });
-    emit({ event: 'request_updated', request: sampleRequest(42, { message_count: 3 }) });
+    // The list and the views behind the tabs load once each
     await waitFor(() => expect(transport.listMessages).toHaveBeenCalledTimes(2));
+    emit({ event: 'request_updated', request: sampleRequest(42, { message_count: 3 }) });
+    await waitFor(() => expect(transport.listMessages).toHaveBeenCalledTimes(4));
     emit({ event: 'request_updated', request: sampleRequest(7) });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(transport.listMessages).toHaveBeenCalledTimes(2);
+    expect(transport.listMessages).toHaveBeenCalledTimes(4);
   });
 
   it('shows every message of a long request, page after page', async () => {
@@ -111,13 +113,16 @@ describe('RequestDetail', () => {
       Array.from({ length: count }, (_, i) =>
         sampleMessage(from + i, { message: `step ${from + i}` }),
       );
-    const listMessages = vi
-      .fn()
-      .mockResolvedValueOnce({ items: page(1, 500), next_cursor: 'c1' })
-      .mockResolvedValueOnce({ items: page(501, 120), next_cursor: null });
+    // Answers by the cursor: the list and the views behind the tabs both read every page
+    const listMessages = vi.fn(async (_id: number, params: { cursor?: string }) =>
+      params.cursor === 'c1'
+        ? { items: page(501, 120), next_cursor: null }
+        : { items: page(1, 500), next_cursor: 'c1' },
+    );
     setup({ listMessages });
-    await waitFor(() => expect(listMessages).toHaveBeenCalledTimes(2));
-    expect(listMessages).toHaveBeenLastCalledWith(42, { limit: 500, cursor: 'c1' });
+    await waitFor(() =>
+      expect(listMessages).toHaveBeenCalledWith(42, { limit: 500, cursor: 'c1' }),
+    );
     const list = await screen.findByRole('list', { name: 'Messages' });
     await waitFor(() =>
       expect(within(list).getAllByRole('listitem')[0]).toHaveAttribute('aria-setsize', '620'),
@@ -139,5 +144,94 @@ describe('RequestDetail', () => {
       ),
     });
     expect(await screen.findByText('Request not found')).toBeInTheDocument();
+  });
+
+  describe('views of the request', () => {
+    const start = Date.UTC(2026, 9, 19, 12, 0, 0);
+    function insight() {
+      const messages = [
+        sampleMessage(2, { ts: start + 5, message: '$_GET', tags: ['globals'], has_context: true }),
+        sampleMessage(3, {
+          ts: start + 12,
+          message: 'SELECT * FROM items WHERE order_id = ?',
+          tags: ['sql'],
+          duration_ms: 1.5,
+          level: 'debug',
+        }),
+        sampleMessage(4, {
+          ts: start + 15,
+          message: 'SELECT * FROM items  WHERE order_id = ?',
+          tags: ['sql'],
+          duration_ms: 1.25,
+          level: 'debug',
+        }),
+        sampleMessage(5, {
+          ts: start + 150,
+          message: 'GET https://pay.test/status',
+          tags: ['http'],
+          duration_ms: 120,
+        }),
+        sampleMessage(6, { ts: start + 160, type: 'timer', message: 'render', duration_ms: 40 }),
+      ];
+      return setup({
+        getRequest: vi.fn(async (id: number) =>
+          sampleRequestDetail(id, { started_at: start, duration_ms: 200 }),
+        ),
+        listMessages: vi.fn(async () => ({ items: messages, next_cursor: null })),
+        getMessage: vi.fn(async (id: number) =>
+          sampleMessage(id, { context: { id: '42', page: '2' } }),
+        ),
+      });
+    }
+
+    it('switches between messages, timeline, SQL and superglobals', async () => {
+      insight();
+      const tabs = await screen.findByRole('tablist', { name: 'Request views' });
+      const names = within(tabs)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent?.trim());
+      expect(names?.map((name) => name?.replace(/\s+/g, ' '))).toEqual([
+        'Messages',
+        'Timeline',
+        'SQL 2',
+        'Superglobals',
+      ]);
+      expect(within(tabs).getByRole('tab', { name: 'Messages' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    });
+
+    it('lists SQL with the total time and points out repeated queries', async () => {
+      const { onselectmessage } = insight();
+      await fireEvent.click(await screen.findByRole('tab', { name: /SQL/ }));
+      const panel = screen.getByRole('tabpanel', { name: /SQL/ });
+      expect(panel).toHaveTextContent('2 queries · 3 ms');
+      expect(panel).toHaveTextContent('×2');
+      expect(within(panel).getByText(/Repeated 2 times/)).toBeInTheDocument();
+      await fireEvent.click(
+        within(panel).getAllByRole('button', { name: /SELECT \* FROM items/ })[0] as HTMLElement,
+      );
+      expect(onselectmessage).toHaveBeenCalledWith(3);
+    });
+
+    it('puts timed events on the request timeline', async () => {
+      const { onselectmessage } = insight();
+      await fireEvent.click(await screen.findByRole('tab', { name: 'Timeline' }));
+      const panel = screen.getByRole('tabpanel', { name: 'Timeline' });
+      const http = within(panel).getByRole('button', { name: /GET https:\/\/pay.test\/status/ });
+      expect(http).toHaveTextContent('120 ms');
+      await fireEvent.click(http);
+      expect(onselectmessage).toHaveBeenCalledWith(5);
+    });
+
+    it('shows the superglobals with their values', async () => {
+      const { transport } = insight();
+      await fireEvent.click(await screen.findByRole('tab', { name: 'Superglobals' }));
+      const panel = screen.getByRole('tabpanel', { name: 'Superglobals' });
+      expect(await within(panel).findByText('$_GET')).toBeInTheDocument();
+      expect(await within(panel).findByText('page', { selector: '.key' })).toBeInTheDocument();
+      expect(transport.getMessage).toHaveBeenCalledWith(2);
+    });
   });
 });

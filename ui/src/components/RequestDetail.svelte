@@ -3,6 +3,11 @@
   import type { Level, Message, RequestDetail } from '../lib/api/types';
   import { formatDuration, formatTime, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { loadAllMessages } from '../lib/messages';
+  import RequestGlobals from './RequestGlobals.svelte';
+  import RequestSql from './RequestSql.svelte';
+  import RequestTimeline from './RequestTimeline.svelte';
+  import Tabs from './Tabs.svelte';
   import VirtualList from './VirtualList.svelte';
 
   let {
@@ -20,9 +25,6 @@
   } = $props();
 
   const levels: Level[] = ['error', 'warning', 'info', 'message', 'debug'];
-  // Messages come page by page until the request is whole; the list renders only what is in view
-  const messagePage = 500;
-  const messagesMax = 100_000;
   let loadGeneration = 0;
 
   let request = $state<RequestDetail | null>(null);
@@ -58,30 +60,52 @@
     const params = {
       ...(filter.length > 0 ? { level: filter } : {}),
       ...(search === '' ? {} : { q: search }),
-      limit: messagePage,
     };
     try {
-      let page = await transport.listMessages(id, params);
-      if (generation !== loadGeneration) {
-        return;
-      }
-      let loaded = page.items;
-      messages = loaded;
-      // A newer load (another request, filter or a live update) takes over
-      while (page.next_cursor && loaded.length < messagesMax) {
-        page = await transport.listMessages(id, { ...params, cursor: page.next_cursor });
-        if (generation !== loadGeneration) {
-          return;
-        }
-        loaded = [...loaded, ...page.items];
-        messages = loaded;
-      }
+      await loadAllMessages(
+        transport,
+        id,
+        params,
+        (loaded) => (messages = loaded),
+        () => generation === loadGeneration,
+      );
     } catch {
       if (generation === loadGeneration) {
         messages = [];
       }
     }
   }
+
+  // The other views need every message, whatever the filters of the list
+  type View = 'messages' | 'timeline' | 'sql' | 'globals';
+  let view = $state<View>('messages');
+  let allMessages = $state<Message[]>([]);
+  let allGeneration = 0;
+
+  async function loadEverything(id: number) {
+    const generation = ++allGeneration;
+    try {
+      await loadAllMessages(
+        transport,
+        id,
+        {},
+        (loaded) => (allMessages = loaded),
+        () => generation === allGeneration,
+      );
+    } catch {
+      if (generation === allGeneration) {
+        allMessages = [];
+      }
+    }
+  }
+
+  // The SQL count shows on its tab, so the whole set loads with the request
+  $effect(() => {
+    allMessages = [];
+    void loadEverything(requestId);
+  });
+
+  const sqlCount = $derived(allMessages.filter((message) => message.tags.includes('sql')).length);
 
   $effect(() => {
     status = 'loading';
@@ -97,6 +121,7 @@
       if (event.event === 'request_updated' && event.request?.id === requestId) {
         void loadRequest(requestId);
         void loadMessages(requestId, activeLevels, query);
+        void loadEverything(requestId);
       }
     }),
   );
@@ -164,56 +189,98 @@
       </div>
     {/if}
 
-    <div class="filters" role="group" aria-label={i18n.t('detail.filterLabel')}>
-      <input
-        class="search"
-        type="search"
-        aria-label={i18n.t('detail.search')}
-        placeholder={i18n.t('detail.search')}
-        value={searchInput}
-        oninput={(event) => onSearchInput(event.currentTarget.value)}
-      />
-      {#each levels as level (level)}
-        <button
-          type="button"
-          class="chip"
-          data-level={level}
-          aria-pressed={activeLevels.includes(level)}
-          onclick={() => toggleLevel(level)}
-        >
-          {i18n.t(`level.${level}`)}
-        </button>
-      {/each}
-    </div>
+    <Tabs
+      label={i18n.t('views.label')}
+      idPrefix="request"
+      tabs={[
+        { id: 'messages', label: i18n.t('views.messages') },
+        { id: 'timeline', label: i18n.t('views.timeline') },
+        { id: 'sql', label: i18n.t('views.sql'), count: sqlCount },
+        { id: 'globals', label: i18n.t('views.globals') },
+      ]}
+      value={view}
+      onchange={(next: View) => (view = next)}
+    />
 
-    {#if messages.length === 0}
-      <p class="state">{i18n.t('detail.noMessages')}</p>
+    {#if view === 'timeline'}
+      <div role="tabpanel" id="panel-request-timeline" aria-labelledby="tab-request-timeline">
+        <RequestTimeline
+          {request}
+          messages={allMessages}
+          selectedId={selectedMessageId}
+          onselect={onselectmessage}
+        />
+      </div>
+    {:else if view === 'sql'}
+      <div role="tabpanel" id="panel-request-sql" aria-labelledby="tab-request-sql">
+        <RequestSql
+          messages={allMessages}
+          selectedId={selectedMessageId}
+          onselect={onselectmessage}
+        />
+      </div>
+    {:else if view === 'globals'}
+      <div role="tabpanel" id="panel-request-globals" aria-labelledby="tab-request-globals">
+        <RequestGlobals {transport} messages={allMessages} />
+      </div>
     {:else}
-      <VirtualList items={messages} key={(message) => message.id} label={i18n.t('detail.messages')}>
-        {#snippet row(message: Message, index: number)}
-          <li
-            class="message"
-            aria-posinset={index + 1}
-            aria-setsize={messages.length}
-            data-level={message.level}
-            aria-label={i18n.t('detail.messageLabel', { seq: message.seq })}
-            aria-current={message.id === selectedMessageId ? 'true' : undefined}
-          >
+      <div role="tabpanel" id="panel-request-messages" aria-labelledby="tab-request-messages">
+        <div class="filters" role="group" aria-label={i18n.t('detail.filterLabel')}>
+          <input
+            class="search"
+            type="search"
+            aria-label={i18n.t('detail.search')}
+            placeholder={i18n.t('detail.search')}
+            value={searchInput}
+            oninput={(event) => onSearchInput(event.currentTarget.value)}
+          />
+          {#each levels as level (level)}
             <button
               type="button"
-              class="message-button"
-              onclick={() => onselectmessage(message.id)}
+              class="chip"
+              data-level={level}
+              aria-pressed={activeLevels.includes(level)}
+              onclick={() => toggleLevel(level)}
             >
-              <span class="level">{i18n.t(`levelName.${message.level}`)}</span>
-              <span class="text">{message.message}</span>
-              <span class="where">{location(message)}</span>
-              {#if message.type === 'timer'}
-                <span class="duration">{formatDuration(message.duration_ms, i18n.locale)}</span>
-              {/if}
+              {i18n.t(`level.${level}`)}
             </button>
-          </li>
-        {/snippet}
-      </VirtualList>
+          {/each}
+        </div>
+
+        {#if messages.length === 0}
+          <p class="state">{i18n.t('detail.noMessages')}</p>
+        {:else}
+          <VirtualList
+            items={messages}
+            key={(message) => message.id}
+            label={i18n.t('detail.messages')}
+          >
+            {#snippet row(message: Message, index: number)}
+              <li
+                class="message"
+                aria-posinset={index + 1}
+                aria-setsize={messages.length}
+                data-level={message.level}
+                aria-label={i18n.t('detail.messageLabel', { seq: message.seq })}
+                aria-current={message.id === selectedMessageId ? 'true' : undefined}
+              >
+                <button
+                  type="button"
+                  class="message-button"
+                  onclick={() => onselectmessage(message.id)}
+                >
+                  <span class="level">{i18n.t(`levelName.${message.level}`)}</span>
+                  <span class="text">{message.message}</span>
+                  <span class="where">{location(message)}</span>
+                  {#if message.duration_ms !== undefined && message.duration_ms !== null}
+                    <span class="duration">{formatDuration(message.duration_ms, i18n.locale)}</span>
+                  {/if}
+                </button>
+              </li>
+            {/snippet}
+          </VirtualList>
+        {/if}
+      </div>
     {/if}
   {/if}
 </section>
