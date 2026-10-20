@@ -34,6 +34,8 @@ type HTTPOptions struct {
 	Client  *http.Client
 	// MinInterval spaces the requests to one project out, so polling never floods the application; 50 ms
 	MinInterval time.Duration
+	// OnResult hears how each request went: nil, or the error of the request (connection state in the UI)
+	OnResult func(err error)
 }
 
 // HTTP is the logs directory of a project read through the PHP library HTTP mode (spec/library-http.yaml),
@@ -41,6 +43,7 @@ type HTTPOptions struct {
 type HTTP struct {
 	client      *libclient.Client
 	minInterval time.Duration
+	onResult    func(error)
 
 	mu          sync.Mutex
 	last        time.Time // when the last request went out
@@ -70,7 +73,7 @@ func NewHTTP(options HTTPOptions) (*HTTP, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &HTTP{client: client, minInterval: options.MinInterval}, nil
+	return &HTTP{client: client, minInterval: options.MinInterval, onResult: options.OnResult}, nil
 }
 
 // wait holds a request back for the rate limit and the spacing between requests.
@@ -138,12 +141,15 @@ func (h *HTTP) do(ctx context.Context, send func() (*http.Response, error), want
 		return nil, err
 	}
 	response, err := send()
+	if err == nil && response.StatusCode != want {
+		defer func() { _ = response.Body.Close() }()
+		err = h.problemOf(response)
+	}
+	if h.onResult != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		h.onResult(err)
+	}
 	if err != nil {
 		return nil, err
-	}
-	if response.StatusCode != want {
-		defer func() { _ = response.Body.Close() }()
-		return nil, h.problemOf(response)
 	}
 	return response, nil
 }

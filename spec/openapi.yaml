@@ -556,7 +556,7 @@ components:
 
     ServerConfig:
       type: object
-      description: Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url.
+      description: Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url of the application with the library (https://; http:// is shown with a warning).
       additionalProperties: false
       properties:
         host: { type: string }
@@ -585,6 +585,15 @@ components:
         environment: { $ref: '#/components/schemas/Environment' }
         config: { $ref: '#/components/schemas/ServerConfig' }
         permissions: { $ref: '#/components/schemas/ServerPermissions' }
+        token: { $ref: '#/components/schemas/ServerToken' }
+
+    ServerToken:
+      type: string
+      minLength: 32
+      writeOnly: true
+      description: |
+        http servers: http_token from the library config. Kept outside the database in a file
+        readable by the user only and never returned.
 
     ServerPatch:
       type: object
@@ -594,6 +603,7 @@ components:
         environment: { $ref: '#/components/schemas/Environment' }
         config: { $ref: '#/components/schemas/ServerConfig' }
         permissions: { $ref: '#/components/schemas/ServerPermissions' }
+        token: { $ref: '#/components/schemas/ServerToken' }
 
     Server:
       type: object
@@ -659,7 +669,7 @@ components:
       properties:
         name:
           type: string
-          description: config, connect, sftp, local; per project logs_dir, logs_dir_writable, library_config; php
+          description: config, connect, sftp, local, tls, library; per project logs_dir, logs_dir_writable, library_config; php
         ok: { type: boolean }
         detail: { type: string }
         project:

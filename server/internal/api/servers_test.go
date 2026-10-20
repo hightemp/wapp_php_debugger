@@ -53,9 +53,46 @@ func (f *fakeSSH) Forget(serverID int64) {
 	f.forgotten = append(f.forgotten, serverID)
 }
 
+type fakeHTTP struct {
+	mu        sync.Mutex
+	tokens    map[int64]string
+	forgotten []int64
+	statuses  map[int64]sshconn.Status
+	check     ServerCheck
+}
+
+func (f *fakeHTTP) Status(serverID int64) sshconn.Status {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if status, ok := f.statuses[serverID]; ok {
+		return status
+	}
+	return sshconn.Status{State: sshconn.StateUnknown}
+}
+
+func (f *fakeHTTP) Check(context.Context, store.Server, []store.Project) (ServerCheck, error) {
+	return f.check, nil
+}
+
+func (f *fakeHTTP) SetToken(serverID int64, token string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens[serverID] = token
+	return nil
+}
+
+func (f *fakeHTTP) Forget(serverID int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.tokens, serverID)
+	f.forgotten = append(f.forgotten, serverID)
+	return nil
+}
+
 type serversEnv struct {
 	projectsEnv
-	ssh *fakeSSH
+	ssh  *fakeSSH
+	http *fakeHTTP
 }
 
 func newServersEnv(t *testing.T) serversEnv {
@@ -72,9 +109,10 @@ func newServersEnv(t *testing.T) serversEnv {
 	}
 	runtime := &fakeRuntime{sources: map[int64]*source.Memory{}}
 	ssh := &fakeSSH{statuses: map[int64]sshconn.Status{}}
-	server := httptest.NewServer(NewHandler(Deps{Store: s, Broker: events.NewBroker(4), Projects: runtime, SSH: ssh, UI: fstest.MapFS{"index.html": {}}}))
+	lib := &fakeHTTP{tokens: map[int64]string{}, statuses: map[int64]sshconn.Status{}}
+	server := httptest.NewServer(NewHandler(Deps{Store: s, Broker: events.NewBroker(4), Projects: runtime, SSH: ssh, HTTP: lib, UI: fstest.MapFS{"index.html": {}}}))
 	t.Cleanup(server.Close)
-	return serversEnv{projectsEnv: projectsEnv{server: server, store: s, runtime: runtime, local: local}, ssh: ssh}
+	return serversEnv{projectsEnv: projectsEnv{server: server, store: s, runtime: runtime, local: local}, ssh: ssh, http: lib}
 }
 
 func (e serversEnv) createSSHServer(t *testing.T, name string) Server {
@@ -211,5 +249,91 @@ func TestChangingAnSSHServerReconnectsItsProjects(t *testing.T) {
 	}
 	if len(e.ssh.forgotten) != 1 || len(e.runtime.added) != added+1 {
 		t.Fatalf("forgotten %v, restarts %d", e.ssh.forgotten, len(e.runtime.added)-added)
+	}
+}
+
+const libToken = "0123456789abcdef0123456789abcdef"
+
+func (e serversEnv) createHTTPServer(t *testing.T, name string) Server {
+	t.Helper()
+	response, body := send(t, http.MethodPost, e.server.URL+"/api/v1/servers", map[string]any{
+		"name": name, "kind": "http", "config": map[string]any{"base_url": "https://shop.example.test"}, "token": libToken,
+	})
+	var server Server
+	if response.StatusCode != http.StatusCreated || json.Unmarshal([]byte(body), &server) != nil {
+		t.Fatalf("create: %d %s", response.StatusCode, body)
+	}
+	if strings.Contains(body, libToken) {
+		t.Fatalf("the token came back: %s", body)
+	}
+	return server
+}
+
+func TestCreateAnHTTPServerKeepsTheTokenOutOfTheDatabase(t *testing.T) {
+	e := newServersEnv(t)
+	server := e.createHTTPServer(t, "shared-hosting")
+	if server.Kind != "http" || *server.Config.BaseUrl != "https://shop.example.test" || e.http.tokens[server.Id] != libToken {
+		t.Fatalf("server = %+v, tokens %v", server, e.http.tokens)
+	}
+	row, _, _ := e.store.GetServer(context.Background(), server.Id)
+	if strings.Contains(row.Config, libToken) {
+		t.Fatalf("the token is in the database: %s", row.Config)
+	}
+
+	for _, c := range []struct {
+		body   map[string]any
+		detail string
+	}{
+		{map[string]any{"name": "x", "kind": "http", "token": libToken}, "base_url"},
+		{map[string]any{"name": "x", "kind": "http", "config": map[string]any{"base_url": "shop.example.test"}, "token": libToken}, "base_url"},
+		{map[string]any{"name": "x", "kind": "http", "config": map[string]any{"base_url": "https://shop.example.test"}}, "token"},
+		{map[string]any{"name": "x", "kind": "http", "config": map[string]any{"base_url": "https://shop.example.test"}, "token": "short"}, "token"},
+	} {
+		response, body := send(t, http.MethodPost, e.server.URL+"/api/v1/servers", c.body)
+		if response.StatusCode != http.StatusBadRequest || !strings.Contains(body, c.detail) {
+			t.Errorf("%v: %d %s", c.body, response.StatusCode, body)
+		}
+	}
+}
+
+func TestAnHTTPServerServesOneProject(t *testing.T) {
+	e := newServersEnv(t)
+	server := e.createHTTPServer(t, "shared-hosting")
+	project := map[string]any{"server_id": server.Id, "name": "shop", "root_path": "/home/u/shop", "logs_dir": "/"}
+	if response, body := send(t, http.MethodPost, e.server.URL+"/api/v1/projects", project); response.StatusCode != http.StatusCreated {
+		t.Fatalf("first project: %d %s", response.StatusCode, body)
+	}
+	project["name"], project["logs_dir"] = "blog", "/other"
+	if response, body := send(t, http.MethodPost, e.server.URL+"/api/v1/projects", project); response.StatusCode != http.StatusConflict {
+		t.Fatalf("second project: %d %s", response.StatusCode, body)
+	}
+}
+
+func TestHTTPServerTokenChangesAndRemoval(t *testing.T) {
+	e := newServersEnv(t)
+	server := e.createHTTPServer(t, "shared-hosting")
+	e.http.statuses[server.Id] = sshconn.Status{State: sshconn.StateOffline, Error: "no library"}
+	newToken := strings.Repeat("n", 32)
+	response, body := send(t, http.MethodPatch, fmt.Sprintf("%s/api/v1/servers/%d", e.server.URL, server.Id), map[string]any{"token": newToken})
+	if response.StatusCode != http.StatusOK || e.http.tokens[server.Id] != newToken || strings.Contains(body, newToken) {
+		t.Fatalf("patch: %d %s; tokens %v", response.StatusCode, body, e.http.tokens)
+	}
+	if !strings.Contains(body, `"state":"offline"`) {
+		t.Fatalf("the state comes from the HTTP runtime: %s", body)
+	}
+	if response, body := send(t, http.MethodPatch, fmt.Sprintf("%s/api/v1/servers/%d", e.server.URL, server.Id), map[string]any{"token": "short"}); response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("short token: %d %s", response.StatusCode, body)
+	}
+
+	e.http.check = ServerCheck{Ok: true, Steps: []ServerCheckStep{{Name: "library", Ok: true}}}
+	if _, body := send(t, http.MethodPost, fmt.Sprintf("%s/api/v1/servers/%d/check", e.server.URL, server.Id), nil); !strings.Contains(body, `"library"`) {
+		t.Fatalf("check: %s", body)
+	}
+
+	if response, _ := send(t, http.MethodDelete, fmt.Sprintf("%s/api/v1/servers/%d", e.server.URL, server.Id), nil); response.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete: %d", response.StatusCode)
+	}
+	if _, kept := e.http.tokens[server.Id]; kept || len(e.http.forgotten) != 1 {
+		t.Fatalf("the token outlived its server: %v", e.http.tokens)
 	}
 }

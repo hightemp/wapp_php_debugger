@@ -337,7 +337,7 @@ export interface components {
         Environment: "local" | "dev" | "stage" | "prod";
         /** @enum {string} */
         ConnectionState: "unknown" | "connecting" | "online" | "offline";
-        /** @description Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url. */
+        /** @description Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url of the application with the library (https://; http:// is shown with a warning). */
         ServerConfig: {
             host?: string;
             port?: number;
@@ -358,12 +358,19 @@ export interface components {
             environment?: components["schemas"]["Environment"];
             config?: components["schemas"]["ServerConfig"];
             permissions?: components["schemas"]["ServerPermissions"];
+            token?: components["schemas"]["ServerToken"];
         };
+        /**
+         * @description http servers: http_token from the library config. Kept outside the database in a file
+         *     readable by the user only and never returned.
+         */
+        ServerToken: string;
         ServerPatch: {
             name?: string;
             environment?: components["schemas"]["Environment"];
             config?: components["schemas"]["ServerConfig"];
             permissions?: components["schemas"]["ServerPermissions"];
+            token?: components["schemas"]["ServerToken"];
         };
         /**
          * @example {
@@ -446,7 +453,7 @@ export interface components {
             host_key_type?: string;
         };
         ServerCheckStep: {
-            /** @description config, connect, sftp, local; per project logs_dir, logs_dir_writable, library_config; php */
+            /** @description config, connect, sftp, local, tls, library; per project logs_dir, logs_dir_writable, library_config; php */
             name: string;
             ok: boolean;
             detail?: string;

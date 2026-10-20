@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -28,8 +29,18 @@ func (s *server) CreateServer(ctx context.Context, request CreateServerRequestOb
 		if body.Config == nil || body.Config.Host == nil || strings.TrimSpace(*body.Config.Host) == "" {
 			return fail("an ssh server needs config.host: a host name or an alias from ~/.ssh/config")
 		}
+	case ServerKindHttp:
+		if s.deps.HTTP == nil {
+			return fail("http servers are not supported here")
+		}
+		if body.Config == nil || body.Config.BaseUrl == nil || !validBaseURL(*body.Config.BaseUrl) {
+			return fail("an http server needs config.base_url: the https:// address of the application with the library")
+		}
+		if body.Token == nil || len(*body.Token) < minTokenLength {
+			return fail(tokenRule)
+		}
 	default:
-		return fail("servers of kind " + string(body.Kind) + " are not supported yet")
+		return fail("servers of kind " + string(body.Kind) + " are not supported")
 	}
 
 	input := store.ServerInput{Name: strings.TrimSpace(body.Name), Kind: string(body.Kind)}
@@ -53,11 +64,27 @@ func (s *server) CreateServer(ctx context.Context, request CreateServerRequestOb
 	if err != nil {
 		return nil, err
 	}
+	if created.Kind == "http" {
+		if err := s.deps.HTTP.SetToken(created.ID, *body.Token); err != nil {
+			_ = s.deps.Store.DeleteServer(ctx, created.ID) // a server without its token is of no use
+			return nil, err
+		}
+	}
 	dto, err := s.serverDTO(created)
 	if err != nil {
 		return nil, err
 	}
 	return CreateServer201JSONResponse(dto), nil
+}
+
+// minTokenLength is what the library asks of http_token
+const minTokenLength = 32
+
+const tokenRule = "an http server needs token: http_token from the library config, at least 32 characters"
+
+func validBaseURL(raw string) bool {
+	base, err := url.Parse(raw)
+	return err == nil && (base.Scheme == "https" || base.Scheme == "http") && base.Host != ""
 }
 
 func (s *server) DeleteServer(ctx context.Context, request DeleteServerRequestObject) (DeleteServerResponseObject, error) {
@@ -80,8 +107,13 @@ func (s *server) DeleteServer(ctx context.Context, request DeleteServerRequestOb
 			s.deps.Projects.Remove(project.ID)
 		}
 	}
-	if s.deps.SSH != nil {
+	if s.deps.SSH != nil && srv.Kind == "ssh" {
 		s.deps.SSH.Forget(srv.ID)
+	}
+	if s.deps.HTTP != nil && srv.Kind == "http" {
+		if err := s.deps.HTTP.Forget(srv.ID); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.deps.Store.DeleteServer(ctx, srv.ID); err != nil {
 		return nil, err
@@ -106,6 +138,16 @@ func (s *server) CheckServer(ctx context.Context, request CheckServerRequestObje
 			return nil, err
 		}
 		check, err := s.deps.SSH.Check(ctx, srv, projects)
+		if err != nil {
+			return nil, err
+		}
+		return CheckServer200JSONResponse(check), nil
+	case srv.Kind == "http" && s.deps.HTTP != nil:
+		projects, err := s.deps.Store.ListProjects(ctx, srv.ID)
+		if err != nil {
+			return nil, err
+		}
+		check, err := s.deps.HTTP.Check(ctx, srv, projects)
 		if err != nil {
 			return nil, err
 		}

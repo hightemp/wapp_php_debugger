@@ -61,8 +61,9 @@ func (c SSHConfig) resolver() (*sshconn.Resolver, error) {
 	return sshconn.NewResolver(config, c.Home, c.User)
 }
 
-// sourceFactory gives each project the source of its server: a local directory (watched) or SFTP (polled).
-func sourceFactory(ctx context.Context, s *store.Store, pool *sshconn.Pool, sshConfig SSHConfig) ingest.SourceFactory {
+// sourceFactory gives each project the source of its server: a local directory (watched), SFTP or the
+// library HTTP mode (both polled).
+func sourceFactory(ctx context.Context, s *store.Store, pool *sshconn.Pool, sshConfig SSHConfig, libraries *httpRuntime) ingest.SourceFactory {
 	return func(project store.Project) (source.Source, bool, error) {
 		server, found, err := s.GetServer(ctx, project.ServerID)
 		if err != nil {
@@ -88,8 +89,14 @@ func sourceFactory(ctx context.Context, s *store.Store, pool *sshconn.Pool, sshC
 				return nil, false, err
 			}
 			return source.NewSSH(pool, server.ID, target, project.LogsDir, project.ConfigPath), true, nil
+		case "http":
+			src, err := libraries.source(server)
+			if err != nil {
+				return nil, false, err
+			}
+			return src, true, nil
 		default:
-			return nil, false, fmt.Errorf("servers of kind %s are not supported yet", server.Kind)
+			return nil, false, fmt.Errorf("servers of kind %s are not supported", server.Kind)
 		}
 	}
 }

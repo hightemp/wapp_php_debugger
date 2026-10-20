@@ -33,8 +33,10 @@ type Config struct {
 	// RemoteScanInterval is how often projects on SSH servers are polled; 2 s
 	RemoteScanInterval time.Duration
 	SSH                SSHConfig // zero value: DefaultSSH()
-	UI                 fs.FS
-	Logger             *slog.Logger
+	// HTTPClient talks to http servers (library HTTP mode); nil: a client that checks certificates
+	HTTPClient *http.Client
+	UI         fs.FS
+	Logger     *slog.Logger
 }
 
 // Core is the running viewer core: database, background import and HTTP handler.
@@ -87,10 +89,15 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	pool := sshconn.NewPool(dialer, sshconn.PoolOptions{OnStatus: func(serverID int64, status sshconn.Status) {
 		broker.Publish("server_status", serverStatusEvent(serverID, status))
 	}})
+	// Tokens of http servers live next to the database, never in it
+	libraries := newHTTPRuntime(filepath.Join(filepath.Dir(cfg.DBPath), "secrets.json"), cfg.HTTPClient,
+		func(serverID int64, status sshconn.Status) {
+			broker.Publish("server_status", serverStatusEvent(serverID, status))
+		})
 	manager := ingest.NewManager(s, ingest.ManagerOptions{
 		PollInterval:       cfg.ScanInterval,
 		RemotePollInterval: cfg.RemoteScanInterval,
-		Sources:            sourceFactory(ctx, s, pool, cfg.SSH),
+		Sources:            sourceFactory(ctx, s, pool, cfg.SSH, libraries),
 		Logger:             cfg.Logger,
 		OnChange: func(_ int64, created, updated []int64) {
 			publish(ctx, s, broker, "request_created", created)
@@ -107,7 +114,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	return &Core{
 		db: db,
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
-			SSH: &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}}),
+			SSH: &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}, HTTP: libraries}),
 		broker:  broker,
 		manager: manager,
 		ssh:     pool,

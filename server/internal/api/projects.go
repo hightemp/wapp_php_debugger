@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
@@ -39,8 +40,14 @@ func (s *server) serverDTO(srv store.Server) (Server, error) {
 	connection := ServerConnection{State: Online} // the local server is always reachable
 	if srv.Kind != "local" {
 		connection = ServerConnection{State: Unknown}
-		if s.deps.SSH != nil && srv.Kind == "ssh" {
-			status := s.deps.SSH.Status(srv.ID)
+		var status sshconn.Status
+		switch {
+		case srv.Kind == "ssh" && s.deps.SSH != nil:
+			status = s.deps.SSH.Status(srv.ID)
+		case srv.Kind == "http" && s.deps.HTTP != nil:
+			status = s.deps.HTTP.Status(srv.ID)
+		}
+		if status.State != "" {
 			connection.State = ConnectionState(status.State)
 			if status.Error != "" {
 				connection.Error = &status.Error
@@ -113,6 +120,9 @@ func (s *server) UpdateServer(ctx context.Context, request UpdateServerRequestOb
 	if p := body.Permissions; p != nil {
 		patch.ReadOnly, patch.AllowDelete, patch.AllowControl = &p.ReadOnly, &p.AllowDelete, &p.AllowControl
 	}
+	if body.Token != nil && len(*body.Token) < minTokenLength {
+		return UpdateServerdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem(tokenRule), StatusCode: http.StatusBadRequest}, nil
+	}
 	updated, err := s.deps.Store.UpdateServer(ctx, request.ServerId, patch)
 	if failure, ok := storeProblem(err, "server"); ok {
 		return UpdateServerdefaultApplicationProblemPlusJSONResponse{Body: failure, StatusCode: failure.Status}, nil
@@ -120,9 +130,17 @@ func (s *server) UpdateServer(ctx context.Context, request UpdateServerRequestOb
 	if err != nil {
 		return nil, err
 	}
-	if updated.Kind != "local" && body.Config != nil {
+	if body.Token != nil {
+		if updated.Kind != "http" || s.deps.HTTP == nil {
+			return UpdateServerdefaultApplicationProblemPlusJSONResponse{Body: badRequestProblem("only http servers have a token"), StatusCode: http.StatusBadRequest}, nil
+		}
+		if err := s.deps.HTTP.SetToken(updated.ID, *body.Token); err != nil {
+			return nil, err
+		}
+	}
+	if updated.Kind != "local" && (body.Config != nil || body.Token != nil) {
 		// New connection settings: a fresh connection, and the projects pick up the new target
-		if s.deps.SSH != nil {
+		if s.deps.SSH != nil && updated.Kind == "ssh" {
 			s.deps.SSH.Forget(updated.ID)
 		}
 		if err := s.restartProjects(ctx, updated.ID); err != nil {
@@ -219,8 +237,15 @@ func (s *server) CreateProject(ctx context.Context, request CreateProjectRequest
 	if !found {
 		return fail(notFound("server"))
 	}
-	if serverRow.Kind != "local" && serverRow.Kind != "ssh" {
-		return fail(badRequestProblem("projects on " + serverRow.Kind + " servers are not supported yet"))
+	if serverRow.Kind == "http" {
+		// The base URL is one application: the library there has one logs directory
+		existing, err := s.deps.Store.ListProjects(ctx, serverRow.ID)
+		if err != nil {
+			return nil, err
+		}
+		if len(existing) > 0 {
+			return fail(problem(http.StatusConflict, "Conflict", "an http server is one application and serves one project: add another server for another base URL"))
+		}
 	}
 
 	input := store.ProjectInput{ServerID: body.ServerId, Name: strings.TrimSpace(body.Name), RootPath: body.RootPath, LogsDir: body.LogsDir}

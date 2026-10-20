@@ -33,6 +33,16 @@ type SSHRuntime interface {
 	Forget(serverID int64)
 }
 
+// HTTPRuntime is the side of the app for servers in the library HTTP mode: tokens, state and checks.
+type HTTPRuntime interface {
+	Status(serverID int64) sshconn.Status
+	Check(ctx context.Context, server store.Server, projects []store.Project) (ServerCheck, error)
+	// SetToken keeps the token of the server outside the database.
+	SetToken(serverID int64, token string) error
+	// Forget drops the token and the state: the server was removed.
+	Forget(serverID int64) error
+}
+
 var (
 	// ErrHostKeyMismatch means the server presents another key than the user confirmed.
 	ErrHostKeyMismatch = errors.New("the host key does not match the confirmed fingerprint")
@@ -46,6 +56,7 @@ type Deps struct {
 	Broker    *events.Broker
 	Projects  ProjectRuntime
 	SSH       SSHRuntime    // nil: ssh servers show an unknown connection
+	HTTP      HTTPRuntime   // nil: http servers cannot be added
 	UI        fs.FS         // built Svelte UI (index.html and assets/)
 	Heartbeat time.Duration // SSE heartbeat comment period; 0 means 15 seconds
 }
