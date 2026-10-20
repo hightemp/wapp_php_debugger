@@ -114,7 +114,11 @@ describe('ProjectsPanel with several servers', () => {
       listServers: vi.fn(async () => ({
         items: [
           sampleServer(1),
-          sampleServer(2, { name: 'stage', environment: 'stage' }),
+          sampleServer(2, {
+            name: 'stage',
+            environment: 'stage',
+            connection: { state: 'online', clock_offset_ms: 12400 },
+          }),
           sampleServer(3, {
             name: 'prod-web',
             environment: 'prod',
@@ -158,6 +162,12 @@ describe('ProjectsPanel with several servers', () => {
       within(await group('prod-web')).getByRole('button', { name: 'prod-web' }),
     );
     expect(onselectserver).toHaveBeenCalledWith(3);
+  });
+
+  it('warns about a server clock off by more than two seconds', async () => {
+    setupServers();
+    expect(await group('stage')).toHaveTextContent('clock +12 s');
+    expect(await group('prod-web')).not.toHaveTextContent('clock');
   });
 
   it('follows the connection of a server live', async () => {

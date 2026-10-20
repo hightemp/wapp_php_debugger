@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { Transport } from '../lib/api/client';
   import type { Project, Server } from '../lib/api/types';
+  import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import ProjectDialog, { type ProjectFields } from './ProjectDialog.svelte';
@@ -188,6 +189,13 @@
               <span class="state" data-state={server.connection.state}
                 >{i18n.t(`connection.${server.connection.state}`)}</span
               >
+              {#if clockSkew(server.connection.clock_offset_ms)}
+                <span class="clock" title={i18n.t('servers.clockHint')}
+                  >{i18n.t('servers.clock', {
+                    offset: clockSkew(server.connection.clock_offset_ms) ?? '',
+                  })}</span
+                >
+              {/if}
             </div>
             <ul class="list nested">
               {#each serverProjects as project (project.id)}
@@ -293,6 +301,11 @@
 />
 
 <style>
+  .clock {
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
+  }
+
   .projects {
     border-bottom: 1px solid var(--border);
   }

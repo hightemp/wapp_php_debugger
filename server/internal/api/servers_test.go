@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
@@ -165,6 +166,18 @@ func TestServersShowTheirConnection(t *testing.T) {
 	_, list := get(t, e.server.URL+"/api/v1/servers")
 	if !strings.Contains(list, `"state":"online"`) || !strings.Contains(list, `"state":"offline"`) {
 		t.Fatalf("the local server is online, the SSH one offline: %s", list)
+	}
+}
+
+func TestServersShowTheirClockOffset(t *testing.T) {
+	e := newServersEnv(t)
+	server := e.createSSHServer(t, "stage")
+	offset := -3500 * time.Millisecond
+	e.ssh.statuses[server.Id] = sshconn.Status{State: sshconn.StateOnline, ClockOffset: &offset}
+
+	_, body := get(t, fmt.Sprintf("%s/api/v1/servers/%d", e.server.URL, server.Id))
+	if !strings.Contains(body, `"clock_offset_ms":-3500`) {
+		t.Fatalf("server = %s", body)
 	}
 }
 

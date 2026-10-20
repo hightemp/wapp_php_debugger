@@ -110,6 +110,9 @@ const en = {
   'servers.removeMessage':
     'The server and its projects leave the viewer. Nothing changes on the server.',
   'servers.thisMachine': 'this machine',
+  'servers.clock': 'clock {offset} s',
+  'servers.clockHint':
+    'The server clock is off: requests of different servers may show in the wrong order.',
   'servers.unknownKey':
     'Unknown host key. Compare the fingerprint with the server before you trust it:',
   'servers.keyHint': 'On the server: ssh-keygen -lf /etc/ssh/{file}',
@@ -283,6 +286,8 @@ const ru: Record<MessageKey, Entry> = {
   'servers.removeMessage':
     'Сервер и его проекты пропадут из просмотрщика. На самом сервере ничего не изменится.',
   'servers.thisMachine': 'этот компьютер',
+  'servers.clock': 'часы {offset} с',
+  'servers.clockHint': 'Часы сервера сбиты: запросы разных серверов могут идти не по порядку.',
   'servers.unknownKey':
     'Неизвестный ключ хоста. Сверьте отпечаток с сервером, прежде чем доверять ему:',
   'servers.keyHint': 'На сервере: ssh-keygen -lf /etc/ssh/{file}',

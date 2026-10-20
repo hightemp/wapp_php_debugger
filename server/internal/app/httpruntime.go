@@ -25,6 +25,7 @@ type httpRuntime struct {
 
 	mu       sync.Mutex
 	statuses map[int64]sshconn.Status
+	clocks   map[int64]time.Duration // offsets of the servers' clocks from the Date header
 }
 
 var _ api.HTTPRuntime = (*httpRuntime)(nil)
@@ -33,7 +34,7 @@ func newHTTPRuntime(secretsFile string, client *http.Client, onStatus func(int64
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second} // certificates are checked, always
 	}
-	return &httpRuntime{secrets: secrets.NewFile(secretsFile), client: client, onStatus: onStatus, statuses: map[int64]sshconn.Status{}}
+	return &httpRuntime{secrets: secrets.NewFile(secretsFile), client: client, onStatus: onStatus, statuses: map[int64]sshconn.Status{}, clocks: map[int64]time.Duration{}}
 }
 
 func tokenKey(serverID int64) string { return fmt.Sprintf("server/%d/token", serverID) }
@@ -45,6 +46,7 @@ func (r *httpRuntime) SetToken(serverID int64, token string) error {
 func (r *httpRuntime) Forget(serverID int64) error {
 	r.mu.Lock()
 	delete(r.statuses, serverID)
+	delete(r.clocks, serverID)
 	r.mu.Unlock()
 	return r.secrets.Delete(tokenKey(serverID))
 }
@@ -67,6 +69,9 @@ func (r *httpRuntime) record(serverID int64, err error) {
 		status = sshconn.Status{State: sshconn.StateOffline, Error: err.Error()}
 	}
 	r.mu.Lock()
+	if clock, ok := r.clocks[serverID]; ok && status.State == sshconn.StateOnline {
+		status.ClockOffset = &clock
+	}
 	previous, known := r.statuses[serverID]
 	changed := !known || previous.State != status.State || previous.Error != status.Error
 	if changed {
@@ -90,6 +95,29 @@ func baseURL(server store.Server) (string, error) {
 	return config.BaseURL, nil
 }
 
+// clock keeps the offset of the server's clock; a change under a second (the Date header has whole
+// seconds) is noise and is not published.
+func (r *httpRuntime) clock(serverID int64, offset time.Duration) {
+	r.mu.Lock()
+	previous, known := r.clocks[serverID]
+	if known && (offset-previous).Abs() < time.Second {
+		r.mu.Unlock()
+		return
+	}
+	r.clocks[serverID] = offset
+	status, ok := r.statuses[serverID]
+	if !ok || status.State != sshconn.StateOnline {
+		r.mu.Unlock()
+		return
+	}
+	status.ClockOffset = &offset
+	r.statuses[serverID] = status
+	r.mu.Unlock()
+	if r.onStatus != nil {
+		r.onStatus(serverID, status)
+	}
+}
+
 // source makes the source of a project on the server; its requests feed the connection state.
 func (r *httpRuntime) source(server store.Server) (*source.HTTP, error) {
 	base, err := baseURL(server)
@@ -104,7 +132,8 @@ func (r *httpRuntime) source(server store.Server) (*source.HTTP, error) {
 		return nil, errors.New("no token for this server: set it again in the server settings")
 	}
 	return source.NewHTTP(source.HTTPOptions{BaseURL: base, Token: token, Client: r.client,
-		OnResult: func(err error) { r.record(server.ID, err) }})
+		OnResult: func(err error) { r.record(server.ID, err) },
+		OnClock:  func(offset time.Duration) { r.clock(server.ID, offset) }})
 }
 
 // Check asks the library for its status: the address, the token, the logs directory and PHP.

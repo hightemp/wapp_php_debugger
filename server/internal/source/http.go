@@ -36,6 +36,8 @@ type HTTPOptions struct {
 	MinInterval time.Duration
 	// OnResult hears how each request went: nil, or the error of the request (connection state in the UI)
 	OnResult func(err error)
+	// OnClock hears how far the server's clock is ahead, from the Date header (good to about a second)
+	OnClock func(offset time.Duration)
 }
 
 // HTTP is the logs directory of a project read through the PHP library HTTP mode (spec/library-http.yaml),
@@ -44,6 +46,7 @@ type HTTP struct {
 	client      *libclient.Client
 	minInterval time.Duration
 	onResult    func(error)
+	onClock     func(time.Duration)
 
 	mu          sync.Mutex
 	last        time.Time // when the last request went out
@@ -73,7 +76,7 @@ func NewHTTP(options HTTPOptions) (*HTTP, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &HTTP{client: client, minInterval: options.MinInterval, onResult: options.OnResult}, nil
+	return &HTTP{client: client, minInterval: options.MinInterval, onResult: options.OnResult, onClock: options.OnClock}, nil
 }
 
 // wait holds a request back for the rate limit and the spacing between requests.
@@ -140,7 +143,15 @@ func (h *HTTP) do(ctx context.Context, send func() (*http.Response, error), want
 	if err := h.wait(ctx); err != nil {
 		return nil, err
 	}
+	sent := time.Now()
 	response, err := send()
+	if err == nil && h.onClock != nil {
+		if date, dateErr := http.ParseTime(response.Header.Get("Date")); dateErr == nil {
+			// Date has whole seconds: the true time is anywhere in that second
+			middle := sent.Add(time.Since(sent) / 2)
+			h.onClock(date.Add(500 * time.Millisecond).Sub(middle))
+		}
+	}
 	if err == nil && response.StatusCode != want {
 		defer func() { _ = response.Body.Close() }()
 		err = h.problemOf(response)

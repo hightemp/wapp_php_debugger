@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Transport } from '../lib/api/client';
   import type { Server, ServerCheck, ServerCheckStep, ServerInput } from '../lib/api/types';
+  import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import type { MessageKey } from '../lib/i18n/messages';
   import ConfirmDialog from './ConfirmDialog.svelte';
@@ -162,6 +163,13 @@
           <span class="state" data-state={server.connection.state}
             >{i18n.t(`connection.${server.connection.state}`)}</span
           >
+          {#if clockSkew(server.connection.clock_offset_ms)}
+            <span class="clock" title={i18n.t('servers.clockHint')}
+              >{i18n.t('servers.clock', {
+                offset: clockSkew(server.connection.clock_offset_ms) ?? '',
+              })}</span
+            >
+          {/if}
           {#if server.kind !== 'local'}
             <button type="button" class="action" onclick={() => check(server)}
               >{i18n.t('servers.check')}</button
@@ -232,6 +240,11 @@
 />
 
 <style>
+  .clock {
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
+  }
+
   .servers {
     display: grid;
     gap: var(--space-3);

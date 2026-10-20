@@ -80,3 +80,20 @@ func TestHTTPNeedsAnAbsoluteURL(t *testing.T) {
 		}
 	}
 }
+
+func TestHTTPReportsTheClockOfTheServer(t *testing.T) {
+	server := libtest.Start(t, libToken, nil)
+	server.ClockAhead.Store(int64(40 * time.Second))
+	var offsets []time.Duration
+	src, err := source.NewHTTP(source.HTTPOptions{BaseURL: server.URL, Token: libToken, Client: server.Client(),
+		OnClock: func(offset time.Duration) { offsets = append(offsets, offset) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := src.List(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(offsets) != 1 || offsets[0] < 39*time.Second || offsets[0] > 41*time.Second {
+		t.Fatalf("offsets = %v; want about 40s", offsets)
+	}
+}

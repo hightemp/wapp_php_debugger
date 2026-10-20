@@ -24,6 +24,8 @@ type Status struct {
 	State string
 	Error string // why the server is offline
 	Since time.Time
+	// ClockOffset is how far the server's clock is ahead of ours, measured on connect; nil when unknown
+	ClockOffset *time.Duration
 }
 
 // Conn is the shared connection to a server: SSH for exec, SFTP for files.
@@ -59,6 +61,7 @@ type entry struct {
 	lastErr    error
 	generation int // a new connection invalidates the watcher of the old one
 	stop       chan struct{}
+	clock      *time.Duration // offset of the server's clock, measured on connect
 }
 
 // NewPool creates a pool dialing with d.
@@ -117,6 +120,12 @@ func (p *Pool) Get(ctx context.Context, serverID int64, target Target) (*Conn, e
 
 	// One caller giving up must not fail the attempt the others wait for; the dialer has a timeout
 	conn, err := p.connect(context.WithoutCancel(ctx), target)
+	var clock *time.Duration
+	if err == nil {
+		if offset, clockErr := MeasureClock(conn.SSH); clockErr == nil {
+			clock = &offset
+		}
+	}
 
 	p.mu.Lock()
 	e.dialing = nil
@@ -135,6 +144,7 @@ func (p *Pool) Get(ctx context.Context, serverID int64, target Target) (*Conn, e
 		return nil, err
 	}
 	e.conn = conn
+	e.clock = clock
 	e.failures = 0
 	e.lastErr = nil
 	e.generation++
@@ -222,6 +232,9 @@ func (p *Pool) setStatus(serverID int64, e *entry, state string, err error) func
 	status := Status{State: state, Since: time.Now()}
 	if err != nil {
 		status.Error = err.Error()
+	}
+	if state == StateOnline {
+		status.ClockOffset = e.clock
 	}
 	if e.status.State == state && e.status.Error == status.Error {
 		return func() {}

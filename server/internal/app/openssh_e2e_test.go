@@ -128,6 +128,19 @@ func TestAgainstRealOpenSSH(t *testing.T) {
 		}
 	}
 
+	// The container shares the host clock: the measured offset is about zero
+	_, body = call(t, core, http.MethodGet, fmt.Sprintf("/api/v1/servers/%d", server.ID), nil)
+	var got struct {
+		Connection struct {
+			ClockOffsetMs *int `json:"clock_offset_ms"`
+		} `json:"connection"`
+	}
+	_ = json.Unmarshal([]byte(body), &got)
+	if got.Connection.ClockOffsetMs == nil || *got.Connection.ClockOffsetMs > 2000 || *got.Connection.ClockOffsetMs < -2000 {
+		t.Fatalf("clock offset of the server: %s", body)
+	}
+	t.Logf("clock offset %d ms", *got.Connection.ClockOffsetMs)
+
 	waitFor(t, func() bool {
 		_, list := call(t, core, http.MethodGet, "/api/v1/requests", nil)
 		return strings.Contains(list, "01M5AKMC85PGPCY")

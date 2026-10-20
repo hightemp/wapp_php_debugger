@@ -53,3 +53,15 @@ function decodeReadable(text: string): string {
     return chunk;
   });
 }
+
+/** Clocks further apart than this make the order of requests across servers misleading. */
+export const clockSkewLimitMs = 2000;
+
+/** "+12" or "−3" (whole seconds) when a server clock is off by more than the limit. */
+export function clockSkew(offsetMs: number | null | undefined): string | undefined {
+  if (offsetMs === null || offsetMs === undefined || Math.abs(offsetMs) <= clockSkewLimitMs) {
+    return undefined;
+  }
+  const seconds = Math.round(Math.abs(offsetMs) / 1000);
+  return `${offsetMs > 0 ? '+' : '−'}${seconds}`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatTime, requestTitle } from './format';
+import { clockSkew, formatDuration, formatTime, requestTitle } from './format';
 
 describe('formatDuration', () => {
   it('uses ms below a second and s above', () => {
@@ -51,5 +51,15 @@ describe('requestTitle', () => {
 
   it('shows CLI for console runs', () => {
     expect(requestTitle({ sapi: 'cli', url: null })).toBe('CLI');
+  });
+});
+
+describe('clockSkew', () => {
+  it('names only a clock off by more than two seconds', () => {
+    expect(clockSkew(undefined)).toBeUndefined();
+    expect(clockSkew(1999)).toBeUndefined();
+    expect(clockSkew(-2000)).toBeUndefined();
+    expect(clockSkew(12400)).toBe('+12');
+    expect(clockSkew(-2600)).toBe('−3');
   });
 });

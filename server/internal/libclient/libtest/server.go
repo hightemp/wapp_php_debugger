@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 const prefix = "/__wapp_debugger/v1/"
@@ -26,9 +27,11 @@ type Server struct {
 	Dir     string
 	enabled atomic.Bool
 	// Limited makes the next answers 429 with Retry-After.
-	Limited  atomic.Int32
-	requests atomic.Int64
-	mu       sync.Mutex
+	Limited atomic.Int32
+	// ClockAhead shifts the Date header: the clock of the server is that far ahead.
+	ClockAhead atomic.Int64
+	requests   atomic.Int64
+	mu         sync.Mutex
 }
 
 // Start serves files (name → content) over HTTPS; Client() trusts its certificate.
@@ -49,6 +52,7 @@ func Start(t *testing.T, token string, files map[string][]byte) *Server {
 func (s *Server) Requests() int64 { return s.requests.Load() }
 
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Date", time.Now().Add(time.Duration(s.ClockAhead.Load())).UTC().Format(http.TimeFormat))
 	route, found := strings.CutPrefix(r.URL.Path, prefix)
 	if !found || r.Header.Get("X-Debugger-Token") != s.Token {
 		http.NotFound(w, r) // the application answers: the library stays silent

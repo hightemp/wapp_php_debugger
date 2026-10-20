@@ -192,6 +192,14 @@ describe('ServersDialog', () => {
     );
   });
 
+  it('shows a server clock that is off', async () => {
+    setup([
+      sampleServer(1),
+      sampleServer(2, { name: 'stage', connection: { state: 'online', clock_offset_ms: -2600 } }),
+    ]);
+    expect(await row('stage')).toHaveTextContent('clock −3 s');
+  });
+
   it('follows the connection live', async () => {
     const { emit } = setup();
     const stage = await row('stage');

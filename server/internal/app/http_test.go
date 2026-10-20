@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/libclient/libtest"
+	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
 	"github.com/hightemp/wapp_php_debugger/server/internal/store"
 )
 
@@ -153,5 +154,33 @@ func TestHTTPCheck(t *testing.T) {
 	ok, steps = httpCheck(t, plain.Client(), plain.URL, libToken)
 	if !ok || steps["tls"].Ok || !steps["tls"].Optional || !steps["library"].Ok {
 		t.Fatalf("plain http is a warning: ok=%v steps=%+v", ok, steps)
+	}
+}
+
+func TestHTTPRuntimeTracksTheClockOfTheServer(t *testing.T) {
+	lib := libtest.Start(t, libToken, nil)
+	lib.ClockAhead.Store(int64(-20 * time.Second))
+	var published []sshconn.Status
+	runtime := newHTTPRuntime(filepath.Join(t.TempDir(), "secrets.json"), lib.Client(), func(_ int64, status sshconn.Status) {
+		published = append(published, status)
+	})
+	if err := runtime.SetToken(5, libToken); err != nil {
+		t.Fatal(err)
+	}
+	src, err := runtime.source(store.Server{ID: 5, Kind: "http", Config: fmt.Sprintf(`{"base_url":%q}`, lib.URL)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		if _, err := src.List(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	status := runtime.Status(5)
+	if status.ClockOffset == nil || *status.ClockOffset > -19*time.Second || *status.ClockOffset < -21*time.Second {
+		t.Fatalf("status = %+v", status)
+	}
+	if len(published) > 2 {
+		t.Fatalf("every poll published a status: %d", len(published))
 	}
 }

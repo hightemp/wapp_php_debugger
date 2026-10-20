@@ -111,5 +111,9 @@ func serverStatusEvent(serverID int64, status sshconn.Status) api.StreamEvent {
 		checkedAt = time.Now().UnixMilli()
 	}
 	connection.CheckedAt = &checkedAt
+	if status.ClockOffset != nil {
+		offset := int(status.ClockOffset.Milliseconds())
+		connection.ClockOffsetMs = &offset
+	}
 	return api.StreamEvent{Event: api.ServerStatus, ServerId: &serverID, Connection: &connection}
 }

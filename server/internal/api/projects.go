@@ -56,6 +56,10 @@ func (s *server) serverDTO(srv store.Server) (Server, error) {
 				checkedAt := status.Since.UnixMilli()
 				connection.CheckedAt = &checkedAt
 			}
+			if status.ClockOffset != nil {
+				offset := int(status.ClockOffset.Milliseconds())
+				connection.ClockOffsetMs = &offset
+			}
 		}
 	}
 	return Server{
