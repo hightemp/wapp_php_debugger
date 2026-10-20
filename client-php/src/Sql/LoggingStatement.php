@@ -9,6 +9,8 @@ use WappDebugger\Debugger;
 /**
  * A PDO statement that times execute() and logs the query with its parameters (Sql::watch()).
  * Signatures stay untyped so the class fits PHP 7.4 and 8.x alike.
+ *
+ * @bundle-requires-class \PDOStatement
  */
 class LoggingStatement extends \PDOStatement
 {

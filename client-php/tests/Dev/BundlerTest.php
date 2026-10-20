@@ -61,4 +61,40 @@ final class BundlerTest extends TestCase
         self::assertSame(['id' => 7, 'password' => '***'], $events[1]['context']);
         self::assertSame('LogicException', $events[3]['exception_class']);
     }
+
+    public function testAClassOnAnExtensionIsDeclaredOnlyWhereTheExtensionIs(): void
+    {
+        $src = $this->tempDir() . '/src';
+        mkdir($src . '/Sql', 0777, true);
+        file_put_contents($src . '/Frames.php', "<?php\nnamespace WappDebugger;\nfinal class Frames { private const BUNDLED = false; }\n");
+        file_put_contents($src . '/Debugger.php', "<?php\nnamespace WappDebugger;\nfinal class Debugger { public const VERSION = '9.9.9'; }\n");
+        file_put_contents(
+            $src . '/Sql/Statement.php',
+            <<<'PHP'
+                <?php
+
+                declare(strict_types=1);
+
+                namespace WappDebugger\Sql;
+
+                use WappDebugger\Debugger;
+
+                /**
+                 * Needs PDO.
+                 *
+                 * @bundle-requires-class \PDOStatement
+                 */
+                class Statement extends \PDOStatement
+                {
+                }
+                PHP
+        );
+        $bundle = $this->tempDir() . '/wapp-debugger.php';
+        (new Bundler())->build($src, $bundle);
+        $code = (string) file_get_contents($bundle);
+
+        self::assertStringContainsString("use WappDebugger\\Debugger;\n\nif (\\class_exists('PDOStatement', false)) {", $code);
+        exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($bundle) . ' 2>&1', $output, $status);
+        self::assertSame(0, $status, implode("\n", $output));
+    }
 }

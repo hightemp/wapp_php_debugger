@@ -108,6 +108,16 @@ final class Bundler
             $source = str_replace($flag, 'private const BUNDLED = true;', $source);
         }
 
+        // A class on an optional extension (@bundle-requires-class \PDOStatement) is declared only where
+        // the extension is: the bundle must load in a PHP without it. Imports cannot sit inside the if.
+        if (preg_match('/@bundle-requires-class\s+\\\\?([A-Za-z_][A-Za-z0-9_\\\\]*)/', $source, $required) === 1) {
+            if (preg_match('/\A((?:use\s[^;]+;\s*)*)(.*)\z/s', $source, $parts) !== 1) {
+                throw new \RuntimeException(basename($file) . ': cannot split its imports');
+            }
+            $source = trim($parts[1]) . "\n\nif (\\class_exists('" . $required[1] . "', false)) {\n" . trim($parts[2]) . "\n}";
+            $source = ltrim($source);
+        }
+
         return sprintf("namespace %s{\n\n%s\n\n}\n", $namespace === '' ? '' : $namespace . ' ', $source);
     }
 
