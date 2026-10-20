@@ -56,6 +56,24 @@ final class DebuggerTest extends TestCase
         self::assertIsInt($events[2]['memory_peak_bytes']);
     }
 
+    public function testJsTagLinksThePageToItsRequest(): void
+    {
+        $token = str_repeat('p', 40) . '"<';
+        $debugger = Debugger::start(Config::fromArray(['enabled' => true, 'logs_dir' => $this->tempDir(), 'push_url' => 'http://viewer.lan:8821/ingest/v2', 'push_token' => $token]), RequestInfo::web('GET', 'https://shop.test/'));
+
+        self::assertSame(
+            '<script src="http://viewer.lan:8821/ingest/debugger.js" data-token="' . str_repeat('p', 40) . '&quot;&lt;" data-request-id="' . $debugger->requestId() . '" async></script>',
+            $debugger->jsTag()
+        );
+    }
+
+    public function testJsTagIsEmptyWithoutPushOrWhenOff(): void
+    {
+        self::assertSame('', $this->debugger(new FixedClock(self::START))->jsTag(), 'a page cannot push without a token');
+        $off = Debugger::start(Config::fromArray(['enabled' => false, 'push_url' => 'http://viewer.lan:8821/ingest/v2', 'push_token' => str_repeat('p', 40)]), RequestInfo::web('GET', 'https://shop.test/'));
+        self::assertSame('', $off->jsTag());
+    }
+
     public function testCliRequestHasArgvAndExitCode(): void
     {
         $debugger = $this->debugger(new FixedClock(self::START), RequestInfo::cli(['bin/console', 'cache:clear']));

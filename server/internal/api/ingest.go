@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"strings"
 
@@ -23,6 +24,7 @@ const ingestLimit = 8 << 20
 type IngestDeps struct {
 	Store  *store.Store
 	Broker *events.Broker
+	UI     fs.FS // the built UI: debugger.js, the JS client of pages, comes from it
 }
 
 // NewIngestHandler is the receiver of logs pushed over HTTP (spec/ingest.yaml): the library
@@ -33,6 +35,17 @@ func NewIngestHandler(deps IngestDeps) http.Handler {
 	mux := http.NewServeMux()
 	receiver := &ingestHandler{deps: deps}
 	mux.Handle("POST /ingest/v2", receiver)
+	mux.HandleFunc("GET /ingest/debugger.js", func(w http.ResponseWriter, r *http.Request) {
+		script, err := fs.ReadFile(deps.UI, "debugger.js")
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, "Not Found", "this build has no debugger.js")
+			return
+		}
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "max-age=300")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		_, _ = w.Write(script)
+	})
 	mux.HandleFunc("OPTIONS /ingest/v2", func(w http.ResponseWriter, _ *http.Request) {
 		cors(w.Header())
 		w.WriteHeader(http.StatusNoContent)
@@ -49,6 +62,8 @@ func cors(header http.Header) {
 	header.Set("Access-Control-Allow-Methods", "POST")
 	header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Debugger-Token")
 	header.Set("Access-Control-Max-Age", "600")
+	// Private Network Access: a page on https may reach a receiver in the local network
+	header.Set("Access-Control-Allow-Private-Network", "true")
 }
 
 type ingestHandler struct{ deps IngestDeps }
@@ -65,6 +80,10 @@ func (h *ingestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	token, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !found {
 		token = r.Header.Get("X-Debugger-Token")
+	}
+	if token == "" {
+		// The JS client sends a beacon, which takes no headers
+		token = r.URL.Query().Get("token")
 	}
 	projectID, known := int64(0), false
 	if token != "" {

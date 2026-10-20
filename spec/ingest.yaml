@@ -13,7 +13,10 @@ info:
       SHA-256 only. The token is the only key: CORS allows any origin so a page can send its errors;
     - a batch is any number of v2 lines, of one request or several; a request goes on from where its
       previous batch ended, and events already taken (a batch sent again) are skipped, so a client can
-      retry safely. Lines that are not v2 events are counted in `rejected` and dropped.
+      retry safely. Lines that are not v2 events are counted in `rejected` and dropped;
+    - a page (`debugger.js`) sends `navigator.sendBeacon`, which takes no headers: its token comes in
+      the query and the body as text/plain, so the request needs no CORS preflight. Such a token is
+      visible to anyone who opens the page: pages push only on dev and stage.
 servers:
   - url: '{base_url}'
     variables:
@@ -23,6 +26,7 @@ servers:
 security:
   - push_token: []
   - debugger_token: []
+  - query_token: []
 
 paths:
   /ingest/v2:
@@ -52,6 +56,19 @@ paths:
                   rejected: { type: integer, description: Lines that are not v2 events }
         default: { $ref: '#/components/responses/Problem' }
 
+  /ingest/debugger.js:
+    get:
+      operationId: getJsClient
+      summary: The JS client of pages; Debugger::jsTag() of the library links it
+      security: []
+      responses:
+        '200':
+          description: The script
+          content:
+            text/javascript:
+              schema: { type: string }
+        default: { $ref: '#/components/responses/Problem' }
+
 components:
   securitySchemes:
     push_token:
@@ -63,6 +80,11 @@ components:
       in: header
       name: X-Debugger-Token
       description: The same token in the header the library uses for its HTTP mode
+    query_token:
+      type: apiKey
+      in: query
+      name: token
+      description: For beacons of a page, which cannot send headers
   responses:
     Problem:
       description: 401 without a known token, 413 for a batch over 8 MiB (RFC 9457)

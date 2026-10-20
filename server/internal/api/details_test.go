@@ -38,7 +38,7 @@ func TestGetRequestWithChildren(t *testing.T) {
 	if response.StatusCode != 200 || json.Unmarshal([]byte(body), &detail) != nil {
 		t.Fatalf("status=%d body=%s", response.StatusCode, body)
 	}
-	if detail.PhpVersion == nil || *detail.PhpVersion != "7.4.33" || detail.Children == nil || len(*detail.Children) != 1 ||
+	if detail.PhpVersion == nil || *detail.PhpVersion != "7.4.33" || detail.Children == nil || len(*detail.Children) != 2 ||
 		detail.MemoryPeakBytes == nil || *detail.Lang != "php" {
 		t.Fatalf("detail = %s", body)
 	}

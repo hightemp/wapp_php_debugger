@@ -242,7 +242,7 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	go func() { serveErr <- httpServer.Serve(listener) }()
 	var ingestServer *http.Server
 	if ingestListener != nil {
-		ingestServer = &http.Server{Handler: api.NewIngestHandler(api.IngestDeps{Store: core.store, Broker: core.broker}),
+		ingestServer = &http.Server{Handler: api.NewIngestHandler(api.IngestDeps{Store: core.store, Broker: core.broker, UI: cfg.UI}),
 			ReadHeaderTimeout: 10 * time.Second, ReadTimeout: time.Minute}
 		go func() { serveErr <- ingestServer.Serve(ingestListener) }()
 		cfg.Logger.Info("receiving pushed logs", "addr", "http://"+ingestListener.Addr().String()+"/ingest/v2")

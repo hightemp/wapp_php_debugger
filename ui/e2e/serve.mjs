@@ -18,6 +18,8 @@ import { fileURLToPath } from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const fixtures = join(repo, 'spec/fixtures/v2-library');
 const port = process.env.E2E_PORT ?? '18840';
+// The receiver of pushed logs: the JS client of a page sends its errors there
+const ingestPort = String(Number(port) + 1);
 
 const work = mkdtempSync(join(tmpdir(), 'wapp-debugger-e2e-'));
 const root = join(work, 'shop');
@@ -80,7 +82,17 @@ writeFileSync(
 
 const viewer = spawn(
     join(repo, 'dist', process.platform === 'win32' ? 'wapp-debugger.exe' : 'wapp-debugger'),
-    ['serve', '--addr', `127.0.0.1:${port}`, '--db', join(work, 'viewer.db'), '--logs-dir', logs],
+    [
+        'serve',
+        '--addr',
+        `127.0.0.1:${port}`,
+        '--ingest-addr',
+        `127.0.0.1:${ingestPort}`,
+        '--db',
+        join(work, 'viewer.db'),
+        '--logs-dir',
+        logs,
+    ],
     { stdio: 'inherit' },
 );
 const stop = () => viewer.kill('SIGTERM');

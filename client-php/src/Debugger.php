@@ -33,6 +33,8 @@ final class Debugger
     private int $seq = 0;
     private bool $cli;
     private bool $finished = false;
+    /** @var array{string, string}|null the JS client address and the push token, when pushing */
+    private ?array $jsClient = null;
 
     private function __construct(Clock $clock, Serializer $serializer, Masker $masker, Frames $frames, int $traceFrames, ?Writer $writer, string $requestId, int $startedAt, bool $cli)
     {
@@ -57,8 +59,11 @@ final class Debugger
         $writer = null;
         $pushUrl = $config->pushUrl();
         $pushToken = $config->pushToken();
+        $jsClient = null;
         if ($config->enabled() && $pushUrl !== null && $pushToken !== null) {
             $writer = new HttpWriter($pushUrl, $pushToken);
+            // The receiver serves the JS client next to its endpoint: …/ingest/v2 → …/ingest/debugger.js
+            $jsClient = [(string) preg_replace('~/[^/]*$~', '/debugger.js', $pushUrl), $pushToken];
         } elseif ($config->enabled() && $logsDir !== null) {
             $fileName = $now . '-' . $requestId . '.jsonl';
             $rotation = new Rotation($config->maxAgeDays(), $config->maxFiles(), $config->maxLogsBytes());
@@ -71,6 +76,7 @@ final class Debugger
         $masker = new Masker($config->maskKeys());
         $serializer = new Serializer($masker, $config->maxDepth(), $config->maxItems(), $config->maxStringBytes());
         $debugger = new self($clock, $serializer, $masker, new Frames($config->projectRoot()), $config->traceFrames(), $writer, $requestId, $now, $request->isCli());
+        $debugger->jsClient = $jsClient;
         if ($writer !== null) {
             // Child processes (exec, proc_open, cron jobs started from here) link themselves to this request
             putenv(RequestInfo::PARENT_ENV . '=' . $requestId);
@@ -134,6 +140,24 @@ final class Debugger
     public function enabled(): bool
     {
         return $this->writer !== null && !$this->finished;
+    }
+
+    /**
+     * The <script> tag of the JS client: errors of the page go to the viewer as a child of this
+     * request. Empty unless the request is pushed (push_url): the page needs the receiver and the token.
+     * The token is visible to anyone who opens the page, so this is for dev and stage.
+     */
+    public function jsTag(): string
+    {
+        if ($this->jsClient === null || !$this->enabled()) {
+            return '';
+        }
+        [$src, $token] = $this->jsClient;
+        $escape = static function (string $value): string {
+            return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        };
+
+        return sprintf('<script src="%s" data-token="%s" data-request-id="%s" async></script>', $escape($src), $escape($token), $escape($this->requestId));
     }
 
     public function requestId(): string

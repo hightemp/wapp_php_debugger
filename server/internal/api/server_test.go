@@ -101,8 +101,8 @@ func TestListRequestsPaginatesNewestFirst(t *testing.T) {
 		}
 		url = e.server.URL + "/api/v1/requests?limit=3&cursor=" + *page.NextCursor
 	}
-	if len(keys) != 12 {
-		t.Fatalf("got %d requests over all pages, want 12 (7 v1 + 5 v2): %v", len(keys), keys)
+	if len(keys) != 13 {
+		t.Fatalf("got %d requests over all pages, want 13 (7 v1 + 6 v2): %v", len(keys), keys)
 	}
 	_, body := get(t, e.server.URL+"/api/v1/requests?limit=1")
 	if !strings.Contains(body, `"request_key"`) || !strings.Contains(body, `"format_version"`) {

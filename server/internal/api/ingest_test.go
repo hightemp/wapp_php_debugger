@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
@@ -36,7 +37,8 @@ func ingestEnv(t *testing.T) (*httptest.Server, *store.Store, *events.Broker, in
 		t.Fatal(err)
 	}
 	broker := events.NewBroker(16)
-	server := httptest.NewServer(NewIngestHandler(IngestDeps{Store: s, Broker: broker}))
+	client := fstest.MapFS{"debugger.js": {Data: []byte("(function(){})();")}, "index.html": {Data: []byte("ui")}}
+	server := httptest.NewServer(NewIngestHandler(IngestDeps{Store: s, Broker: broker, UI: client}))
 	t.Cleanup(server.Close)
 	return server, s, broker, ids.ProjectID
 }
@@ -90,6 +92,30 @@ func TestIngestTakesEventsOfTheTokensProject(t *testing.T) {
 	response, body = push(t, server.URL+"/ingest/v2", map[string]string{"X-Debugger-Token": "push-token-of-the-shop-project-0123456789"}, data)
 	if response.StatusCode != http.StatusOK || !strings.Contains(body, `"created":0`) {
 		t.Fatalf("again: %d %s", response.StatusCode, body)
+	}
+}
+
+// A page cannot set headers on a beacon: its token comes in the query, the body as text/plain.
+func TestIngestTakesTheTokenOfAPage(t *testing.T) {
+	server, _, _, _ := ingestEnv(t)
+	data, _ := os.ReadFile(filepath.Join(filepath.Dir(specPath(t)), "fixtures/v2/js-page.jsonl"))
+	response, err := http.Post(server.URL+"/ingest/v2?token=push-token-of-the-shop-project-0123456789", "text/plain;charset=UTF-8", bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("beacon: %d", response.StatusCode)
+	}
+
+	script, err := http.Get(server.URL + "/ingest/debugger.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(script.Body)
+	_ = script.Body.Close()
+	if script.StatusCode != http.StatusOK || !strings.HasPrefix(script.Header.Get("Content-Type"), "text/javascript") || string(body) != "(function(){})();" {
+		t.Fatalf("debugger.js: %d %s %q", script.StatusCode, script.Header.Get("Content-Type"), body)
 	}
 }
 

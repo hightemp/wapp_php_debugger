@@ -1,3 +1,5 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { expect, test, type Page } from '@playwright/test';
 
 // The path of a user through the viewer, on logs the real library wrote (spec/fixtures/v2-library)
@@ -161,4 +163,41 @@ test('two open requests side by side', async ({ page }) => {
   await page.screenshot({ path: test.info().outputPath('comparison.png') });
   await page.keyboard.press('Escape');
   await expect(comparison).toBeHidden();
+});
+
+test('errors of a page come in as a child of its PHP request', async ({ page, request }) => {
+  const made = await request.post('/api/v1/projects/1/ingest-token');
+  const { token } = (await made.json()) as { token: string };
+  const feed = (await (await request.get('/api/v1/requests?limit=100')).json()) as {
+    items: { request_key: string; url?: string | null }[];
+  };
+  const parent = feed.items.find((item) => item.url?.includes('/catalog/item'));
+  expect(parent).toBeDefined();
+  const ingest = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 18840) + 1}`;
+
+  // The shop page as PHP would print it: Debugger::jsTag(), then a script that fails. A real local
+  // server: Chrome lets a page reach a local receiver only from the same address space.
+  const shop = createServer((_, response) => {
+    response.setHeader('Content-Type', 'text/html');
+    response.end(`<!doctype html><title>Item</title>
+      <script src="${ingest}/ingest/debugger.js" data-token="${token}" data-request-id="${parent?.request_key}"></script>
+      <script>setTimeout(function () { var item; item.price; }, 50);</script>`);
+  });
+  await new Promise<void>((done) => shop.listen(0, '127.0.0.1', done));
+  const { port } = shop.address() as AddressInfo;
+  try {
+    await page.goto(`http://127.0.0.1:${port}/catalog/item?id=42`);
+    await page.waitForTimeout(300);
+    await page.goto('/'); // leaving the page sends the rest with a beacon
+  } finally {
+    shop.close();
+  }
+
+  const requests = page.getByRole('region', { name: 'Requests' });
+  const child = requests.getByRole('button', { name: /GET \/catalog\/item\?id=42.*1 error/ });
+  await expect(child).toBeVisible({ timeout: 10_000 });
+  await child.click();
+  await expect(
+    page.getByRole('button', { name: /Cannot read properties of undefined/ }),
+  ).toBeVisible();
 });
