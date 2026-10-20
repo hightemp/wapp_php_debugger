@@ -1,19 +1,21 @@
 // The selection lives in the URL hash so a project, a request or a message can be shared as a link:
 // #/projects/3/requests/42/messages/1001 (every part is optional from the right; the project part too).
-// #/servers/2/… selects the feed of a server instead of a project.
+// #/servers/2/… selects the feed of a server instead of a project; …/requests/42/compare/41 compares two.
 
 export interface Route {
   projectId?: number;
   serverId?: number;
   requestId?: number;
   messageId?: number;
+  /** Another request to compare this one with: #/requests/42/compare/41 */
+  compareId?: number;
 }
 
 const pattern =
-  /^#(?:\/(projects|servers)\/(\d+))?(?:\/requests\/(\d+)(?:\/messages\/(\d+))?)?(?:\/.*)?$/;
+  /^#(?:\/(projects|servers)\/(\d+))?(?:\/requests\/(\d+)(?:\/messages\/(\d+)|\/compare\/(\d+))?)?(?:\/.*)?$/;
 
 export function parseRoute(hash: string): Route {
-  const [, scope, scopeId, request, message] = pattern.exec(hash) ?? [];
+  const [, scope, scopeId, request, message, compare] = pattern.exec(hash) ?? [];
   const route: Route = {};
   if (scope === 'projects') {
     route.projectId = Number(scopeId);
@@ -24,6 +26,8 @@ export function parseRoute(hash: string): Route {
     route.requestId = Number(request);
     if (message) {
       route.messageId = Number(message);
+    } else if (compare) {
+      route.compareId = Number(compare);
     }
   }
   return route;
@@ -38,7 +42,9 @@ export function formatRoute(route: Route): string {
   }
   if (route.requestId !== undefined) {
     hash += `/requests/${route.requestId}`;
-    if (route.messageId !== undefined) {
+    if (route.compareId !== undefined) {
+      hash += `/compare/${route.compareId}`;
+    } else if (route.messageId !== undefined) {
       hash += `/messages/${route.messageId}`;
     }
   }

@@ -102,4 +102,24 @@ describe('App keyboard', () => {
     );
     expect(screen.getByRole('combobox', { name: 'Search' })).toHaveValue('level:error');
   });
+
+  it('compares two open requests and steps back from the comparison', async () => {
+    const { openTabs } = await import('./lib/tabs.svelte');
+    openTabs.clear();
+    const { transport } = setup();
+    render(App, { transport });
+    await screen.findAllByRole('button', { name: /GET \/item\/3/ });
+    await key('j');
+    await key('j');
+    expect(window.location.hash).toBe('#/requests/2');
+    const tabs = await screen.findByRole('navigation', { name: 'Open requests' });
+    await fireEvent.click(
+      await within(tabs).findByRole('button', { name: 'Compare with GET /item/3' }),
+    );
+    expect(window.location.hash).toBe('#/requests/2/compare/3');
+    expect(await screen.findByRole('region', { name: 'Comparison' })).toBeInTheDocument();
+    await key('Escape');
+    expect(window.location.hash).toBe('#/requests/2');
+    expect(screen.queryByRole('region', { name: 'Comparison' })).not.toBeInTheDocument();
+  });
 });

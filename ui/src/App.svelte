@@ -3,7 +3,9 @@
   import LanguageSwitch from './components/LanguageSwitch.svelte';
   import MessageDetail from './components/MessageDetail.svelte';
   import ProjectsPanel from './components/ProjectsPanel.svelte';
+  import RequestCompare from './components/RequestCompare.svelte';
   import RequestDetail from './components/RequestDetail.svelte';
+  import RequestTabs from './components/RequestTabs.svelte';
   import RequestList from './components/RequestList.svelte';
   import CommandPalette, { type PaletteCommand } from './components/CommandPalette.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
@@ -204,7 +206,9 @@
         break;
       }
       case 'Escape':
-        if (route.messageId !== undefined) {
+        if (route.compareId !== undefined) {
+          navigate({ ...scope, requestId: route.requestId });
+        } else if (route.messageId !== undefined) {
           navigate({ ...scope, requestId: route.requestId });
         } else if (route.requestId !== undefined) {
           navigate(scope);
@@ -298,27 +302,52 @@
         onselect={(id) => navigate({ ...scope, requestId: id })}
       />
     </div>
-    <div class="pane">
-      {#if route.requestId !== undefined}
-        <RequestDetail
+    {#if route.requestId !== undefined && route.compareId !== undefined}
+      {@const requestId = route.requestId}
+      <div class="pane wide">
+        <RequestTabs
           {transport}
-          requestId={route.requestId}
-          selectedMessageId={route.messageId}
-          onselectmessage={(id) =>
-            navigate({ ...scope, requestId: route.requestId, messageId: id })}
-          onselectrequest={(id) => navigate({ ...scope, requestId: id })}
+          currentId={requestId}
+          onselect={(id) => navigate({ ...scope, requestId: id })}
+          oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
         />
-      {:else}
-        <p class="hint">{i18n.t('detail.empty')}</p>
-      {/if}
-    </div>
-    <div class="pane">
-      {#if route.messageId !== undefined}
-        <MessageDetail {transport} messageId={route.messageId} />
-      {:else if route.requestId !== undefined}
-        <p class="hint">{i18n.t('message.empty')}</p>
-      {/if}
-    </div>
+        <RequestCompare
+          {transport}
+          {requestId}
+          otherId={route.compareId}
+          onclose={() => navigate({ ...scope, requestId })}
+        />
+      </div>
+    {:else}
+      <div class="pane">
+        {#if route.requestId !== undefined}
+          {@const requestId = route.requestId}
+          <RequestTabs
+            {transport}
+            currentId={requestId}
+            onselect={(id) => navigate({ ...scope, requestId: id })}
+            oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
+          />
+          <RequestDetail
+            {transport}
+            requestId={route.requestId}
+            selectedMessageId={route.messageId}
+            onselectmessage={(id) =>
+              navigate({ ...scope, requestId: route.requestId, messageId: id })}
+            onselectrequest={(id) => navigate({ ...scope, requestId: id })}
+          />
+        {:else}
+          <p class="hint">{i18n.t('detail.empty')}</p>
+        {/if}
+      </div>
+      <div class="pane">
+        {#if route.messageId !== undefined}
+          <MessageDetail {transport} messageId={route.messageId} />
+        {:else if route.requestId !== undefined}
+          <p class="hint">{i18n.t('message.empty')}</p>
+        {/if}
+      </div>
+    {/if}
   </main>
 </div>
 
@@ -409,6 +438,11 @@
     border-right: 0;
   }
 
+  /* The comparison takes the places of the request and the message */
+  .pane.wide {
+    grid-column: span 2;
+  }
+
   .hint {
     padding: var(--space-6) var(--space-4);
     color: var(--text-muted);
@@ -418,6 +452,10 @@
     .panes {
       grid-template-columns: 1fr;
       grid-auto-rows: minmax(240px, auto);
+    }
+
+    .pane.wide {
+      grid-column: auto;
     }
 
     .pane {

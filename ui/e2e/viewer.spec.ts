@@ -149,3 +149,16 @@ test('a request exported as a file comes back by import', async ({ page }) => {
     page.getByRole('heading', { level: 2, name: /\/catalog\/item\?id=42/ }),
   ).toBeVisible();
 });
+
+test('two open requests side by side', async ({ page }) => {
+  await openTheItemPage(page);
+  const feed = page.getByRole('region', { name: 'Requests' });
+  await feed.getByRole('button', { name: /POST \/api\/cart\/add/ }).click();
+  await page.getByRole('button', { name: /^Compare with GET \/catalog\/item/ }).click();
+  const comparison = page.getByRole('region', { name: 'Comparison' });
+  await expect(comparison.getByRole('table', { name: 'The requests' })).toBeVisible();
+  await expect(comparison.getByRole('row', { name: /^URL/ })).toContainText('/api/cart/add');
+  await page.screenshot({ path: test.info().outputPath('comparison.png') });
+  await page.keyboard.press('Escape');
+  await expect(comparison).toBeHidden();
+});

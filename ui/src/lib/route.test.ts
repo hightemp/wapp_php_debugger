@@ -27,6 +27,19 @@ describe('route', () => {
     expect(formatRoute({ serverId: 2, projectId: 3 })).toBe('#/projects/3');
   });
 
+  it('compares a request with another', () => {
+    expect(parseRoute('#/projects/3/requests/42/compare/41')).toEqual({
+      projectId: 3,
+      requestId: 42,
+      compareId: 41,
+    });
+    expect(formatRoute({ requestId: 42, compareId: 41 })).toBe('#/requests/42/compare/41');
+    // A message and a comparison do not go together: the comparison wins
+    expect(formatRoute({ requestId: 42, messageId: 7, compareId: 41 })).toBe(
+      '#/requests/42/compare/41',
+    );
+  });
+
   it('ignores anything it does not understand', () => {
     expect(parseRoute('#/requests/abc')).toEqual({});
     expect(parseRoute('#/requests/-1')).toEqual({});
