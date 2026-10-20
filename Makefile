@@ -7,6 +7,8 @@ SHELL := bash
 
 ROOT := $(CURDIR)
 TOOLS_BIN := $(ROOT)/.tools/bin
+# .exe on Windows: defined before any rule whose target uses it
+EXE := $(shell go env GOEXE)
 DIST := $(ROOT)/dist
 
 VERSION ?= $(shell git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev)
@@ -161,7 +163,6 @@ server-build: ui-build ## Build the binary with the embedded UI
 # On Linux Wails v3 builds with GTK4 + WebKitGTK 6.0 by default; for GTK3 + WebKit2GTK 4.1: make desktop-build LINUX_GTK=gtk3
 LINUX_GTK ?= gtk4
 DESKTOP_TAGS := desktop embedui $(if $(filter gtk3,$(LINUX_GTK)),gtk3)
-EXE := $(shell go env GOEXE)
 DESKTOP_BIN := $(DIST)/wapp-debugger-desktop$(EXE)
 
 .PHONY: desktop-build
