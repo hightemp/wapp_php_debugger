@@ -5,6 +5,7 @@
   import { i18n } from '../lib/i18n/locale.svelte';
   import { loadAllMessages } from '../lib/messages';
   import RequestGlobals from './RequestGlobals.svelte';
+  import RequestReplay from './RequestReplay.svelte';
   import RequestSql from './RequestSql.svelte';
   import RequestTimeline from './RequestTimeline.svelte';
   import Tabs from './Tabs.svelte';
@@ -200,6 +201,7 @@
           aria-expanded={editingNote}
           onclick={() => (editingNote = !editingNote)}>{i18n.t('marks.note')}</button
         >
+        <RequestReplay {transport} {request} {messages} />
       </div>
       {#if editingNote}
         <textarea

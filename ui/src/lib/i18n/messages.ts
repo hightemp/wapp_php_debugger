@@ -39,6 +39,11 @@ const en = {
   'feed.searchHint':
     'Words or URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Errors only',
+  'replay.curl': 'Copy as curl',
+  'replay.open': 'Open again',
+  'replay.xdebug': 'With Xdebug',
+  'replay.copied': 'Copied as curl',
+  'replay.copiedMasked': 'Copied as curl; masked values (***) need filling in',
   'marks.pin': 'Pin',
   'marks.pinned': 'Pinned',
   'marks.note': 'Note',
@@ -308,6 +313,11 @@ const ru: Record<MessageKey, Entry> = {
   'feed.searchHint':
     'Слова или URL; level:error tag:sql status:5xx duration>500 method:POST pinned:yes',
   'feed.errorsOnly': 'Только с ошибками',
+  'replay.curl': 'Копировать как curl',
+  'replay.open': 'Открыть снова',
+  'replay.xdebug': 'С Xdebug',
+  'replay.copied': 'Скопировано как curl',
+  'replay.copiedMasked': 'Скопировано как curl; скрытые значения (***) нужно подставить',
   'marks.pin': 'Закрепить',
   'marks.pinned': 'Закреплён',
   'marks.note': 'Заметка',
