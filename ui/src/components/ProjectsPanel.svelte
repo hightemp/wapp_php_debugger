@@ -20,9 +20,31 @@
   let serversOpen = $state(false);
   let debuggerOn = $state(false);
   let dialog = $state<'none' | 'create' | 'edit'>('none');
-  let confirm = $state<'none' | 'clear' | 'remove'>('none');
+  let confirm = $state<'none' | 'clear' | 'remove' | 'debugger'>('none');
+  let pendingDebugger = $state(false);
 
   const selected = $derived(projects.find((project) => project.id === selectedId));
+  const selectedServer = $derived(servers.find((server) => server.id === selected?.server_id));
+  // Changes on stage and prod are confirmed; clearing and removing — by typing the project name
+  const risky = $derived(
+    selectedServer?.environment === 'stage' || selectedServer?.environment === 'prod',
+  );
+
+  // Projects under their servers; with only the local server the list stays flat
+  const grouped = $derived(servers.length > 1);
+  const groups = $derived(
+    servers
+      .map((server) => ({
+        server,
+        projects: projects.filter((project) => project.server_id === server.id),
+      }))
+      .filter((group) => group.projects.length > 0),
+  );
+  const ungrouped = $derived(
+    grouped
+      ? projects.filter((project) => !servers.some((server) => server.id === project.server_id))
+      : projects,
+  );
 
   async function load() {
     const [serverList, list] = await Promise.all([
@@ -37,6 +59,18 @@
     void load().catch(() => {});
   });
 
+  // The connection state of servers follows the stream
+  $effect(() =>
+    transport.subscribe((event) => {
+      if (event.event === 'server_status' && event.server_id !== undefined && event.connection) {
+        const connection = event.connection;
+        servers = servers.map((server) =>
+          server.id === event.server_id ? { ...server, connection } : server,
+        );
+      }
+    }),
+  );
+
   $effect(() => {
     const id = selectedId;
     debuggerOn = false;
@@ -48,7 +82,17 @@
     }
   });
 
-  async function toggleDebugger(enabled: boolean) {
+  function toggleDebugger(enabled: boolean) {
+    if (risky) {
+      pendingDebugger = enabled;
+      confirm = 'debugger';
+      return;
+    }
+    void setDebugger(enabled);
+  }
+
+  async function setDebugger(enabled: boolean) {
+    confirm = 'none';
     if (selectedId === undefined) {
       return;
     }
@@ -112,19 +156,45 @@
         {i18n.t('projects.all')}
       </button>
     </li>
-    {#each projects as project (project.id)}
-      <li>
-        <button
-          type="button"
-          class="item"
-          aria-current={project.id === selectedId ? 'true' : undefined}
-          onclick={() => onselect(project.id)}
-        >
-          {project.name}
-        </button>
-      </li>
+    {#each ungrouped as project (project.id)}
+      <li>{@render projectButton(project)}</li>
     {/each}
+    {#if grouped}
+      {#each groups as { server, projects: serverProjects } (server.id)}
+        <li class="group-item">
+          <div class="group" role="group" aria-label={server.name}>
+            <div class="server">
+              <span class="server-name">{server.name}</span>
+              {#if server.environment !== 'local'}
+                <span class="environment" data-environment={server.environment}
+                  >{server.environment}</span
+                >
+              {/if}
+              <span class="state" data-state={server.connection.state}
+                >{i18n.t(`connection.${server.connection.state}`)}</span
+              >
+            </div>
+            <ul class="list nested">
+              {#each serverProjects as project (project.id)}
+                <li>{@render projectButton(project)}</li>
+              {/each}
+            </ul>
+          </div>
+        </li>
+      {/each}
+    {/if}
   </ul>
+
+  {#if selected && selectedServer && selectedServer.environment !== 'local'}
+    <div
+      class="banner"
+      role="status"
+      aria-label={i18n.t('projects.environment')}
+      data-environment={selectedServer.environment}
+    >
+      {selectedServer.environment} · {selectedServer.name}
+    </div>
+  {/if}
 
   {#if selected}
     <div class="actions">
@@ -149,6 +219,17 @@
   {/if}
 </nav>
 
+{#snippet projectButton(project: Project)}
+  <button
+    type="button"
+    class="item"
+    aria-current={project.id === selectedId ? 'true' : undefined}
+    onclick={() => onselect(project.id)}
+  >
+    {project.name}
+  </button>
+{/snippet}
+
 <ServersDialog
   open={serversOpen}
   {transport}
@@ -168,6 +249,7 @@
   message={i18n.t('projects.clearMessage', { name: selected?.name ?? '' })}
   confirmLabel={i18n.t('projects.clearConfirm')}
   danger
+  confirmText={risky ? selected?.name : undefined}
   onconfirm={clearLogs}
   oncancel={() => (confirm = 'none')}
 />
@@ -177,7 +259,21 @@
   message={i18n.t('projects.removeMessage')}
   confirmLabel={i18n.t('projects.removeConfirm')}
   danger
+  confirmText={risky ? selected?.name : undefined}
   onconfirm={removeProject}
+  oncancel={() => (confirm = 'none')}
+/>
+<ConfirmDialog
+  open={confirm === 'debugger'}
+  title={i18n.t(pendingDebugger ? 'projects.debuggerOnTitle' : 'projects.debuggerOffTitle', {
+    environment: selectedServer?.environment ?? '',
+  })}
+  message={i18n.t(pendingDebugger ? 'projects.debuggerOnMessage' : 'projects.debuggerOffMessage', {
+    server: selectedServer?.name ?? '',
+  })}
+  confirmLabel={i18n.t(pendingDebugger ? 'projects.turnOn' : 'projects.turnOff')}
+  danger
+  onconfirm={() => void setDebugger(pendingDebugger)}
   oncancel={() => (confirm = 'none')}
 />
 
@@ -229,6 +325,66 @@
 
   .add {
     color: var(--accent);
+  }
+
+  .group-item {
+    flex-basis: 100%;
+  }
+
+  .group {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .server {
+    display: flex;
+    gap: var(--space-3);
+    align-items: baseline;
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  .server-name {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .environment,
+  .banner {
+    font-family: var(--font-mono);
+  }
+
+  [data-environment='dev'] {
+    color: var(--env-dev);
+  }
+
+  [data-environment='stage'] {
+    color: var(--env-stage);
+  }
+
+  [data-environment='prod'] {
+    color: var(--env-prod);
+  }
+
+  .state[data-state='online'] {
+    color: var(--level-info);
+  }
+
+  .state[data-state='offline'] {
+    color: var(--level-error);
+  }
+
+  .list.nested {
+    padding: 0;
+  }
+
+  .banner {
+    margin: 0 var(--space-4) var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-left: 4px solid currentcolor;
+    background: var(--surface-sunken);
+    font-size: var(--font-size-small);
+    font-weight: 600;
   }
 
   .actions {

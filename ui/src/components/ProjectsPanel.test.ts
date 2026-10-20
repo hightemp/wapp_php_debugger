@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
-import { fakeTransport, sampleProject } from '../test/transport';
+import { fakeTransport, sampleProject, sampleServer } from '../test/transport';
 import ProjectsPanel from './ProjectsPanel.svelte';
 
 function setup(selectedId?: number) {
@@ -103,5 +103,106 @@ describe('ProjectsPanel', () => {
     setup();
     await fireEvent.click(await screen.findByRole('button', { name: 'Servers' }));
     expect(screen.getByRole('dialog', { name: 'Servers' })).toBeInTheDocument();
+  });
+});
+
+describe('ProjectsPanel with several servers', () => {
+  beforeEach(() => i18n.set('en'));
+
+  function setupServers(selectedId?: number) {
+    const fake = fakeTransport({
+      listServers: vi.fn(async () => ({
+        items: [
+          sampleServer(1),
+          sampleServer(2, { name: 'stage', environment: 'stage' }),
+          sampleServer(3, {
+            name: 'prod-web',
+            environment: 'prod',
+            connection: { state: 'online' },
+          }),
+        ],
+      })),
+      listProjects: vi.fn(async () => ({
+        items: [
+          sampleProject(10, { name: 'local-shop', server_id: 1 }),
+          sampleProject(20, { name: 'stage-shop', server_id: 2 }),
+          sampleProject(30, { name: 'shop', server_id: 3 }),
+        ],
+      })),
+    });
+    const onselect = vi.fn();
+    render(ProjectsPanel, { transport: fake.transport, selectedId, onselect });
+    return { ...fake, onselect };
+  }
+
+  const group = async (name: string) => (await screen.findByRole('group', { name })) as HTMLElement;
+
+  it('groups projects by server with the environment and the connection', async () => {
+    setupServers();
+    const prod = await group('prod-web');
+    expect(within(prod).getByRole('button', { name: 'shop' })).toBeInTheDocument();
+    expect(prod).toHaveTextContent('prod');
+    expect(prod).toHaveTextContent('Online');
+    expect(
+      within(await group('stage')).getByRole('button', { name: 'stage-shop' }),
+    ).toBeInTheDocument();
+    expect(
+      within(await group('local')).getByRole('button', { name: 'local-shop' }),
+    ).toBeInTheDocument();
+  });
+
+  it('follows the connection of a server live', async () => {
+    const { emit } = setupServers();
+    const stage = await group('stage');
+    emit({
+      event: 'server_status',
+      server_id: 2,
+      connection: { state: 'offline', error: 'refused' },
+    });
+    await waitFor(() => expect(stage).toHaveTextContent('Offline'));
+  });
+
+  it('marks a project on prod', async () => {
+    setupServers(30);
+    expect(await screen.findByRole('status', { name: 'Environment' })).toHaveTextContent(
+      'prod · prod-web',
+    );
+  });
+
+  it('asks for the project name before clearing logs on prod', async () => {
+    const { transport } = setupServers(30);
+    await fireEvent.click(await screen.findByRole('button', { name: 'Clear logs' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Clear logs?' });
+    const clear = within(confirm).getByRole('button', { name: 'Clear' });
+    expect(clear).toBeDisabled();
+    const name = within(confirm).getByLabelText('Type shop to confirm');
+    await fireEvent.input(name, { target: { value: 'sho' } });
+    expect(clear).toBeDisabled();
+    await fireEvent.input(name, { target: { value: 'shop' } });
+    await fireEvent.click(clear);
+    await waitFor(() => expect(transport.clearProjectLogs).toHaveBeenCalledWith(30));
+  });
+
+  it('asks for the project name before removing it from stage', async () => {
+    setupServers(20);
+    await fireEvent.click(await screen.findByRole('button', { name: 'Remove project' }));
+    expect(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }),
+    ).toBeDisabled();
+  });
+
+  it('confirms the debugger switch on prod', async () => {
+    const { transport } = setupServers(30);
+    await fireEvent.click(await screen.findByRole('switch', { name: 'Debugger' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Turn the debugger on on prod?' });
+    expect(transport.setDebuggerState).not.toHaveBeenCalled();
+    await fireEvent.click(within(confirm).getByRole('button', { name: 'Turn on' }));
+    await waitFor(() => expect(transport.setDebuggerState).toHaveBeenCalledWith(30, true));
+  });
+
+  it('switches the debugger of a local project at once', async () => {
+    const { transport } = setupServers(10);
+    await fireEvent.click(await screen.findByRole('switch', { name: 'Debugger' }));
+    await waitFor(() => expect(transport.setDebuggerState).toHaveBeenCalledWith(10, true));
   });
 });

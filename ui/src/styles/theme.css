@@ -36,6 +36,9 @@
   --syntax-number: #1f5fbf;
   --syntax-keyword: #8a3ab9;
   --syntax-null: #6b6f76;
+  --env-dev: #1f5fbf;
+  --env-stage: #8f5400;
+  --env-prod: #c62828;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 12%);
 }
 
@@ -60,6 +63,9 @@
   --syntax-number: #79c0ff;
   --syntax-keyword: #d2a8ff;
   --syntax-null: #9ea8b6;
+  --env-dev: #79c0ff;
+  --env-stage: #e3b341;
+  --env-prod: #ff7b72;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 50%);
 }
 
@@ -84,6 +90,9 @@
   --syntax-number: #8fd3ff;
   --syntax-keyword: #ffb3ff;
   --syntax-null: #e0e0e0;
+  --env-dev: #8fd3ff;
+  --env-stage: #ffd23f;
+  --env-prod: #ff6b6b;
   --shadow-small: 0 0 0 1px #ffffff;
 }
 
