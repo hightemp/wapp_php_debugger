@@ -109,7 +109,7 @@ func run() int {
 		Description: "Log viewer for the PHP debugger " + version.String(),
 		Assets:      application.AssetOptions{Handler: handler, DisableLogging: true},
 		LogLevel:    slog.LevelWarn,
-		Services:    []application.Service{application.NewService(sh.notifier)},
+		Services:    sh.services(),
 		// The app lives on in the tray; Quit in its menu ends it
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
 		OnShutdown: func() { sh.quitting.Store(true) },

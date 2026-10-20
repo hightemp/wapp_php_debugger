@@ -38,3 +38,19 @@ func TestFindsTheLinkAmongArguments(t *testing.T) {
 		t.Fatal("a link out of nothing")
 	}
 }
+
+func TestNotificationsNeedAnAppBundleOnMacOS(t *testing.T) {
+	for _, c := range []struct {
+		goos, executable string
+		want             bool
+	}{
+		{"darwin", "/Applications/wapp-debugger.app/Contents/MacOS/wapp-debugger-desktop", true},
+		{"darwin", "/Users/dev/dist/wapp-debugger-desktop", false},
+		{"linux", "/usr/bin/wapp-debugger-desktop", true},
+		{"windows", `C:\Program Files\wapp-debugger\wapp-debugger-desktop.exe`, true},
+	} {
+		if got := NotificationsAvailable(c.goos, c.executable); got != c.want {
+			t.Errorf("NotificationsAvailable(%q, %q) = %v", c.goos, c.executable, got)
+		}
+	}
+}

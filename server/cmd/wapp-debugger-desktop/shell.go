@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ type shell struct {
 	app      *application.App
 	window   *application.WebviewWindow
 	core     *app.Core
-	notifier *notifications.NotificationService
+	notifier *notifications.NotificationService // nil where the system gives no notifications
 	alerter  *desktop.Alerter
 	tray     *application.SystemTray
 	trayMenu *application.Menu
@@ -43,7 +44,10 @@ type shell struct {
 }
 
 func newShell(core *app.Core) *shell {
-	s := &shell{core: core, notifier: notifications.New()}
+	s := &shell{core: core}
+	if executable, err := os.Executable(); err == nil && desktop.NotificationsAvailable(runtime.GOOS, executable) {
+		s.notifier = notifications.New()
+	}
 	defaults := desktop.DefaultSettings()
 	s.settings.Store(&defaults)
 	if current, err := core.DesktopSettings().Settings(context.Background()); err == nil {
@@ -209,6 +213,9 @@ func (s *shell) showCount(unseen int) {
 
 // Notify is desktop.AlertSink: a system notification that opens the request when clicked.
 func (s *shell) Notify(alert desktop.Alert) {
+	if s.notifier == nil {
+		return
+	}
 	err := s.notifier.SendNotification(notifications.NotificationOptions{
 		ID:    "wapp-debugger-" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		Title: alert.Title,
@@ -231,6 +238,14 @@ func (s *shell) Count(unseen int) {
 // start runs everything around the window once the app is up.
 func (s *shell) start(ctx context.Context) {
 	s.startTray()
+	if s.notifier != nil {
+		s.startNotifications()
+	}
+	s.applySettings(*s.settings.Load())
+	go desktop.RunAlerts(ctx, s.core.Broker(), s.alerter, s, time.Second)
+}
+
+func (s *shell) startNotifications() {
 	s.notifier.OnNotificationResponse(func(result notifications.NotificationResult) {
 		if result.Error != nil {
 			return
@@ -245,8 +260,14 @@ func (s *shell) start(ctx context.Context) {
 			slog.Warn("notifications", "error", err)
 		}
 	}
-	s.applySettings(*s.settings.Load())
-	go desktop.RunAlerts(ctx, s.core.Broker(), s.alerter, s, time.Second)
+}
+
+// services are the Wails services the shell needs.
+func (s *shell) services() []application.Service {
+	if s.notifier == nil {
+		return nil
+	}
+	return []application.Service{application.NewService(s.notifier)}
 }
 
 // macMenu is the application menu of macOS: the standard roles with their shortcuts.

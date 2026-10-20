@@ -61,3 +61,10 @@ func LinkInArgs(args []string) (string, bool) {
 	}
 	return "", false
 }
+
+// NotificationsAvailable reports whether the system gives notifications: macOS does only for an app
+// with a bundle identifier, so
+// a bare binary (a CI run, an unpacked archive) goes without them; elsewhere they always work.
+func NotificationsAvailable(goos, executable string) bool {
+	return goos != "darwin" || strings.Contains(executable, ".app/Contents/MacOS/")
+}
