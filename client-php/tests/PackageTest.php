@@ -17,6 +17,7 @@ final class PackageTest extends TestCase
         $composer = json_decode((string) file_get_contents(dirname(__DIR__) . '/composer.json'), true);
 
         self::assertIsArray($composer);
-        self::assertSame(['php'], array_keys($composer['require']), 'a dependency of the library would be a dependency of every project');
+        // ext-json is part of PHP (always built in since 8.0; on 7.4 a build may load it as a module)
+        self::assertSame(['php', 'ext-json'], array_keys($composer['require']), 'a dependency of the library would be a dependency of every project');
     }
 }
