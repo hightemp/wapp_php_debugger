@@ -101,19 +101,21 @@ type Project struct {
 	Editor            string
 	RetentionDays     *int
 	RetentionMaxBytes *int64
+	IngestEnabled     bool // has a token for logs pushed over HTTP
 	CreatedAt         int64
 	UpdatedAt         int64
 }
 
 const selectProjects = `
 	SELECT id, server_id, name, root_path, logs_dir, COALESCE(local_path, ''),
-		COALESCE(config_path, rtrim(root_path, '/') || '/dws_debugger.json'), editor, retention_days, retention_max_bytes, created_at, updated_at
+		COALESCE(config_path, rtrim(root_path, '/') || '/dws_debugger.json'), editor, retention_days, retention_max_bytes,
+		ingest_token_hash IS NOT NULL, created_at, updated_at
 	FROM projects`
 
 func scanProject(row rowScanner) (Project, error) {
 	var p Project
 	err := row.Scan(&p.ID, &p.ServerID, &p.Name, &p.RootPath, &p.LogsDir, &p.LocalPath, &p.ConfigPath, &p.Editor, &p.RetentionDays,
-		&p.RetentionMaxBytes, &p.CreatedAt, &p.UpdatedAt)
+		&p.RetentionMaxBytes, &p.IngestEnabled, &p.CreatedAt, &p.UpdatedAt)
 	return p, err
 }
 

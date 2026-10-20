@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: wapp-debugger ingest
+  version: 1.0.0
+  description: |
+    The receiver of logs pushed over HTTP to the viewer: the library `HttpWriter`, the JS client of
+    a page (`debugger.js`) and the agent send the same log format v2 events they would write to a file.
+
+    Rules:
+    - the receiver is off by default and listens on its own address (`serve --ingest-addr`), apart
+      from the viewer: only this endpoint is there, so the viewer UI and API stay on localhost;
+    - every project has its own push token, made in the UI and shown once; the database keeps its
+      SHA-256 only. The token is the only key: CORS allows any origin so a page can send its errors;
+    - a batch is any number of v2 lines, of one request or several; a request goes on from where its
+      previous batch ended, and events already taken (a batch sent again) are skipped, so a client can
+      retry safely. Lines that are not v2 events are counted in `rejected` and dropped.
+servers:
+  - url: '{base_url}'
+    variables:
+      base_url:
+        default: http://debugger.example.test:8821
+        description: The --ingest-addr of the viewer
+security:
+  - push_token: []
+  - debugger_token: []
+
+paths:
+  /ingest/v2:
+    post:
+      operationId: pushEvents
+      summary: Take a batch of log format v2 events of the token's project
+      requestBody:
+        required: true
+        content:
+          application/x-ndjson:
+            schema:
+              type: string
+              maxLength: 8388608
+              description: v2 events (spec/logformat/README.md), one JSON object per line, at most 8 MiB
+      responses:
+        '200':
+          description: The batch was taken
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, updated, rejected]
+                additionalProperties: false
+                properties:
+                  created: { type: integer, description: Requests that began with this batch }
+                  updated: { type: integer, description: Requests that went on }
+                  rejected: { type: integer, description: Lines that are not v2 events }
+        default: { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    push_token:
+      type: http
+      scheme: bearer
+      description: The push token of a project
+    debugger_token:
+      type: apiKey
+      in: header
+      name: X-Debugger-Token
+      description: The same token in the header the library uses for its HTTP mode
+  responses:
+    Problem:
+      description: 401 without a known token, 413 for a batch over 8 MiB (RFC 9457)
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            required: [status, title]
+            properties:
+              type: { type: string }
+              title: { type: string }
+              status: { type: integer }
+              detail: { type: string }

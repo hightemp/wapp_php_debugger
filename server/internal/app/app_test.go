@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -262,6 +263,53 @@ func TestRunProtectsTheNetworkServer(t *testing.T) {
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized || resp.Header.Get("Content-Security-Policy") == "" {
 		t.Fatalf("status %d, headers %v", resp.StatusCode, resp.Header)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Pushed logs come in on their own address; the viewer API is not there.
+func TestRunTakesPushedLogsOnTheIngestAddress(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "logs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan string, 1)
+	ingestReady := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Addr: "127.0.0.1:0", IngestAddr: "127.0.0.1:0", IngestReady: func(addr string) { ingestReady <- addr },
+			DBPath: filepath.Join(dir, "viewer.db"), LogsDir: filepath.Join(dir, "logs"), UI: fstest.MapFS{"index.html": {}}},
+			func(addr string) { ready <- addr })
+	}()
+	addr, ingestAddr := <-ready, <-ingestReady
+
+	response, err := http.Post("http://"+addr+"/api/v1/projects/1/ingest-token", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var made struct{ Token string }
+	_ = json.NewDecoder(response.Body).Decode(&made)
+	_ = response.Body.Close()
+	fixture, _ := os.ReadFile(filepath.Join("..", "..", "..", "spec", "fixtures", "v2", "web-request.jsonl"))
+	request, _ := http.NewRequest(http.MethodPost, "http://"+ingestAddr+"/ingest/v2", bytes.NewReader(fixture))
+	request.Header.Set("Authorization", "Bearer "+made.Token)
+	pushed, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = pushed.Body.Close()
+	if pushed.StatusCode != http.StatusOK {
+		t.Fatalf("push: %d", pushed.StatusCode)
+	}
+	if body := getBody(t, "http://"+addr+"/api/v1/requests"); !strings.Contains(body, "01JAZ7Q5X0K4M8T2V6N9P3R5S7") {
+		t.Fatalf("the pushed request is not in the feed: %s", body)
+	}
+	if response, err := http.Get("http://" + ingestAddr + "/api/v1/requests"); err != nil || response.StatusCode != http.StatusNotFound {
+		t.Fatalf("the viewer API on the ingest address: %v %v", response.StatusCode, err)
 	}
 	cancel()
 	if err := <-done; err != nil {

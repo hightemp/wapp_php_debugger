@@ -60,6 +60,18 @@ func TestParseServeDefaults(t *testing.T) {
 	}
 }
 
+func TestTheReceiverOfPushedLogsIsOffUnlessAsked(t *testing.T) {
+	config := func() (string, error) { return "/home/u/.config", nil }
+	if cfg, _ := parseServe(nil, config); cfg.IngestAddr != "" {
+		t.Fatalf("ingest by default: %q", cfg.IngestAddr)
+	}
+	// Facing the network needs no viewer token: the receiver takes project push tokens only
+	cfg, err := parseServe([]string{"--ingest-addr", "0.0.0.0:8821"}, config)
+	if err != nil || cfg.IngestAddr != "0.0.0.0:8821" || cfg.Addr != "127.0.0.1:8820" {
+		t.Fatalf("--ingest-addr: %+v %v", cfg, err)
+	}
+}
+
 func TestTheUpdateCheckIsOffUnlessAsked(t *testing.T) {
 	cfg, err := parseServe(nil, func() (string, error) { return "/home/u/.config", nil })
 	if err != nil || cfg.UpdateCheck != nil {

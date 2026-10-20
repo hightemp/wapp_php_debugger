@@ -374,6 +374,36 @@ paths:
                   removed_files: { type: integer, minimum: 0 }
         default: { $ref: '#/components/responses/Problem' }
 
+  /api/v1/projects/{project_id}/ingest-token:
+    post:
+      tags: [projects]
+      operationId: createIngestToken
+      summary: Make a new push token of the project; the old one stops working
+      description: |
+        The token lets the library HttpWriter, the JS client and the agent push logs to the receiver
+        (`serve --ingest-addr`, spec/ingest.yaml). It is shown only in this answer: the viewer keeps its
+        SHA-256.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: The token, once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token]
+                properties:
+                  token: { type: string, minLength: 32 }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [projects]
+      operationId: deleteIngestToken
+      summary: Stop taking pushed logs for the project
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '204': { description: The token no longer works }
+        default: { $ref: '#/components/responses/Problem' }
+
   /api/v1/projects/{project_id}/import:
     post:
       tags: [requests]
@@ -1002,7 +1032,7 @@ components:
 
     Project:
       type: object
-      required: [id, server_id, name, root_path, logs_dir, local_path, config_path, editor, retention, pending_files, created_at, updated_at]
+      required: [id, server_id, name, root_path, logs_dir, local_path, config_path, editor, retention, pending_files, ingest_enabled, created_at, updated_at]
       properties:
         id: { type: integer, format: int64 }
         server_id: { type: integer, format: int64 }
@@ -1014,6 +1044,7 @@ components:
         editor: { $ref: '#/components/schemas/Editor' }
         retention: { $ref: '#/components/schemas/Retention' }
         pending_files: { type: integer, minimum: 0, description: Log files that are not fully imported yet }
+        ingest_enabled: { type: boolean, description: The project has a push token and takes logs over HTTP (spec/ingest.yaml) }
         created_at: { type: integer, format: int64 }
         updated_at: { type: integer, format: int64 }
 

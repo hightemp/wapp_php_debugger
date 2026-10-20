@@ -133,6 +133,19 @@ func TestViewerOpenAPI(t *testing.T) {
 	}
 }
 
+func TestIngestOpenAPI(t *testing.T) {
+	doc := loadOpenAPI(t, "ingest.yaml")
+	checkCommonRules(t, doc)
+	if len(doc.Security) == 0 {
+		t.Error("every push needs a project token")
+	}
+	for _, o := range operations(doc) {
+		if !strings.HasPrefix(o.path, "/ingest/") {
+			t.Errorf("%s %s: the receiver serves /ingest/ only", o.method, o.path)
+		}
+	}
+}
+
 func TestLibraryHTTPOpenAPI(t *testing.T) {
 	doc := loadOpenAPI(t, "library-http.yaml")
 	checkCommonRules(t, doc)

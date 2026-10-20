@@ -167,7 +167,7 @@ func (s *server) projectDTO(ctx context.Context, p store.Project) (Project, erro
 		Id: p.ID, ServerId: p.ServerID, Name: p.Name, RootPath: p.RootPath, LogsDir: p.LogsDir, LocalPath: optional(p.LocalPath),
 		ConfigPath: p.ConfigPath, Editor: Editor(p.Editor),
 		Retention:    Retention{Days: p.RetentionDays, MaxBytes: p.RetentionMaxBytes},
-		PendingFiles: pending, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+		PendingFiles: pending, IngestEnabled: p.IngestEnabled, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}, nil
 }
 

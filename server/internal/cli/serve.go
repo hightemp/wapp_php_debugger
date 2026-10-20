@@ -30,6 +30,7 @@ func newServeFlags(cfg *app.Config, extra *serveFlags, output io.Writer) *flag.F
 	}
 	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8820", "HTTP address; other than loopback it needs a token")
 	flags.StringVar(&cfg.Token, "token", os.Getenv("WAPP_DEBUGGER_TOKEN"), "access token clients must present (default: $WAPP_DEBUGGER_TOKEN, which keeps it out of the process list)")
+	flags.StringVar(&cfg.IngestAddr, "ingest-addr", "", "address to take logs pushed over HTTP on (library HttpWriter, JS client, agent), e.g. 0.0.0.0:8821; only the receiver is there, each project has its push token (default: off)")
 	flags.StringVar(&cfg.DBPath, "db", "", "database file (default: in the user config directory)")
 	flags.StringVar(&cfg.LogsDir, "logs-dir", "", "logs directory of a local project")
 	flags.StringVar(&cfg.RootPath, "root", "", "project root (default: the nearest parent of --logs-dir with dws_debugger.json, else its parent)")

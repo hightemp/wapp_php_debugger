@@ -232,6 +232,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/ingest-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a new push token of the project; the old one stops working
+         * @description The token lets the library HttpWriter, the JS client and the agent push logs to the receiver
+         *     (`serve --ingest-addr`, spec/ingest.yaml). It is shown only in this answer: the viewer keeps its
+         *     SHA-256.
+         */
+        post: operations["createIngestToken"];
+        /** Stop taking pushed logs for the project */
+        delete: operations["deleteIngestToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/import": {
         parameters: {
             query?: never;
@@ -686,6 +709,8 @@ export interface components {
             retention: components["schemas"]["Retention"];
             /** @description Log files that are not fully imported yet */
             pending_files: number;
+            /** @description The project has a push token and takes logs over HTTP (spec/ingest.yaml) */
+            ingest_enabled: boolean;
             /** Format: int64 */
             created_at: number;
             /** Format: int64 */
@@ -1460,6 +1485,52 @@ export interface operations {
                         removed_files: number;
                     };
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createIngestToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The token, once */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteIngestToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The token no longer works */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

@@ -25,8 +25,12 @@ import (
 
 // Config holds launch settings.
 type Config struct {
-	Addr         string // HTTP address; only 127.0.0.1 is listened on by default
-	Token        string // required from clients when set; mandatory outside loopback
+	Addr  string // HTTP address; only 127.0.0.1 is listened on by default
+	Token string // required from clients when set; mandatory outside loopback
+	// IngestAddr, when set, takes logs pushed over HTTP (spec/ingest.yaml) on its own address:
+	// only the receiver is there, with project push tokens, so it may face the network
+	IngestAddr   string
+	IngestReady  func(addr string) // called once the receiver listens; for tests
 	DBPath       string
 	ProjectName  string
 	RootPath     string
@@ -208,9 +212,19 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	if err != nil {
 		return err
 	}
+	var ingestListener net.Listener
+	if cfg.IngestAddr != "" {
+		if ingestListener, err = net.Listen("tcp", cfg.IngestAddr); err != nil {
+			_ = listener.Close()
+			return fmt.Errorf("ingest: %w", err)
+		}
+	}
 	core, err := Start(ctx, cfg)
 	if err != nil {
 		_ = listener.Close()
+		if ingestListener != nil {
+			_ = ingestListener.Close()
+		}
 		return err
 	}
 	defer core.Close()
@@ -220,17 +234,35 @@ func Run(ctx context.Context, cfg Config, ready func(addr string)) error {
 	// SSE streams hold connections open: canceling the core closes them on shutdown
 	httpServer.RegisterOnShutdown(core.cancel)
 
-	serveErr := make(chan error, 1)
+	serveErr := make(chan error, 2)
 	go func() { serveErr <- httpServer.Serve(listener) }()
+	var ingestServer *http.Server
+	if ingestListener != nil {
+		ingestServer = &http.Server{Handler: api.NewIngestHandler(api.IngestDeps{Store: core.store, Broker: core.broker}),
+			ReadHeaderTimeout: 10 * time.Second, ReadTimeout: time.Minute}
+		go func() { serveErr <- ingestServer.Serve(ingestListener) }()
+		cfg.Logger.Info("receiving pushed logs", "addr", "http://"+ingestListener.Addr().String()+"/ingest/v2")
+		if cfg.IngestReady != nil {
+			cfg.IngestReady(ingestListener.Addr().String())
+		}
+	}
 	ready(listener.Addr().String())
 	cfg.Logger.Info("wapp-debugger started", "addr", "http://"+listener.Addr().String(), "logs_dir", cfg.LogsDir,
 		"token_required", cfg.Token != "")
 
 	select {
 	case err = <-serveErr:
+		// One listener failed: the other one goes too
+		_ = httpServer.Close()
+		if ingestServer != nil {
+			_ = ingestServer.Close()
+		}
 	case <-ctx.Done():
 		shutdownCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
+		if ingestServer != nil {
+			_ = ingestServer.Shutdown(shutdownCtx)
+		}
 		err = httpServer.Shutdown(shutdownCtx)
 	}
 	if errors.Is(err, http.ErrServerClosed) {
