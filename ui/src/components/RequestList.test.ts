@@ -297,4 +297,36 @@ describe('RequestList', () => {
       expect(screen.queryByText('GET /item/9')).not.toBeInTheDocument();
     });
   });
+
+  it('marks pinned requests and notes', async () => {
+    const { transport } = feed([
+      {
+        items: [request(2, { pinned: true, note: 'checkout bug' }), request(1)],
+        next_cursor: null,
+      },
+    ]);
+    render(RequestList, { transport });
+    const rows = await screen.findAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent('Pinned');
+    expect(rows[0]).toHaveTextContent('checkout bug');
+    expect(rows[1]).not.toHaveTextContent('Pinned');
+  });
+
+  it('pauses the live feed and shows what came in when resumed', async () => {
+    const { transport, emit, listRequests } = feed([
+      { items: [request(1)], next_cursor: null },
+      { items: [request(11), request(10), request(1)], next_cursor: null },
+    ]);
+    render(RequestList, { transport });
+    await screen.findAllByRole('listitem');
+    await fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    emit({ event: 'request_created', request: request(10) });
+    emit({ event: 'request_created', request: request(11) });
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    const resume = await screen.findByRole('button', { name: /2 new — show/ });
+    await fireEvent.click(resume);
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(3));
+    expect(listRequests).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Pause' })).toHaveAttribute('aria-pressed', 'false');
+  });
 });

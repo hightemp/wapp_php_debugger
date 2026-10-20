@@ -146,6 +146,27 @@ describe('RequestDetail', () => {
     expect(await screen.findByText('Request not found')).toBeInTheDocument();
   });
 
+  it('pins the request and keeps a note on it', async () => {
+    const { transport } = setup({
+      markRequest: vi.fn(async (id: number, patch: { pinned?: boolean; note?: string }) =>
+        sampleRequest(id, { pinned: patch.pinned ?? false, note: patch.note }),
+      ),
+    });
+    const pin = await screen.findByRole('button', { name: 'Pin' });
+    expect(pin).toHaveAttribute('aria-pressed', 'false');
+    await fireEvent.click(pin);
+    await waitFor(() => expect(transport.markRequest).toHaveBeenCalledWith(42, { pinned: true }));
+    expect(pin).toHaveAttribute('aria-pressed', 'true');
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Note' }));
+    const note = screen.getByRole('textbox', { name: 'Note' });
+    await fireEvent.input(note, { target: { value: 'the checkout bug' } });
+    await fireEvent.blur(note);
+    await waitFor(() =>
+      expect(transport.markRequest).toHaveBeenLastCalledWith(42, { note: 'the checkout bug' }),
+    );
+  });
+
   describe('views of the request', () => {
     const start = Date.UTC(2026, 9, 19, 12, 0, 0);
     function insight() {

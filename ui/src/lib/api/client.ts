@@ -11,6 +11,7 @@ import type {
   Project,
   ProjectInput,
   ProjectPatch,
+  Request,
   RequestDetail,
   Server,
   ServerCheck,
@@ -86,6 +87,8 @@ export interface Transport {
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
   getMessage(id: number): Promise<MessageDetail>;
+  /** Pins a request or sets its note (an empty note removes it). */
+  markRequest(id: number, patch: { pinned?: boolean; note?: string }): Promise<Request>;
   /** Lines of the file around the message, or around a frame of its backtrace. */
   getMessageSource(id: number, frame?: number): Promise<SourcePreview>;
   listServers(): Promise<{ items: Server[] }>;
@@ -220,6 +223,7 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     listMessages: (requestId, params) =>
       getJSON<MessagePage>(`/api/v1/requests/${requestId}/messages`, params),
     getMessage: (id) => getJSON<MessageDetail>(`/api/v1/messages/${id}`),
+    markRequest: (id, patch) => request<Request>('PATCH', `/api/v1/requests/${id}`, {}, patch),
     getMessageSource: (id, frame) =>
       getJSON<SourcePreview>(`/api/v1/messages/${id}/source`, frame === undefined ? {} : { frame }),
     listServers: () => getJSON<{ items: Server[] }>('/api/v1/servers'),

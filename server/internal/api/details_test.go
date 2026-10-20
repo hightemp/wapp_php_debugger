@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // findRequest returns the feed id of the request with the given key.
@@ -192,7 +194,19 @@ func TestPinAndNoteARequest(t *testing.T) {
 	e := newTestEnv(t)
 	id := findRequest(t, e, webRequestKey)
 	url := fmt.Sprintf("%s/api/v1/requests/%d", e.server.URL, id)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := e.broker.Subscribe(ctx, 0)
 	response, body := send(t, http.MethodPatch, url, map[string]any{"pinned": true, "note": "checkout bug"})
+	// The feed hears about it like about any other change of the request
+	select {
+	case event := <-stream:
+		if event.Name != "request_updated" || !strings.Contains(string(event.Data), `"pinned":true`) {
+			t.Fatalf("event %s %s", event.Name, event.Data)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no request_updated after marking")
+	}
 	if response.StatusCode != 200 || !strings.Contains(body, `"pinned":true`) || !strings.Contains(body, `"note":"checkout bug"`) {
 		t.Fatalf("mark: %d %s", response.StatusCode, body)
 	}

@@ -134,6 +134,18 @@
     return params.q === undefined && params.tag === undefined ? 'yes' : 'ask';
   }
 
+  // Paused, the feed holds still: what comes in is only counted until it is resumed
+  let paused = $state(false);
+  let waiting = $state(0);
+
+  function togglePause() {
+    paused = !paused;
+    if (!paused && waiting > 0) {
+      waiting = 0;
+      void load();
+    }
+  }
+
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
   function reloadSoon() {
     clearTimeout(reloadTimer);
@@ -182,6 +194,12 @@
 
   $effect(() =>
     transport.subscribe((event) => {
+      if (paused && event.event === 'request_created') {
+        if (event.request && mayShow(event.request) !== 'no') {
+          waiting += 1;
+        }
+        return;
+      }
       if (event.event === 'request_created' && event.request) {
         const verdict = mayShow(event.request);
         if (verdict === 'ask') {
@@ -273,7 +291,15 @@
           onchange={(value: EnvironmentFilter) => (environment = value)}
         />
       {/if}
+      <button type="button" class="pause" aria-pressed={paused} onclick={togglePause}
+        >{i18n.t('feed.pause')}</button
+      >
     </div>
+    {#if paused && waiting > 0}
+      <button type="button" class="waiting" onclick={togglePause}
+        >{i18n.t('feed.waiting', { count: waiting })}</button
+      >
+    {/if}
   </div>
 
   {#if status === 'loading' && items.length === 0}
@@ -310,6 +336,12 @@
               >{requestTitle(request)}</span
             >
             <span class="meta">
+              {#if request.pinned}
+                <span class="badge pinned">{i18n.t('marks.pinned')}</span>
+              {/if}
+              {#if request.note}
+                <span class="row-note" title={request.note}>{request.note}</span>
+              {/if}
               {#if combined && origin(request)}
                 <span class="origin">{origin(request)}</span>
               {/if}
@@ -344,6 +376,55 @@
 </section>
 
 <style>
+  .pause {
+    margin-left: auto;
+    padding: 2px var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .pause[aria-pressed='true'] {
+    border-color: var(--level-warning);
+    color: var(--level-warning);
+  }
+
+  .waiting {
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-1);
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .pause:focus-visible,
+  .waiting:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .badge.pinned {
+    background: var(--surface-sunken);
+    color: var(--accent);
+  }
+
+  .row-note {
+    max-width: 16ch;
+    overflow: hidden;
+    color: var(--text);
+    font-style: italic;
+    text-overflow: ellipsis;
+  }
+
   .invalid {
     margin: var(--space-1) 0 0;
     color: var(--level-warning);

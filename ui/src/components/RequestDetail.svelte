@@ -33,6 +33,21 @@
   let status = $state<'loading' | 'ready' | 'not-found' | 'error'>('loading');
   let errorMessage = $state('');
 
+  let editingNote = $state(false);
+
+  // A pin or a note: the request comes back with them
+  async function mark(patch: { pinned?: boolean; note?: string }) {
+    if (!request) {
+      return;
+    }
+    try {
+      const marked = await transport.markRequest(request.id, patch);
+      request = { ...request, pinned: marked.pinned, note: marked.note };
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   async function loadRequest(id: number) {
     try {
       request = await transport.getRequest(id);
@@ -172,6 +187,36 @@
       {#if request.argv && request.argv.length > 0}
         <p class="argv">{request.argv.join(' ')}</p>
       {/if}
+      <div class="marks">
+        <button
+          type="button"
+          class="mark"
+          aria-pressed={request.pinned}
+          onclick={() => request && mark({ pinned: !request.pinned })}>{i18n.t('marks.pin')}</button
+        >
+        <button
+          type="button"
+          class="mark"
+          aria-expanded={editingNote}
+          onclick={() => (editingNote = !editingNote)}>{i18n.t('marks.note')}</button
+        >
+      </div>
+      {#if editingNote}
+        <textarea
+          class="note-editor"
+          aria-label={i18n.t('marks.note')}
+          rows="2"
+          placeholder={i18n.t('marks.noteHint')}
+          value={request.note ?? ''}
+          onblur={(event) => {
+            const note = event.currentTarget.value.trim();
+            if (note !== (request?.note ?? '')) {
+              void mark({ note });
+            }
+          }}></textarea>
+      {:else if request.note}
+        <p class="note">{request.note}</p>
+      {/if}
     </header>
 
     {#if request.children && request.children.length > 0}
@@ -286,6 +331,59 @@
 </section>
 
 <style>
+  .marks {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .mark {
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .mark[aria-pressed='true'] {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .mark:focus-visible,
+  .note-editor:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .note,
+  .note-editor {
+    margin: var(--space-2) 0 0;
+    font-size: var(--font-size-small);
+  }
+
+  .note {
+    padding: var(--space-1) var(--space-2);
+    border-left: 3px solid var(--accent);
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  .note-editor {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    color: var(--text);
+    font: inherit;
+    resize: vertical;
+  }
+
   .detail {
     display: flex;
     flex-direction: column;

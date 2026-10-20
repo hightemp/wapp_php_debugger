@@ -208,5 +208,9 @@ func (s *server) MarkRequest(ctx context.Context, request MarkRequestRequestObje
 	if err != nil {
 		return nil, err
 	}
-	return MarkRequest200JSONResponse(RequestDTO(row)), nil
+	dto := RequestDTO(row)
+	if s.deps.Broker != nil {
+		s.deps.Broker.Publish(string(RequestUpdated), StreamEvent{Event: RequestUpdated, Request: &dto})
+	}
+	return MarkRequest200JSONResponse(dto), nil
 }
