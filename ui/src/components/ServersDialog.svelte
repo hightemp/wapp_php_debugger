@@ -6,6 +6,7 @@
   import type { MessageKey } from '../lib/i18n/messages';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import Dialog from './Dialog.svelte';
+  import DiscoverProjects from './DiscoverProjects.svelte';
   import ServerDialog from './ServerDialog.svelte';
 
   let {
@@ -30,6 +31,8 @@
   let checks = $state<Record<number, CheckState>>({});
   let adding = $state(false);
   let removing = $state<Server | undefined>(undefined);
+  // Servers with the project search open
+  let searching = $state<Record<number, boolean>>({});
 
   async function load() {
     servers = (await transport.listServers()).items;
@@ -38,6 +41,7 @@
   $effect(() => {
     if (open) {
       checks = {};
+      searching = {};
       void load().catch(() => {});
     }
   });
@@ -170,6 +174,15 @@
               })}</span
             >
           {/if}
+          {#if server.kind !== 'http'}
+            <button
+              type="button"
+              class="action"
+              aria-expanded={searching[server.id] ?? false}
+              onclick={() => (searching[server.id] = !searching[server.id])}
+              >{i18n.t('discover.open')}</button
+            >
+          {/if}
           {#if server.kind !== 'local'}
             <button type="button" class="action" onclick={() => check(server)}
               >{i18n.t('servers.check')}</button
@@ -179,6 +192,9 @@
             </button>
           {/if}
         </div>
+        {#if searching[server.id]}
+          <DiscoverProjects {server} {transport} onadded={onchange} />
+        {/if}
         {#if server.connection.error && state?.status !== 'done'}
           <p class="error">{server.connection.error}</p>
         {/if}

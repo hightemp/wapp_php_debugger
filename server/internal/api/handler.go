@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hightemp/wapp_php_debugger/server/internal/discover"
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
@@ -43,6 +44,11 @@ type HTTPRuntime interface {
 	Forget(serverID int64) error
 }
 
+// Discoverer finds projects on local and SSH servers by the library config.
+type Discoverer interface {
+	Discover(ctx context.Context, server store.Server, roots []string, maxDepth int) ([]discover.Found, bool, error)
+}
+
 var (
 	// ErrHostKeyMismatch means the server presents another key than the user confirmed.
 	ErrHostKeyMismatch = errors.New("the host key does not match the confirmed fingerprint")
@@ -57,6 +63,7 @@ type Deps struct {
 	Projects  ProjectRuntime
 	SSH       SSHRuntime    // nil: ssh servers show an unknown connection
 	HTTP      HTTPRuntime   // nil: http servers cannot be added
+	Discover  Discoverer    // nil: no project search
 	UI        fs.FS         // built Svelte UI (index.html and assets/)
 	Heartbeat time.Duration // SSE heartbeat comment period; 0 means 15 seconds
 }

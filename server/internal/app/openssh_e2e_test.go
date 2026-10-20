@@ -101,6 +101,12 @@ func TestAgainstRealOpenSSH(t *testing.T) {
 	writeRemote(t, conn, path.Join(logsDir, "1792400000000-01M5AKMC85PGPCY0000000000.jsonl"), fixture, 0o644)
 	writeRemote(t, conn, configPath, []byte(`{"enabled": false, "logs_dir": "tmp/logs"}`), 0o664)
 
+	// The project is found by its config before it is added
+	status, body = call(t, core, http.MethodPost, fmt.Sprintf("/api/v1/servers/%d/discover", server.ID), map[string]any{"roots": []string{home}})
+	if status != http.StatusOK || !strings.Contains(body, `"logs_dir":"`+logsDir+`"`) {
+		t.Fatalf("discover: %d %s", status, body)
+	}
+
 	status, body = call(t, core, http.MethodPost, "/api/v1/projects", map[string]any{
 		"server_id": server.ID, "name": "shop", "root_path": root, "logs_dir": logsDir,
 	})

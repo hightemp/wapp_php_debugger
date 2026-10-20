@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/hightemp/wapp_php_debugger/server/internal/discover"
 	"github.com/hightemp/wapp_php_debugger/server/internal/events"
 	"github.com/hightemp/wapp_php_debugger/server/internal/source"
 	"github.com/hightemp/wapp_php_debugger/server/internal/sshconn"
@@ -90,10 +92,22 @@ func (f *fakeHTTP) Forget(serverID int64) error {
 	return nil
 }
 
+type fakeDiscoverer struct {
+	found []discover.Found
+	err   error
+	calls []string
+}
+
+func (f *fakeDiscoverer) Discover(_ context.Context, server store.Server, roots []string, maxDepth int) ([]discover.Found, bool, error) {
+	f.calls = append(f.calls, fmt.Sprintf("%d %v %d", server.ID, roots, maxDepth))
+	return f.found, false, f.err
+}
+
 type serversEnv struct {
 	projectsEnv
-	ssh  *fakeSSH
-	http *fakeHTTP
+	ssh      *fakeSSH
+	http     *fakeHTTP
+	discover *fakeDiscoverer
 }
 
 func newServersEnv(t *testing.T) serversEnv {
@@ -111,9 +125,10 @@ func newServersEnv(t *testing.T) serversEnv {
 	runtime := &fakeRuntime{sources: map[int64]*source.Memory{}}
 	ssh := &fakeSSH{statuses: map[int64]sshconn.Status{}}
 	lib := &fakeHTTP{tokens: map[int64]string{}, statuses: map[int64]sshconn.Status{}}
-	server := httptest.NewServer(NewHandler(Deps{Store: s, Broker: events.NewBroker(4), Projects: runtime, SSH: ssh, HTTP: lib, UI: fstest.MapFS{"index.html": {}}}))
+	finder := &fakeDiscoverer{}
+	server := httptest.NewServer(NewHandler(Deps{Store: s, Broker: events.NewBroker(4), Projects: runtime, SSH: ssh, HTTP: lib, Discover: finder, UI: fstest.MapFS{"index.html": {}}}))
 	t.Cleanup(server.Close)
-	return serversEnv{projectsEnv: projectsEnv{server: server, store: s, runtime: runtime, local: local}, ssh: ssh, http: lib}
+	return serversEnv{projectsEnv: projectsEnv{server: server, store: s, runtime: runtime, local: local}, ssh: ssh, http: lib, discover: finder}
 }
 
 func (e serversEnv) createSSHServer(t *testing.T, name string) Server {
@@ -348,5 +363,55 @@ func TestHTTPServerTokenChangesAndRemoval(t *testing.T) {
 	}
 	if _, kept := e.http.tokens[server.Id]; kept || len(e.http.forgotten) != 1 {
 		t.Fatalf("the token outlived its server: %v", e.http.tokens)
+	}
+}
+
+func TestDiscoverProjects(t *testing.T) {
+	e := newServersEnv(t)
+	server := e.createSSHServer(t, "stage")
+	added, err := e.store.CreateProject(context.Background(), store.ProjectInput{ServerID: server.Id, Name: "shop", RootPath: "/var/www/shop", LogsDir: "/var/www/shop/tmp/logs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.discover.found = []discover.Found{
+		{Name: "shop", Root: "/var/www/shop", LogsDir: "/var/www/shop/tmp/logs", ConfigPath: "/var/www/shop/dws_debugger.json", Enabled: true},
+		{Name: "blog", Root: "/var/www/blog", LogsDir: "/var/www/blog/tmp/logs", ConfigPath: "/var/www/blog/dws_debugger.json", Problem: "invalid character"},
+	}
+	url := fmt.Sprintf("%s/api/v1/servers/%d/discover", e.server.URL, server.Id)
+
+	response, body := send(t, http.MethodPost, url, map[string]any{"roots": []string{"/var/www"}, "max_depth": 3})
+	var result struct {
+		Items []struct {
+			Name      string `json:"name"`
+			ProjectID *int64 `json:"project_id"`
+			Problem   string `json:"problem"`
+			Enabled   bool   `json:"enabled"`
+		} `json:"items"`
+		Truncated bool `json:"truncated"`
+	}
+	if response.StatusCode != http.StatusOK || json.Unmarshal([]byte(body), &result) != nil || len(result.Items) != 2 {
+		t.Fatalf("discover: %d %s", response.StatusCode, body)
+	}
+	if result.Items[0].ProjectID == nil || *result.Items[0].ProjectID != added.ID || !result.Items[0].Enabled {
+		t.Errorf("an added project is marked: %+v", result.Items[0])
+	}
+	if result.Items[1].ProjectID != nil || result.Items[1].Problem == "" {
+		t.Errorf("a new one: %+v", result.Items[1])
+	}
+	if e.discover.calls[0] != fmt.Sprintf("%d [/var/www] 3", server.Id) {
+		t.Errorf("calls %v", e.discover.calls)
+	}
+
+	if response, body := send(t, http.MethodPost, url, map[string]any{"roots": []string{"www"}}); response.StatusCode != http.StatusBadRequest {
+		t.Errorf("a relative root: %d %s", response.StatusCode, body)
+	}
+	e.discover.err = errors.New("connection refused")
+	if response, body := send(t, http.MethodPost, url, map[string]any{"roots": []string{"/var/www"}}); response.StatusCode != http.StatusBadGateway || !strings.Contains(body, "refused") {
+		t.Errorf("a failed search: %d %s", response.StatusCode, body)
+	}
+
+	hosting := e.createHTTPServer(t, "hosting")
+	if response, _ := send(t, http.MethodPost, fmt.Sprintf("%s/api/v1/servers/%d/discover", e.server.URL, hosting.Id), map[string]any{"roots": []string{"/"}}); response.StatusCode != http.StatusBadRequest {
+		t.Errorf("an http server: %d", response.StatusCode)
 	}
 }

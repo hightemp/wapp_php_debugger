@@ -94,6 +94,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 		func(serverID int64, status sshconn.Status) {
 			broker.Publish("server_status", serverStatusEvent(serverID, status))
 		})
+	ssh := &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}
 	manager := ingest.NewManager(s, ingest.ManagerOptions{
 		PollInterval:       cfg.ScanInterval,
 		RemotePollInterval: cfg.RemoteScanInterval,
@@ -114,7 +115,7 @@ func Start(ctx context.Context, cfg Config) (*Core, error) {
 	return &Core{
 		db: db,
 		handler: api.NewHandler(api.Deps{Store: s, Broker: broker, Projects: manager, UI: cfg.UI,
-			SSH: &sshRuntime{pool: pool, dialer: dialer, config: cfg.SSH}, HTTP: libraries}),
+			SSH: ssh, HTTP: libraries, Discover: discoverer{ssh: ssh}}),
 		broker:  broker,
 		manager: manager,
 		ssh:     pool,

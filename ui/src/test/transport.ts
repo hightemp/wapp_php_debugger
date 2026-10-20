@@ -2,6 +2,7 @@
 import { vi } from 'vitest';
 import type { Transport } from '../lib/api/client';
 import type {
+  DiscoveredProject,
   MessageDetail,
   Project,
   Request,
@@ -108,6 +109,7 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       steps: [] as { name: string; ok: boolean; detail?: string }[],
     })),
     trustHostKey: vi.fn(async () => undefined),
+    discoverProjects: vi.fn(async () => ({ items: [] as DiscoveredProject[], truncated: false })),
     listProjects: vi.fn(async () => ({ items: [] as Project[] })),
     createProject: vi.fn(async () => sampleProject(1)),
     updateProject: vi.fn(async (id: number) => sampleProject(id)),

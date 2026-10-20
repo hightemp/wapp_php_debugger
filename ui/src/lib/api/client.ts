@@ -1,6 +1,7 @@
 // Viewer API client (spec/openapi.yaml). Transport hides how the UI talks to the core:
 // HTTP + SSE in the browser; in the desktop app the same API goes through the Wails asset handler.
 import type {
+  DiscoveredProject,
   Level,
   MessageDetail,
   MessagePage,
@@ -58,6 +59,12 @@ export interface Transport {
   checkServer(id: number): Promise<ServerCheck>;
   /** Trusts the host key once the user compared its fingerprint with the server. */
   trustHostKey(id: number, fingerprint: string): Promise<void>;
+  /** Finds projects on a server by the library config; nothing is added. */
+  discoverProjects(
+    id: number,
+    roots: string[],
+    maxDepth?: number,
+  ): Promise<{ items: DiscoveredProject[]; truncated: boolean }>;
   listProjects(): Promise<{ items: Project[] }>;
   createProject(input: ProjectInput): Promise<Project>;
   updateProject(id: number, patch: ProjectPatch): Promise<Project>;
@@ -173,6 +180,13 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     trustHostKey: async (id, fingerprint) => {
       await request<unknown>('POST', `/api/v1/servers/${id}/host-key`, {}, { fingerprint });
     },
+    discoverProjects: (id, roots, maxDepth) =>
+      request<{ items: DiscoveredProject[]; truncated: boolean }>(
+        'POST',
+        `/api/v1/servers/${id}/discover`,
+        {},
+        maxDepth === undefined ? { roots } : { roots, max_depth: maxDepth },
+      ),
     listProjects: () => getJSON<{ items: Project[] }>('/api/v1/projects'),
     createProject: (input) => request<Project>('POST', '/api/v1/projects', {}, input),
     updateProject: (id, patch) => request<Project>('PATCH', `/api/v1/projects/${id}`, {}, patch),

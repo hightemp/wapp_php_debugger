@@ -200,6 +200,73 @@ describe('ServersDialog', () => {
     expect(await row('stage')).toHaveTextContent('clock −3 s');
   });
 
+  it('finds projects on a server and adds the chosen one', async () => {
+    const { transport, onchange } = setup();
+    vi.mocked(transport.discoverProjects).mockResolvedValueOnce({
+      items: [
+        {
+          name: 'shop',
+          root_path: '/var/www/shop',
+          logs_dir: '/var/www/shop/tmp/logs',
+          config_path: '/var/www/shop/dws_debugger.json',
+          enabled: true,
+          project_id: 5,
+        },
+        {
+          name: 'blog',
+          root_path: '/var/www/blog',
+          logs_dir: '/var/www/blog/var/logs',
+          config_path: '/var/www/blog/public/dws_debugger.json',
+          enabled: false,
+          problem: 'invalid JSON',
+        },
+      ],
+      truncated: true,
+    });
+    const stage = await row('stage');
+    await fireEvent.click(within(stage).getByRole('button', { name: 'Find projects' }));
+    const roots = within(stage).getByLabelText('Where to look');
+    expect(roots).toHaveValue('/var/www');
+    await fireEvent.input(roots, { target: { value: '/var/www, /home/deploy' } });
+    await fireEvent.click(within(stage).getByRole('button', { name: 'Search' }));
+    await waitFor(() =>
+      expect(transport.discoverProjects).toHaveBeenCalledWith(2, ['/var/www', '/home/deploy']),
+    );
+
+    const found = await within(stage).findByRole('list', { name: 'Found projects' });
+    expect(within(found).getByRole('listitem', { name: 'shop' })).toHaveTextContent('Added');
+    const blog = within(found).getByRole('listitem', { name: 'blog' });
+    expect(blog).toHaveTextContent('/var/www/blog/var/logs');
+    expect(blog).toHaveTextContent('invalid JSON');
+    expect(stage).toHaveTextContent('Not everything was searched');
+
+    await fireEvent.click(within(blog).getByRole('button', { name: 'Add' }));
+    await waitFor(() =>
+      expect(transport.createProject).toHaveBeenCalledWith({
+        server_id: 2,
+        name: 'blog',
+        root_path: '/var/www/blog',
+        logs_dir: '/var/www/blog/var/logs',
+        config_path: '/var/www/blog/public/dws_debugger.json',
+      }),
+    );
+    expect(await within(blog).findByText('Added')).toBeInTheDocument();
+    expect(onchange).toHaveBeenCalled();
+  });
+
+  it('does not search an http server', async () => {
+    setup([
+      sampleServer(1),
+      sampleServer(4, { name: 'hosting', kind: 'http', config: { base_url: 'https://x.test' } }),
+    ]);
+    expect(
+      within(await row('hosting')).queryByRole('button', { name: 'Find projects' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(await row('local')).getByRole('button', { name: 'Find projects' }),
+    ).toBeInTheDocument();
+  });
+
   it('follows the connection live', async () => {
     const { emit } = setup();
     const stage = await row('stage');

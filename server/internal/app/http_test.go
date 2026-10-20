@@ -184,3 +184,30 @@ func TestHTTPRuntimeTracksTheClockOfTheServer(t *testing.T) {
 		t.Fatalf("every poll published a status: %d", len(published))
 	}
 }
+
+func TestDiscoversProjectsOnThisMachine(t *testing.T) {
+	www := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(www, "shop", "tmp", "logs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(www, "shop", "dws_debugger.json"), []byte(`{"enabled": true}`), 0o644)
+	dir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	core, err := Start(ctx, Config{DBPath: filepath.Join(dir, "viewer.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cancel(); core.Close() })
+
+	_, list := call(t, core, http.MethodGet, "/api/v1/servers", nil)
+	var servers struct {
+		Items []struct {
+			ID int64 `json:"id"`
+		} `json:"items"`
+	}
+	_ = json.Unmarshal([]byte(list), &servers)
+	status, body := call(t, core, http.MethodPost, fmt.Sprintf("/api/v1/servers/%d/discover", servers.Items[0].ID), map[string]any{"roots": []string{www}})
+	if status != http.StatusOK || !strings.Contains(body, `"logs_dir":"`+filepath.Join(www, "shop", "tmp", "logs")+`"`) {
+		t.Fatalf("discover: %d %s", status, body)
+	}
+}

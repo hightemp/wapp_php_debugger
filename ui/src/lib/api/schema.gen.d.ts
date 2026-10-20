@@ -101,6 +101,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/servers/{server_id}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find projects on a server by the library config (dws_debugger.json)
+         * @description Walks the given directories of a local or SSH server, at most max_depth levels down and 5000
+         *     directories in all; symlinks are not followed, .git, node_modules and vendor are skipped. Paths of a
+         *     found project are resolved from its config the way the library resolves them. Nothing is added: the
+         *     UI adds the chosen ones with createProject. Servers in the library HTTP mode have one project and
+         *     cannot be searched (400).
+         */
+        post: operations["discoverProjects"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -461,6 +485,22 @@ export interface components {
             project?: string;
             /** @description A failed optional step is a warning and does not fail the check */
             optional?: boolean;
+        };
+        DiscoveredProject: {
+            /** @description Name of the project root directory */
+            name: string;
+            root_path: string;
+            logs_dir: string;
+            config_path: string;
+            /** @description Logging is on in the config */
+            enabled: boolean;
+            /** @description Why the config could not be read; the paths are the library defaults then */
+            problem?: string;
+            /**
+             * Format: int64
+             * @description The project of the viewer with this logs directory, when it is added already
+             */
+            project_id?: number;
         };
         ProjectInput: {
             /** Format: int64 */
@@ -935,6 +975,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    discoverProjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: components["parameters"]["ServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @example [
+                     *       "/var/www",
+                     *       "/home/deploy"
+                     *     ]
+                     */
+                    roots: string[];
+                    /** @default 4 */
+                    max_depth?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Found projects */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DiscoveredProject"][];
+                        /** @description The directory limit stopped the walk; narrow the roots */
+                        truncated: boolean;
+                    };
+                };
             };
             default: components["responses"]["Problem"];
         };

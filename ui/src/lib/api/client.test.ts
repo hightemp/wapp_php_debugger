@@ -111,6 +111,7 @@ describe('createHttpTransport', () => {
     await transport.updateServer(2, { config: { host: 'stage-web-2' } });
     await transport.checkServer(2);
     await transport.trustHostKey(2, 'SHA256:abc');
+    await transport.discoverProjects(2, ['/var/www'], 3);
     await transport.deleteServer(2);
 
     const calls = fetchMock.mock.calls.map(([url, init]) => [
@@ -123,6 +124,7 @@ describe('createHttpTransport', () => {
       ['/api/v1/servers/2', 'PATCH', '{"config":{"host":"stage-web-2"}}'],
       ['/api/v1/servers/2/check', 'POST', null],
       ['/api/v1/servers/2/host-key', 'POST', '{"fingerprint":"SHA256:abc"}'],
+      ['/api/v1/servers/2/discover', 'POST', '{"roots":["/var/www"],"max_depth":3}'],
       ['/api/v1/servers/2', 'DELETE', null],
     ]);
   });

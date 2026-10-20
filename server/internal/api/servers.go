@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -201,4 +202,52 @@ func (s *server) restartProjects(ctx context.Context, serverID int64) error {
 		s.deps.Projects.Add(project)
 	}
 	return nil
+}
+
+// DiscoverProjects searches a local or SSH server for library configs; nothing is added.
+func (s *server) DiscoverProjects(ctx context.Context, request DiscoverProjectsRequestObject) (DiscoverProjectsResponseObject, error) {
+	fail := func(status int, title, detail string) (DiscoverProjectsResponseObject, error) {
+		return DiscoverProjectsdefaultApplicationProblemPlusJSONResponse{Body: problem(status, title, detail), StatusCode: status}, nil
+	}
+	for _, root := range request.Body.Roots {
+		if !strings.HasPrefix(root, "/") && !filepath.IsAbs(root) {
+			return fail(http.StatusBadRequest, "Bad Request", "roots must be absolute paths: "+root)
+		}
+	}
+	srv, found, err := s.deps.Store.GetServer(ctx, request.ServerId)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return fail(http.StatusNotFound, "Not Found", "no such server")
+	}
+	if srv.Kind == "http" || s.deps.Discover == nil {
+		return fail(http.StatusBadRequest, "Bad Request", "an http server is one application: there is nothing to search")
+	}
+	depth := 0
+	if request.Body.MaxDepth != nil {
+		depth = *request.Body.MaxDepth
+	}
+	projects, truncated, err := s.deps.Discover.Discover(ctx, srv, request.Body.Roots, depth)
+	if err != nil {
+		return fail(http.StatusBadGateway, "Bad Gateway", err.Error())
+	}
+	existing, err := s.deps.Store.ListProjects(ctx, srv.ID)
+	if err != nil {
+		return nil, err
+	}
+	added := map[string]int64{}
+	for _, project := range existing {
+		added[project.LogsDir] = project.ID
+	}
+	items := make([]DiscoveredProject, 0, len(projects))
+	for _, project := range projects {
+		item := DiscoveredProject{Name: project.Name, RootPath: project.Root, LogsDir: project.LogsDir,
+			ConfigPath: project.ConfigPath, Enabled: project.Enabled, Problem: optional(project.Problem)}
+		if id, ok := added[project.LogsDir]; ok {
+			item.ProjectId = &id
+		}
+		items = append(items, item)
+	}
+	return DiscoverProjects200JSONResponse{Items: items, Truncated: truncated}, nil
 }
