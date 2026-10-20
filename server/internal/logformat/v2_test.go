@@ -106,6 +106,18 @@ func TestParseV2MapsEvents(t *testing.T) {
 	if sql := web.Events[3]; len(sql.Tags) != 1 || sql.Tags[0] != "sql" || sql.Level != "debug" {
 		t.Fatalf("sql message = %+v", sql)
 	}
+
+	// SQL and HTTP calls carry their duration
+	timed, err := ParseV2Chunk(readV2(t, "sql-and-http.jsonl"), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sql := timed.Events[0]; sql.Type != TypeMessage || sql.DurationMs == nil || *sql.DurationMs != 4.25 || sql.Tags[0] != "sql" {
+		t.Fatalf("timed sql = %+v", sql)
+	}
+	if call := timed.Events[3]; call.DurationMs == nil || *call.DurationMs != 120.5 || call.Tags[0] != "http" {
+		t.Fatalf("timed http = %+v", call)
+	}
 }
 
 // The writer may be in the middle of the last line: it is not consumed and is read again next time.

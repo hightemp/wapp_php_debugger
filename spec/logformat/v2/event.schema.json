@@ -81,6 +81,11 @@
         "message": { "type": "string" },
         "tags": { "$ref": "#/$defs/tags" },
         "context": { "type": "object", "description": "Named variables; values are any JSON" },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "How long a logged operation took (an SQL query, an HTTP call); written when it ends, so it spans [ts - duration_ms, ts]"
+        },
         "source": { "$ref": "#/$defs/frame" },
         "trace": { "$ref": "#/$defs/trace" }
       },
