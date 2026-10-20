@@ -45,7 +45,8 @@ final class BundlerTest extends TestCase
         // A neighbour of the bundle: code next to it is the application, not the library
         copy(__DIR__ . '/../scripts/bundle/app.php', $this->tempDir() . '/lib/app.php');
 
-        $command = sprintf('%s %s %s 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg($this->tempDir() . '/lib/app.php'), escapeshellarg($this->tempDir()));
+        // -n: no php.ini, so no extensions beyond the ones built into PHP — the library needs nothing more
+        $command = sprintf('%s -n %s %s 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg($this->tempDir() . '/lib/app.php'), escapeshellarg($this->tempDir()));
         exec($command, $output, $code);
         $files = $this->logFiles($this->tempDir() . '/logs');
 
