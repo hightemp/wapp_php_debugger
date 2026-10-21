@@ -1,0 +1,1362 @@
+openapi: 3.0.3
+info:
+  title: wapp-debugger viewer API
+  version: 1.0.0
+  description: |
+    Log viewer API (Go server and desktop). The Svelte UI uses it; the desktop serves the same API
+    through the Wails asset handler without a network port.
+
+    Rules:
+    - field and parameter names are `snake_case`;
+    - times are milliseconds since the epoch; `started_at` and `ts` use the project server clock, `received_at` the viewer clock;
+    - errors are Problem Details (RFC 9457), `application/problem+json`;
+    - request and message lists use cursor pagination: pass `next_cursor` as `cursor`; `null` means the end.
+    - without a token only loopback host names are served (403 otherwise, against DNS rebinding);
+      writes with a foreign `Origin` get 403 (CSRF); request bodies over 1 MiB get 413.
+servers:
+  - url: http://127.0.0.1:8820
+    description: Local wapp-debugger serve
+security:
+  - bearer_auth: []
+  - cookie_auth: []
+  - {}
+tags:
+  - name: system
+  - name: servers
+  - name: projects
+  - name: requests
+  - name: stream
+  - name: settings
+
+paths:
+  /api/v1/version:
+    get:
+      tags: [system]
+      operationId: getVersion
+      summary: Viewer version
+      security: [{}]
+      responses:
+        '200':
+          description: Build version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Version' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers:
+    get:
+      tags: [servers]
+      operationId: listServers
+      summary: List servers
+      responses:
+        '200':
+          description: Servers with connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [servers]
+      operationId: createServer
+      summary: Add a server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServerInput' }
+      responses:
+        '201':
+          description: Server added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers/{server_id}:
+    get:
+      tags: [servers]
+      operationId: getServer
+      summary: Get a server
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      responses:
+        '200':
+          description: Server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [servers]
+      operationId: updateServer
+      summary: Update a server
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServerPatch' }
+      responses:
+        '200':
+          description: Server updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Server' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [servers]
+      operationId: deleteServer
+      summary: Remove a server and its projects from the viewer
+      description: Removes viewer data only; log files on the server are not touched.
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      responses:
+        '204': { description: Deleted }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers/{server_id}/check:
+    post:
+      tags: [servers]
+      operationId: checkServer
+      summary: Check the server connection
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      responses:
+        '200':
+          description: Check result (a failed check is also 200 with ok=false)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServerCheck' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers/{server_id}/host-key:
+    post:
+      tags: [servers]
+      operationId: trustHostKey
+      summary: Trust the host key of an SSH server after the user checked its fingerprint
+      description: |
+        checkServer shows the fingerprint of an unknown host (or of an unknown jump host on the way). The viewer
+        connects again and trusts the key only if the server still presents this fingerprint, so a key swapped
+        between the check and the confirmation is not trusted. The key goes to the viewer's own known_hosts file;
+        the user's ~/.ssh/known_hosts is never written. A changed key is never trusted here (409).
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fingerprint]
+              additionalProperties: false
+              properties:
+                fingerprint: { type: string, pattern: '^SHA256:[A-Za-z0-9+/]+=*$', example: 'SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8' }
+      responses:
+        '204': { description: Trusted (or already known) }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/servers/{server_id}/discover:
+    post:
+      tags: [servers]
+      operationId: discoverProjects
+      summary: Find projects on a server by the library config (dws_debugger.json)
+      description: |
+        Walks the given directories of a local or SSH server, at most max_depth levels down and 5000
+        directories in all; symlinks are not followed, .git, node_modules and vendor are skipped. Paths of a
+        found project are resolved from its config the way the library resolves them. Nothing is added: the
+        UI adds the chosen ones with createProject. Servers in the library HTTP mode have one project and
+        cannot be searched (400).
+      parameters: [{ $ref: '#/components/parameters/ServerId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roots]
+              additionalProperties: false
+              properties:
+                roots:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items: { type: string, minLength: 1 }
+                  example: [/var/www, /home/deploy]
+                max_depth: { type: integer, minimum: 1, maximum: 8, default: 4 }
+      responses:
+        '200':
+          description: Found projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, truncated]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/DiscoveredProject' }
+                  truncated:
+                    type: boolean
+                    description: The directory limit stopped the walk; narrow the roots
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/config:
+    get:
+      tags: [servers]
+      operationId: exportConfig
+      summary: Servers and projects as a YAML file, without secrets
+      description: Tokens of http servers and host keys are never written; the file can be shared and kept in git.
+      responses:
+        '200':
+          description: The file
+          content:
+            application/yaml:
+              schema: { type: string }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [servers]
+      operationId: importConfig
+      summary: Add the servers and projects of a YAML file that the viewer does not have yet
+      description: |
+        A server is matched by name (the local one stands for this machine), a project by name on its
+        server; what exists is skipped, nothing is changed or removed. A file with any mistake (an unknown
+        key, a secret among them) is rejected whole (400). Created http servers need their token set.
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema: { type: string }
+      responses:
+        '200':
+          description: What was added
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [servers_created, projects_created, skipped, needs_token]
+                properties:
+                  servers_created: { type: array, items: { type: string } }
+                  projects_created: { type: array, items: { type: string }, description: 'server/project' }
+                  skipped: { type: array, items: { type: string }, description: 'server or server/project that exist already' }
+                  needs_token: { type: array, items: { type: string }, description: Created http servers waiting for their token }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects:
+    get:
+      tags: [projects]
+      operationId: listProjects
+      summary: List projects
+      parameters:
+        - name: server_id
+          in: query
+          description: Only projects of this server
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [projects]
+      operationId: createProject
+      summary: Add a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectInput' }
+      responses:
+        '201':
+          description: Project added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}:
+    get:
+      tags: [projects]
+      operationId: getProject
+      summary: Get a project
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [projects]
+      operationId: updateProject
+      summary: Update a project
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectPatch' }
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [projects]
+      operationId: deleteProject
+      summary: Remove a project from the viewer
+      description: Removes viewer data only; log files on the server are not touched.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '204': { description: Deleted }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}/debugger:
+    get:
+      tags: [projects]
+      operationId: getDebuggerState
+      summary: Whether the debugger is on in the project
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: State
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DebuggerState' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [projects]
+      operationId: setDebuggerState
+      summary: Turn the debugger on or off in the project
+      description: Forbidden (403) if the server has allow_control=false or read_only=true.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DebuggerState' }
+      responses:
+        '200':
+          description: New state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DebuggerState' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}/logs:
+    delete:
+      tags: [projects]
+      operationId: clearProjectLogs
+      summary: Delete the project log files on the server and their data in the viewer
+      description: Forbidden (403) if the server has allow_delete=false or read_only=true.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: Number of removed files
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed_files]
+                properties:
+                  removed_files: { type: integer, minimum: 0 }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}/ingest-token:
+    post:
+      tags: [projects]
+      operationId: createIngestToken
+      summary: Make a new push token of the project; the old one stops working
+      description: |
+        The token lets the library HttpWriter, the JS client and the agent push logs to the receiver
+        (`serve --ingest-addr`, spec/ingest.yaml). It is shown only in this answer: the viewer keeps its
+        SHA-256.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: The token, once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token]
+                properties:
+                  token: { type: string, minLength: 32 }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [projects]
+      operationId: deleteIngestToken
+      summary: Stop taking pushed logs for the project
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '204': { description: The token no longer works }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/projects/{project_id}/import:
+    post:
+      tags: [requests]
+      operationId: importRequest
+      summary: Add a request from a log format v2 stream, or a log of PHP, Laravel or nginx
+      description: |
+        A v2 stream (an export, a log file of the library) must be one whole request: request_start
+        first, seq without gaps, every line an event of format v2; otherwise 400 and nothing is saved.
+        A PHP error log, a Laravel log or an nginx error log (told by its first line) becomes one
+        request named after the file, an entry a message. A request whose request_id the project has
+        already is not imported again: the answer points to it (created=false); the same third-party
+        file gives the same request_id.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: name
+          in: query
+          description: The file name, for the request made of a third-party log
+          schema: { type: string, maxLength: 255 }
+      requestBody:
+        required: true
+        content:
+          application/x-ndjson:
+            schema: { type: string }
+      responses:
+        '200':
+          description: Where the request is
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request_id, created]
+                properties:
+                  request_id: { type: integer, format: int64 }
+                  created: { type: boolean, description: false when the project had this request already }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests:
+    get:
+      tags: [requests]
+      operationId: listRequests
+      summary: Request feed, newest first
+      description: Without project_id and server_id it is a combined feed of all projects.
+      parameters:
+        - name: project_id
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: server_id
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: environment
+          in: query
+          schema: { $ref: '#/components/schemas/Environment' }
+        - name: sapi
+          in: query
+          schema: { $ref: '#/components/schemas/Sapi' }
+        - name: has_errors
+          in: query
+          description: Only requests with errors
+          schema: { type: boolean }
+        - name: q
+          in: query
+          description: Full-text search over messages and context, plus a URL substring
+          schema: { type: string }
+        - name: since
+          in: query
+          description: started_at at or after, ms
+          schema: { type: integer, format: int64 }
+        - name: until
+          in: query
+          description: started_at before, ms
+          schema: { type: integer, format: int64 }
+        - name: method
+          in: query
+          description: HTTP method, any case
+          schema: { type: string }
+        - name: status
+          in: query
+          description: A status code (404) or a class (5xx)
+          schema: { type: string, pattern: '^[1-5]([0-9]{2}|xx)$' }
+        - name: min_duration_ms
+          in: query
+          description: Requests at least this long
+          schema: { type: number, minimum: 0 }
+        - name: is_ajax
+          in: query
+          schema: { type: boolean }
+        - name: tag
+          in: query
+          description: A message of the request has this tag
+          schema: { type: string }
+        - name: level
+          in: query
+          description: error — requests with errors; warning — with errors or warnings
+          schema: { type: string, enum: [error, warning] }
+        - name: pinned
+          in: query
+          description: Only pinned requests
+          schema: { type: boolean }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Page of requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestPage' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests/{request_id}:
+    get:
+      tags: [requests]
+      operationId: getRequest
+      summary: Get a request (without messages)
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      responses:
+        '200':
+          description: Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestDetail' }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [requests]
+      operationId: markRequest
+      summary: Pin a request or note something about it
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                pinned: { type: boolean }
+                note: { type: string, maxLength: 2000, description: An empty note removes it }
+      responses:
+        '200':
+          description: The request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Request' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [requests]
+      operationId: deleteRequest
+      summary: Delete a request and its log file
+      description: Forbidden (403) if the server has allow_delete=false or read_only=true.
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      responses:
+        '204': { description: Deleted }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests/{request_id}/export:
+    get:
+      tags: [requests]
+      operationId: exportRequest
+      summary: The request as a log format v2 stream, to pass it on or import it elsewhere
+      description: |
+        The lines the library would have written: request_start, the messages, request_end when the
+        request finished. A request read from a v1 file comes out in v2 too; seq is numbered anew.
+        Child requests (AJAX) are separate requests and are exported on their own.
+      parameters: [{ $ref: '#/components/parameters/RequestId' }]
+      responses:
+        '200':
+          description: The stream
+          headers:
+            Content-Disposition:
+              required: true
+              schema: { type: string }
+              description: 'attachment; filename="request-<request_key>.jsonl"'
+          content:
+            application/x-ndjson:
+              schema: { type: string }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/requests/{request_id}/messages:
+    get:
+      tags: [requests]
+      operationId: listMessages
+      summary: Request messages in seq order
+      parameters:
+        - { $ref: '#/components/parameters/RequestId' }
+        - name: level
+          in: query
+          description: Only these levels
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/Level' }
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/MessageType' }
+        - name: tag
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          description: Full-text search over the message and context
+          schema: { type: string }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Page of messages
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePage' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/messages/{message_id}:
+    get:
+      tags: [requests]
+      operationId: getMessage
+      summary: Get a message with context and backtrace
+      parameters: [{ $ref: '#/components/parameters/MessageId' }]
+      responses:
+        '200':
+          description: Message
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageDetail' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/messages/{message_id}/source:
+    get:
+      tags: [requests]
+      operationId: getMessageSource
+      summary: Lines of the source file around the place of a message or a frame of its backtrace
+      description: |
+        The path comes from the log, never from the client. The file is read from the project's server
+        (this machine or SSH) and only inside the project root, symlinks resolved; projects in the library
+        HTTP mode have no preview (404). 403 — the file resolves outside the root; 413 — over 1 MB;
+        415 — not text.
+      parameters:
+        - { $ref: '#/components/parameters/MessageId' }
+        - name: frame
+          in: query
+          description: Index in the backtrace; without it, the place of the message itself
+          schema: { type: integer, minimum: 0 }
+        - name: around
+          in: query
+          description: Lines before and after the line
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+      responses:
+        '200':
+          description: The lines
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SourcePreview' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/stream:
+    get:
+      tags: [stream]
+      operationId: streamEvents
+      summary: Change stream (Server-Sent Events)
+      description: |
+        Each SSE event: `id` is a monotonic number, `event` is the `event` field of StreamEvent,
+        `data` is StreamEvent as JSON. A heartbeat comment is sent every 15 seconds.
+        After a reconnect the client sends Last-Event-ID and receives the missed events
+        if they are still buffered; otherwise it gets a resync event.
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          schema: { type: string }
+        - name: project_id
+          in: query
+          description: Only events of this project (server status events always arrive)
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Event stream
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/StreamEvent' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/desktop/settings:
+    get:
+      tags: [settings]
+      operationId: getDesktopSettings
+      summary: Settings of the desktop app (404 in the server)
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DesktopSettings' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [settings]
+      operationId: updateDesktopSettings
+      summary: Save the settings of the desktop app; they apply at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DesktopSettings' }
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DesktopSettings' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/updates:
+    get:
+      tags: [settings]
+      operationId: getUpdates
+      summary: Whether a newer version is out (GitHub Releases, asked at most once a day)
+      description: The check is off in the server without --update-check and in the desktop with update_check off; then enabled is false and nothing is asked.
+      responses:
+        '200':
+          description: The last answer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, current, newer]
+                properties:
+                  enabled: { type: boolean }
+                  current: { type: string }
+                  latest: { type: string }
+                  url: { type: string, description: Page of the release }
+                  newer: { type: boolean }
+                  checked_at: { type: integer, format: int64 }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /api/v1/settings:
+    get:
+      tags: [settings]
+      operationId: getSettings
+      summary: Get UI settings
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [settings]
+      operationId: updateSettings
+      summary: Save UI settings; other windows get settings_updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settings' }
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        default: { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      description: |
+        Token from WAPP_DEBUGGER_TOKEN (or --token). Not needed when the viewer listens on loopback
+        without a token, or in the desktop app. Missing or wrong token: 401 with `WWW-Authenticate: Bearer`.
+    cookie_auth:
+      type: apiKey
+      in: cookie
+      name: wapp_debugger_token
+      description: |
+        Set (HttpOnly, SameSite=Strict) when a UI page is opened with `?token=<token>`; the browser
+        then sends it with every call, including the SSE stream, where headers cannot be set.
+
+  parameters:
+    ServerId:
+      name: server_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    RequestId:
+      name: request_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    MessageId:
+      name: message_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Cursor:
+      name: cursor
+      in: query
+      description: next_cursor of the previous page
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+
+  responses:
+    Problem:
+      description: Error
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457
+      required: [title, status]
+      properties:
+        type: { type: string, default: about:blank }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          description: Validation errors per field
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string }
+              message: { type: string }
+      example: { title: Not Found, status: 404, detail: request 42 not found }
+
+    Version:
+      type: object
+      required: [version, commit, date, app]
+      properties:
+        app:
+          type: string
+          enum: [server, desktop]
+          description: Which viewer answers; the UI shows desktop settings only in the desktop app
+        version: { type: string, example: v0.1.0 }
+        commit: { type: string, example: abc1234 }
+        date: { type: string, example: '2026-10-19T14:00:00Z' }
+        ingest_addr:
+          type: string
+          nullable: true
+          example: 0.0.0.0:8821
+          description: Where the receiver of pushed logs listens (serve --ingest-addr); null when it is off
+
+    ServerKind:
+      type: string
+      enum: [local, ssh, http]
+    Environment:
+      type: string
+      enum: [local, dev, stage, prod]
+    ConnectionState:
+      type: string
+      enum: [unknown, connecting, online, offline]
+
+    ServerConfig:
+      type: object
+      description: Connection settings without secrets. ssh — host (or an alias from ~/.ssh/config), port, user, jump_hosts; http — base_url of the application with the library (https://; http:// is shown with a warning).
+      additionalProperties: false
+      properties:
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        user: { type: string }
+        jump_hosts:
+          type: array
+          items: { type: string }
+        base_url: { type: string }
+
+    ServerPermissions:
+      type: object
+      required: [read_only, allow_delete, allow_control]
+      properties:
+        read_only: { type: boolean, description: Forbids any change on the server }
+        allow_delete: { type: boolean }
+        allow_control: { type: boolean, description: Turning the debugger on and off }
+
+    ServerInput:
+      type: object
+      required: [name, kind]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        kind: { $ref: '#/components/schemas/ServerKind' }
+        environment: { $ref: '#/components/schemas/Environment' }
+        config: { $ref: '#/components/schemas/ServerConfig' }
+        permissions: { $ref: '#/components/schemas/ServerPermissions' }
+        token: { $ref: '#/components/schemas/ServerToken' }
+
+    ServerToken:
+      type: string
+      minLength: 32
+      writeOnly: true
+      description: |
+        http servers: http_token from the library config. Kept outside the database in a file
+        readable by the user only and never returned.
+
+    ServerPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        environment: { $ref: '#/components/schemas/Environment' }
+        config: { $ref: '#/components/schemas/ServerConfig' }
+        permissions: { $ref: '#/components/schemas/ServerPermissions' }
+        token: { $ref: '#/components/schemas/ServerToken' }
+
+    Server:
+      type: object
+      required: [id, name, kind, environment, config, permissions, connection, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        kind: { $ref: '#/components/schemas/ServerKind' }
+        environment: { $ref: '#/components/schemas/Environment' }
+        config: { $ref: '#/components/schemas/ServerConfig' }
+        permissions: { $ref: '#/components/schemas/ServerPermissions' }
+        connection: { $ref: '#/components/schemas/ServerConnection' }
+        created_at: { type: integer, format: int64 }
+        updated_at: { type: integer, format: int64 }
+      example:
+        id: 2
+        name: stage
+        kind: ssh
+        environment: stage
+        config: { host: stage-web, user: deploy }
+        permissions: { read_only: true, allow_delete: false, allow_control: false }
+        connection: { state: online, latency_ms: 38, clock_offset_ms: -120 }
+        created_at: 1792400000000
+        updated_at: 1792400000000
+
+    ServerConnection:
+      type: object
+      required: [state]
+      properties:
+        state: { $ref: '#/components/schemas/ConnectionState' }
+        latency_ms: { type: number, format: double, minimum: 0 }
+        clock_offset_ms:
+          type: integer
+          description: How far the server clock is behind (negative) or ahead of the viewer clock
+        error: { type: string }
+        checked_at: { type: integer, format: int64 }
+
+    ServerCheck:
+      type: object
+      required: [ok, steps]
+      properties:
+        ok: { type: boolean }
+        steps:
+          type: array
+          description: Check steps in order (connect, host key, logs directory permissions and so on)
+          items: { $ref: '#/components/schemas/ServerCheckStep' }
+        host_key_fingerprint:
+          type: string
+          description: For a new SSH host, the key fingerprint to confirm in the UI
+        host_key_type:
+          type: string
+          description: Type of that key (ssh-ed25519, ecdsa-sha2-nistp256, ssh-rsa…), so the user compares it with the right file on the server
+      example:
+        ok: false
+        steps:
+          - { name: connect, ok: true }
+          - { name: logs_dir, ok: false, project: shop, detail: 'permission denied: /var/www/shop/tmp/logs' }
+          - { name: php, ok: true, optional: true, detail: 'PHP 7.4.33 (cli)' }
+
+    ServerCheckStep:
+      type: object
+      required: [name, ok]
+      properties:
+        name:
+          type: string
+          description: config, connect, sftp, local, tls, library; per project logs_dir, logs_dir_writable, library_config; php
+        ok: { type: boolean }
+        detail: { type: string }
+        project:
+          type: string
+          description: Name of the project the step checks; absent for steps of the server itself
+        optional:
+          type: boolean
+          description: A failed optional step is a warning and does not fail the check
+
+    SourcePreview:
+      type: object
+      required: [file, line, first_line, lines]
+      properties:
+        file: { type: string, description: Path relative to the project root when inside it }
+        line: { type: integer, description: The line of the message or frame }
+        first_line: { type: integer, description: Number of the first line in lines }
+        lines: { type: array, items: { type: string } }
+        editor_url: { type: string }
+
+    DiscoveredProject:
+      type: object
+      required: [name, root_path, logs_dir, config_path, enabled]
+      properties:
+        name: { type: string, description: Name of the project root directory }
+        root_path: { type: string }
+        logs_dir: { type: string }
+        config_path: { type: string }
+        enabled: { type: boolean, description: Logging is on in the config }
+        problem: { type: string, description: Why the config could not be read; the paths are the library defaults then }
+        project_id:
+          type: integer
+          format: int64
+          description: The project of the viewer with this logs directory, when it is added already
+
+    ProjectInput:
+      type: object
+      required: [server_id, name, root_path, logs_dir]
+      additionalProperties: false
+      properties:
+        server_id: { type: integer, format: int64 }
+        name: { type: string, minLength: 1 }
+        root_path: { type: string, minLength: 1 }
+        logs_dir: { type: string, minLength: 1 }
+        local_path: { type: string, nullable: true, description: Local copy of the project for IDE links }
+        config_path: { type: string, nullable: true, description: 'Library dws_debugger.json; default: <root_path>/dws_debugger.json' }
+        editor: { $ref: '#/components/schemas/Editor' }
+        retention: { $ref: '#/components/schemas/Retention' }
+
+    ProjectPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        root_path: { type: string, minLength: 1 }
+        logs_dir: { type: string, minLength: 1 }
+        local_path: { type: string, nullable: true }
+        config_path: { type: string, nullable: true }
+        editor: { $ref: '#/components/schemas/Editor' }
+        retention: { $ref: '#/components/schemas/Retention' }
+
+    Project:
+      type: object
+      required: [id, server_id, name, root_path, logs_dir, local_path, config_path, editor, retention, pending_files, ingest_enabled, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        server_id: { type: integer, format: int64 }
+        name: { type: string }
+        root_path: { type: string }
+        logs_dir: { type: string }
+        local_path: { type: string, nullable: true }
+        config_path: { type: string, description: Library config file the viewer switches the debugger in }
+        editor: { $ref: '#/components/schemas/Editor' }
+        retention: { $ref: '#/components/schemas/Retention' }
+        pending_files: { type: integer, minimum: 0, description: Log files that are not fully imported yet }
+        ingest_enabled: { type: boolean, description: The project has a push token and takes logs over HTTP (spec/ingest.yaml) }
+        created_at: { type: integer, format: int64 }
+        updated_at: { type: integer, format: int64 }
+
+    Editor:
+      type: string
+      enum: [vscode, phpstorm, cursor, sublime, none]
+
+    Retention:
+      type: object
+      description: |
+        How long the viewer keeps requests of the project in its database (the log files are not touched):
+        older than days, and the oldest beyond max_bytes of messages, are removed every 10 minutes. In
+        updateProject the object replaces both limits; null or a missing field means no limit.
+      properties:
+        days: { type: integer, minimum: 1, nullable: true }
+        max_bytes: { type: integer, format: int64, minimum: 1, nullable: true }
+
+    DebuggerState:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+
+    Sapi:
+      type: string
+      enum: [web, cli]
+    Level:
+      type: string
+      enum: [error, warning, info, message, debug]
+    MessageType:
+      type: string
+      enum: [message, timer, error]
+
+    Request:
+      type: object
+      description: A request in the feed
+      required: [id, project_id, server_id, request_key, format_version, sapi, is_ajax, started_at, finished, message_count, error_count, warning_count, received_at, pinned]
+      properties:
+        id: { type: integer, format: int64 }
+        project_id: { type: integer, format: int64 }
+        server_id: { type: integer, format: int64 }
+        request_key: { type: string, description: 'v2: request_id (ULID); v1: log file name' }
+        parent_request_key: { type: string, nullable: true }
+        format_version: { type: integer, enum: [1, 2] }
+        sapi: { $ref: '#/components/schemas/Sapi' }
+        method: { type: string, nullable: true }
+        url: { type: string, nullable: true }
+        is_ajax: { type: boolean }
+        status_code: { type: integer, nullable: true }
+        exit_code: { type: integer, nullable: true }
+        started_at: { type: integer, format: int64 }
+        duration_ms: { type: number, format: double, nullable: true }
+        finished: { type: boolean, description: false means the request is still running or the process was killed }
+        message_count: { type: integer, minimum: 0 }
+        error_count: { type: integer, minimum: 0 }
+        warning_count: { type: integer, minimum: 0 }
+        received_at: { type: integer, format: int64 }
+        pinned: { type: boolean, description: Kept by retention and listed under pinned }
+        note: { type: string, description: What the user noted about the request }
+      example:
+        id: 42
+        project_id: 1
+        server_id: 1
+        request_key: 01JAZ7Q5X0K4M8T2V6N9P3R5S7
+        parent_request_key: null
+        format_version: 2
+        sapi: web
+        method: GET
+        url: https://shop.example.test/catalog/item?id=42
+        is_ajax: false
+        status_code: 200
+        exit_code: null
+        started_at: 1792400000000
+        duration_ms: 40.2
+        finished: true
+        message_count: 6
+        error_count: 0
+        warning_count: 2
+        received_at: 1792400000310
+        pinned: false
+
+    RequestDetail:
+      allOf:
+        - $ref: '#/components/schemas/Request'
+        - type: object
+          properties:
+            lang: { type: string, enum: [php, js] }
+            argv:
+              type: array
+              nullable: true
+              items: { type: string }
+            ip: { type: string, nullable: true }
+            server_ip: { type: string, nullable: true }
+            server_name: { type: string, nullable: true }
+            hostname: { type: string, nullable: true }
+            pid: { type: integer, nullable: true }
+            process_user: { type: string, nullable: true }
+            app_user: { type: string, nullable: true }
+            session_id: { type: string, nullable: true }
+            library_version: { type: string, nullable: true }
+            php_version: { type: string, nullable: true }
+            ended_at: { type: integer, format: int64, nullable: true }
+            memory_peak_bytes: { type: integer, format: int64, nullable: true }
+            children:
+              type: array
+              description: Child requests (AJAX, subprocesses) by parent_request_key
+              items: { $ref: '#/components/schemas/Request' }
+
+    RequestPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Request' }
+        next_cursor: { type: string, nullable: true }
+
+    Frame:
+      type: object
+      properties:
+        file: { type: string }
+        line: { type: integer }
+        function: { type: string }
+        class: { type: string }
+        call_type: { type: string, enum: ['->', '::'] }
+        editor_url: { type: string, description: 'Link that opens the file in the IDE, using the project local_path' }
+
+    Message:
+      type: object
+      description: A message in a list (without context and backtrace)
+      required: [id, request_id, seq, ts, type, level, message, tags, has_context, size_bytes]
+      properties:
+        id: { type: integer, format: int64 }
+        request_id: { type: integer, format: int64 }
+        seq: { type: integer, minimum: 1 }
+        ts: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/MessageType' }
+        level: { $ref: '#/components/schemas/Level' }
+        message: { type: string, description: 'For a timer, its name' }
+        tags:
+          type: array
+          items: { type: string }
+        source: { $ref: '#/components/schemas/Frame' }
+        duration_ms: { type: number, format: double, nullable: true }
+        error_kind: { type: string, nullable: true, enum: [php_error, exception, fatal] }
+        has_context: { type: boolean }
+        size_bytes: { type: integer, minimum: 0 }
+      example:
+        id: 1001
+        request_id: 42
+        seq: 3
+        ts: 1792400000005
+        type: message
+        level: info
+        message: Loading item
+        tags: []
+        source: { file: app/Controller/ItemController.php, line: 31, function: show, class: App\Controller\ItemController, call_type: '->', editor_url: 'vscode://file/home/dev/shop/app/Controller/ItemController.php:31' }
+        duration_ms: null
+        error_kind: null
+        has_context: true
+        size_bytes: 214
+
+    MessageDetail:
+      allOf:
+        - $ref: '#/components/schemas/Message'
+        - type: object
+          properties:
+            context:
+              type: object
+              nullable: true
+              additionalProperties: true
+            trace:
+              type: array
+              nullable: true
+              items: { $ref: '#/components/schemas/Frame' }
+            error_type: { type: string, nullable: true }
+            exception_class: { type: string, nullable: true }
+            code: { type: string, nullable: true }
+            previous:
+              type: array
+              nullable: true
+              items:
+                type: object
+                required: [exception_class, message]
+                properties:
+                  exception_class: { type: string }
+                  message: { type: string }
+                  code: { type: string }
+                  source: { $ref: '#/components/schemas/Frame' }
+
+    MessagePage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+        next_cursor: { type: string, nullable: true }
+
+    StreamEvent:
+      type: object
+      description: Payload of an SSE event. The event field equals the SSE event name.
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [request_created, request_updated, messages_added, server_status, settings_updated, resync]
+          description: |
+            request_created / request_updated carry request; messages_added carries request_id and count;
+            server_status carries server_id and connection; settings_updated carries settings; resync tells the client to reload everything.
+        request: { $ref: '#/components/schemas/Request' }
+        request_id: { type: integer, format: int64 }
+        count: { type: integer, minimum: 1 }
+        server_id: { type: integer, format: int64 }
+        connection: { $ref: '#/components/schemas/ServerConnection' }
+        settings: { $ref: '#/components/schemas/Settings' }
+      example: { event: messages_added, request_id: 42, count: 3 }
+
+    DesktopSettings:
+      type: object
+      required: [notifications, autostart, close_to_tray, update_check]
+      additionalProperties: false
+      properties:
+        notifications:
+          type: object
+          required: [enabled, min_level, project_ids]
+          additionalProperties: false
+          properties:
+            enabled: { type: boolean, description: System notifications about new requests with errors }
+            min_level:
+              type: string
+              enum: [error, warning]
+              description: error — requests with errors; warning — with errors or warnings
+            project_ids:
+              type: array
+              items: { type: integer, format: int64 }
+              description: Projects to notify about; empty means all
+        autostart: { type: boolean, description: Start the app at login }
+        close_to_tray: { type: boolean, description: Closing the window keeps the app in the tray }
+        update_check: { type: boolean, description: Ask GitHub Releases once a day whether a newer version is out }
+        locale:
+          type: string
+          enum: [en, ru]
+          description: Language of system notifications; the UI keeps it equal to its own
+      example:
+        notifications: { enabled: true, min_level: error, project_ids: [] }
+        autostart: false
+        close_to_tray: true
+        update_check: true
+
+    Settings:
+      type: object
+      description: |
+        UI settings, the same in every browser and in the desktop app. Stored by the viewer;
+        localStorage is only a cache for the first paint. A save is published as settings_updated.
+      required: [theme, accent_color, density, ui_font_size, mono_font, env_frame, locale, custom_themes]
+      additionalProperties: false
+      properties:
+        theme:
+          type: string
+          pattern: '^(light|dark|system|high-contrast|custom:[a-z0-9-]{1,40})$'
+          description: A built-in theme, or custom:<id> of one of custom_themes; system follows prefers-color-scheme and prefers-contrast
+        accent_color:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          nullable: true
+          description: Accent over any theme; null keeps the accent of the theme
+        density: { type: string, enum: [compact, comfortable], description: Row height of lists }
+        ui_font_size: { type: integer, minimum: 12, maximum: 18 }
+        mono_font:
+          type: string
+          maxLength: 200
+          pattern: "^[A-Za-z0-9 ,'_-]+$"
+          nullable: true
+          description: font-family of code and variables, from fonts installed locally; null is the system stack
+        env_frame: { type: boolean, description: 'A frame around the window in the color of the environment of the chosen project, for stage and prod' }
+        locale:
+          type: string
+          enum: [en, ru]
+          nullable: true
+          description: null follows the browser
+        custom_themes:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/CustomTheme' }
+      example: { theme: system, accent_color: null, density: comfortable, ui_font_size: 14, mono_font: null, env_frame: true, locale: null, custom_themes: [] }
+
+    CustomTheme:
+      type: object
+      description: A theme of the user — tokens over a built-in base theme. The same object is the file of export and import.
+      required: [id, name, base, tokens]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-z0-9-]{1,40}$' }
+        name: { type: string, minLength: 1, maxLength: 60 }
+        base: { type: string, enum: [light, dark, high-contrast] }
+        tokens:
+          type: object
+          maxProperties: 64
+          description: Color tokens of theme.css without the leading dashes, e.g. bg, accent, level-error; the rest come from base
+          additionalProperties: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+      example: { id: solarized, name: Solarized, base: light, tokens: { bg: '#fdf6e3', accent: '#268bd2' } }

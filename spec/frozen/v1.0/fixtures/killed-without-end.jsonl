@@ -1,0 +1,3 @@
+{"v":2,"type":"request_start","request_id":"01JAZ7S0A1B2C3D4E5F6G7H8J9","seq":1,"ts":1792400200000,"sapi":"web","lang":"php","library_version":"2.0.0","method":"GET","url":"https://shop.example.test/report/export","is_ajax":false}
+{"v":2,"type":"message","request_id":"01JAZ7S0A1B2C3D4E5F6G7H8J9","seq":2,"ts":1792400200010,"level":"info","message":"Экспорт отчёта начат","context":{"rows":250000}}
+{"v":2,"type":"message","request_id":"01JAZ7S0A1B2C3D4E5F6G7H8J9","seq":3,"ts":1792400205000,"level":"warning","message":"Память почти исчерпана","context":{"memory_bytes":125829120}}

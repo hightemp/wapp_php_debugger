@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hightemp/wapp_php_debugger/spec/logformat/v2/event.schema.json",
+  "title": "v2 log event",
+  "description": "One line of a v2 log file. The schema is strict (unknown fields are rejected) to catch writer bugs; the viewer ignores unknown fields when reading. Stream rules (seq, event order) are described in README.md.",
+  "type": "object",
+  "required": ["v", "type", "request_id", "seq", "ts"],
+  "properties": {
+    "v": { "const": 2, "description": "Format version" },
+    "type": { "enum": ["request_start", "message", "timer", "error", "request_end"] },
+    "request_id": { "$ref": "#/$defs/ulid" },
+    "seq": { "type": "integer", "minimum": 1, "description": "Event number within the request, starting at 1 without gaps" },
+    "ts": { "type": "integer", "minimum": 0, "description": "Event time, ms since the epoch (server clock)" }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/request_start" },
+    { "$ref": "#/$defs/message" },
+    { "$ref": "#/$defs/timer" },
+    { "$ref": "#/$defs/error" },
+    { "$ref": "#/$defs/request_end" }
+  ],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "ulid": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "description": "ULID: sorts by time, generated without coordination"
+    },
+    "level": {
+      "enum": ["error", "warning", "info", "message", "debug"],
+      "description": "message is a neutral entry (like DWS_MESSAGE in v1); PSR-3 levels map onto these five"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.:-]*$", "maxLength": 64 },
+      "uniqueItems": true,
+      "description": "Tags without #, for example sql or timediff"
+    },
+    "frame": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string", "description": "Path relative to the project root" },
+        "line": { "type": "integer", "minimum": 0 },
+        "function": { "type": "string" },
+        "class": { "type": "string" },
+        "call_type": { "enum": ["->", "::"] }
+      },
+      "additionalProperties": false
+    },
+    "trace": { "type": "array", "items": { "$ref": "#/$defs/frame" } },
+    "request_start": {
+      "properties": {
+        "type": { "const": "request_start" },
+        "sapi": { "enum": ["web", "cli"] },
+        "lang": { "enum": ["php", "js"] },
+        "library_version": { "type": "string", "minLength": 1 },
+        "php_version": { "type": "string" },
+        "parent_request_id": { "$ref": "#/$defs/ulid" },
+        "method": { "type": "string", "pattern": "^[A-Z]+$" },
+        "url": { "type": "string" },
+        "is_ajax": { "type": "boolean" },
+        "argv": { "type": "array", "items": { "type": "string" } },
+        "ip": { "type": "string" },
+        "server_ip": { "type": "string" },
+        "server_name": { "type": "string" },
+        "hostname": { "type": "string" },
+        "pid": { "type": "integer", "minimum": 0 },
+        "process_user": { "type": "string" },
+        "app_user": { "type": "string" },
+        "session_id": { "type": "string" }
+      },
+      "required": ["sapi", "lang", "library_version"],
+      "if": { "properties": { "sapi": { "const": "web" } } },
+      "then": { "required": ["method", "url"] },
+      "else": { "required": ["argv"] }
+    },
+    "message": {
+      "properties": {
+        "type": { "const": "message" },
+        "level": { "$ref": "#/$defs/level" },
+        "message": { "type": "string" },
+        "tags": { "$ref": "#/$defs/tags" },
+        "context": { "type": "object", "description": "Named variables; values are any JSON" },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "How long a logged operation took (an SQL query, an HTTP call); written when it ends, so it spans [ts - duration_ms, ts]"
+        },
+        "source": { "$ref": "#/$defs/frame" },
+        "trace": { "$ref": "#/$defs/trace" }
+      },
+      "required": ["level", "message"]
+    },
+    "timer": {
+      "properties": {
+        "type": { "const": "timer" },
+        "name": { "type": "string", "minLength": 1 },
+        "duration_ms": { "type": "number", "minimum": 0 },
+        "level": { "$ref": "#/$defs/level" },
+        "source": { "$ref": "#/$defs/frame" }
+      },
+      "required": ["name", "duration_ms", "level"]
+    },
+    "error": {
+      "properties": {
+        "type": { "const": "error" },
+        "kind": { "enum": ["php_error", "exception", "fatal"] },
+        "level": { "$ref": "#/$defs/level" },
+        "message": { "type": "string" },
+        "error_type": { "type": "string", "pattern": "^E_[A-Z_]+$", "description": "For php_error and fatal: E_WARNING, E_ERROR and so on" },
+        "exception_class": { "type": "string", "description": "For exception" },
+        "code": { "type": ["integer", "string"] },
+        "source": { "$ref": "#/$defs/frame" },
+        "trace": { "$ref": "#/$defs/trace" },
+        "previous": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "exception_class": { "type": "string" },
+              "message": { "type": "string" },
+              "code": { "type": ["integer", "string"] },
+              "source": { "$ref": "#/$defs/frame" }
+            },
+            "required": ["exception_class", "message"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["kind", "level", "message"],
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "exception" } } }, "then": { "required": ["exception_class"] } },
+        { "if": { "properties": { "kind": { "enum": ["php_error", "fatal"] } } }, "then": { "required": ["error_type"] } }
+      ]
+    },
+    "request_end": {
+      "properties": {
+        "type": { "const": "request_end" },
+        "duration_ms": { "type": "number", "minimum": 0 },
+        "status_code": { "type": "integer", "minimum": 100, "maximum": 599, "description": "web only" },
+        "exit_code": { "type": "integer", "description": "cli only, when known" },
+        "memory_peak_bytes": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["duration_ms"]
+    }
+  }
+}

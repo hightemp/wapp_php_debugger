@@ -20,6 +20,7 @@ LDFLAGS := -s -w -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$
 GOLANGCI_LINT_VERSION := v2.15.0
 ACTIONLINT_VERSION := v1.7.12
 GOVULNCHECK_VERSION := v1.9.0
+OASDIFF_VERSION := v1.33.0
 # The generator runs via npx: it has a TypeScript 5 peer dependency while the UI uses TypeScript 6
 OPENAPI_TS_VERSION := 7.13.0
 GENERATED := server/internal/api/openapi.gen.go server/internal/libclient/client.gen.go ui/src/lib/api/schema.gen.d.ts
@@ -28,6 +29,7 @@ GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
 GORELEASER := $(TOOLS_BIN)/goreleaser
 ACTIONLINT := $(TOOLS_BIN)/actionlint
 GOVULNCHECK := $(TOOLS_BIN)/govulncheck
+OASDIFF := $(TOOLS_BIN)/oasdiff
 # The Wails CLI of the version in server/go.mod: AppImage, .deb, Windows resources
 WAILS_VERSION = $(shell cd server && go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
 WAILS3 = $(TOOLS_BIN)/wails3$(EXE)
@@ -52,7 +54,7 @@ doctor: ## Check that the required tools are installed
 	exit $$status
 
 .PHONY: tools
-tools: $(GOLANGCI_LINT) $(ACTIONLINT) $(GOVULNCHECK) ## Install pinned linter versions into .tools/bin
+tools: $(GOLANGCI_LINT) $(ACTIONLINT) $(GOVULNCHECK) $(OASDIFF) ## Install pinned linter versions into .tools/bin
 
 $(GOLANGCI_LINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
@@ -62,6 +64,9 @@ $(ACTIONLINT):
 
 $(GOVULNCHECK):
 	GOBIN=$(TOOLS_BIN) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+
+$(OASDIFF):
+	GOBIN=$(TOOLS_BIN) go install github.com/oasdiff/oasdiff@$(OASDIFF_VERSION)
 
 $(WAILS3):
 	GOBIN=$(TOOLS_BIN) go install -tags "$(if $(filter gtk3,$(LINUX_GTK)),gtk3)" github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION)
@@ -86,7 +91,7 @@ $(GORELEASER):
 deps: php-deps server-deps ui-deps ## Install dependencies of all components
 
 .PHONY: lint
-lint: php-lint server-lint ui-lint workflows-lint ## Run all linters
+lint: php-lint server-lint ui-lint workflows-lint spec-compat ## Run all linters
 
 .PHONY: test
 test: php-test server-test ui-test ## Run all tests
@@ -160,6 +165,17 @@ server-lint: $(GOLANGCI_LINT) $(GOVULNCHECK) ## go vet, golangci-lint and govuln
 FUZZTIME ?= 10s
 FUZZ_TESTS := ./internal/logformat:FuzzParseV2Chunk ./internal/logformat:FuzzParseV1 \
 	./internal/logformat:FuzzDetectFormat ./internal/thirdparty:FuzzConvert
+
+# The APIs are frozen at v1.0 (spec/frozen/README.md): any change must stay backward compatible.
+# Log format v2 is held by the tests of server/internal/spec.
+FROZEN := spec/frozen/v1.0
+
+.PHONY: spec-compat
+spec-compat: $(OASDIFF) ## The viewer API, the receiver and the library HTTP mode stay compatible with v1.0
+	@for api in openapi ingest library-http; do \
+		echo "$$api.yaml against $(FROZEN)"; \
+		$(OASDIFF) breaking --fail-on WARN $(FROZEN)/$$api.yaml spec/$$api.yaml; \
+	done
 
 .PHONY: server-fuzz
 server-fuzz: ## Short fuzz runs of the log parsers (FUZZTIME=10s each)

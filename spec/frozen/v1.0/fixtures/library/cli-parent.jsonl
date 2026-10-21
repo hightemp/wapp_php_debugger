@@ -1,0 +1,4 @@
+{"v":2,"type":"request_start","request_id":"01M5AKMC9C89177JZN8BMPKP0G","seq":1,"ts":1792431239468,"lang":"php","library_version":"2.0.0-dev","php_version":"7.4.33","sapi":"cli","argv":["/var/www/app/cli/parent.php"],"hostname":"fixture","pid":13}
+{"v":2,"type":"message","request_id":"01M5AKMC9C89177JZN8BMPKP0G","seq":2,"ts":1792431239469,"level":"message","message":"Starting the child","source":{"file":"cli/parent.php","line":8}}
+{"v":2,"type":"message","request_id":"01M5AKMC9C89177JZN8BMPKP0G","seq":3,"ts":1792431239478,"level":"message","message":"Child finished","source":{"file":"cli/parent.php","line":10}}
+{"v":2,"type":"request_end","request_id":"01M5AKMC9C89177JZN8BMPKP0G","seq":4,"ts":1792431239478,"duration_ms":10.106,"memory_peak_bytes":2097152}

@@ -125,6 +125,8 @@ jobs:
         with:
           node-version-file: ui/.nvmrc
       - run: make generate-check
+      # The APIs frozen at v1.0 take only backward compatible changes
+      - run: make spec-compat
 
   build:
     name: Build

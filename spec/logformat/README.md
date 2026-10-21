@@ -7,6 +7,8 @@
 
 The viewer always reads both versions; the new library writes v2 only. The version of a file is detected from its first line: every v2 event has `"v": 2`.
 
+v2 is frozen since 1.0 ([`../frozen`](../frozen/README.md)): it gains fields and event types only, and logs written by any library 2.x stay readable.
+
 The schemas are checked by the tests in `server/internal/spec` (`make server-test`).
 
 ## v1
