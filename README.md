@@ -83,7 +83,7 @@ The one-liners work from the first published release that carries these files (v
 
    Other flags: `--addr` (default `127.0.0.1:8820`; another address needs a token), `--token` (better `$WAPP_DEBUGGER_TOKEN`, out of the process list), `--db` (the database, by default in the user config directory; `secrets.json` with tokens of HTTP servers lives next to it), `--scan-interval` (fallback rescan of local directories, 5 s). `wapp-debugger serve --help` lists them all.
 
-The UI speaks English and Russian and has light, dark and high-contrast themes (switches in the header). Search looks for words in messages and their context or for a part of the URL.
+The UI speaks English and Russian and has light, dark and high-contrast themes (switches in the header; "System" follows the color scheme and the contrast setting of the OS). **Appearance** in the header sets an accent color over any theme, the density of lists, the font size, the font of code (one installed on your computer) and a frame around the window in the color of stage and prod. The **theme editor** there makes themes of your own: colors over a built-in theme with a live preview and a contrast check, shared as `.theme.json` files (Export, Import). The viewer keeps these settings, so every browser and the desktop app look the same. Search looks for words in messages and their context or for a part of the URL.
 
 ## Projects on other servers
 

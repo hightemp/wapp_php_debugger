@@ -28,11 +28,16 @@ make test     # all tests
 make lint     # all linters
 make ci       # everything CI does
 make e2e      # browser tests (Playwright) of the built viewer on the log fixtures
+make e2e-visual  # screenshots of every theme against ui/e2e/__screenshots__ (Docker)
 make ssh-e2e  # the viewer against a real OpenSSH server in Docker
 make help     # all other targets
 ```
 
 `make e2e` needs a Chromium for Playwright once: `cd ui && npx playwright install chromium`.
+
+`make e2e-visual` takes the screenshots inside the Playwright Docker image, so fonts are the same on every machine and in CI. After a change of the look that is meant, `make e2e-visual-update` takes them again; look at the new files in `ui/e2e/__screenshots__` before committing them. The component showcase, `#/dev/components` (or "Component showcase" in `Ctrl+K`), shows every component in every built-in theme.
+
+Colors live only in `ui/src/styles/theme.css` as tokens; Stylelint refuses a color anywhere else.
 
 ## TDD
 
