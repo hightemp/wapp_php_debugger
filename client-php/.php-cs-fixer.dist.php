@@ -1,7 +1,7 @@
 <?php
 
 $finder = PhpCsFixer\Finder::create()
-    ->in([__DIR__.'/src', __DIR__.'/tests', __DIR__.'/tools']);
+    ->in([__DIR__.'/src', __DIR__.'/tests', __DIR__.'/tools', __DIR__.'/integrations']);
 
 return (new PhpCsFixer\Config())
     ->setRiskyAllowed(true)

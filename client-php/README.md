@@ -117,7 +117,11 @@ $logger = new WappDebugger\Bridge\PsrLogger();                     // Psr\Log\Lo
 $monolog->pushHandler(new WappDebugger\Bridge\MonologHandler());   // Monolog 2 or 3, whichever is installed
 ```
 
-PSR-3 levels map onto the five levels above (`critical`, `alert`, `emergency` → `error`, `notice` → `info`); an exception in the `exception` key of the context is written with its trace. Laravel: add the handler to a channel in `config/logging.php` (`'driver' => 'monolog', 'handler' => WappDebugger\Bridge\MonologHandler::class`). Symfony: register it as a Monolog service handler.
+PSR-3 levels map onto the five levels above (`critical`, `alert`, `emergency` → `error`, `notice` → `info`); an exception in the `exception` key of the context is written with its trace.
+
+## Frameworks and CMS
+
+Laravel, Symfony, WordPress and 1C-Bitrix take a few lines or one file: [integrations/README.md](integrations/README.md). Laravel gets a log channel, `WappDebugger\Bridge\LaravelChannel`; WordPress a ready mu-plugin; Bitrix a file for `init.php`; Symfony a `config/packages` file.
 
 ## Configuration
 

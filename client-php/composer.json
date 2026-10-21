@@ -44,7 +44,7 @@
             "phpstan analyse --no-progress",
             "@naming"
         ],
-        "naming": "php tools/bin/check-naming src tests tools"
+        "naming": "php tools/bin/check-naming src tests tools integrations"
     },
     "suggest": {
         "psr/log": "to use WappDebugger\\Bridge\\PsrLogger as a PSR-3 logger",

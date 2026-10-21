@@ -6,6 +6,7 @@ namespace WappDebugger\Tests;
 
 use PHPUnit\Framework\TestCase;
 use WappDebugger\Tests\Support\LogAssert;
+use WappDebugger\Tests\Support\Receiver;
 use WappDebugger\Tests\Support\TempDir;
 
 /**
@@ -13,6 +14,7 @@ use WappDebugger\Tests\Support\TempDir;
  */
 final class ProcessTest extends TestCase
 {
+    use Receiver;
     use TempDir;
 
     /**
@@ -79,27 +81,13 @@ final class ProcessTest extends TestCase
 
     public function testPushesTheRequestToTheViewer(): void
     {
-        $socket = stream_socket_server('tcp://127.0.0.1:0');
-        self::assertIsResource($socket);
-        $name = (string) stream_socket_get_name($socket, false);
-        fclose($socket);
-        $port = (int) substr($name, (int) strrpos($name, ':') + 1);
-        $command = sprintf('exec %s -S 127.0.0.1:%d %s', escapeshellarg(PHP_BINARY), $port, escapeshellarg(__DIR__ . '/scripts/receiver.php'));
-        $receiver = proc_open($command, [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, ['WAPP_TEST_DIR' => $this->tempDir()] + getenv());
-        self::assertIsResource($receiver);
-        try {
-            for ($i = 0; $i < 100 && ($connection = @fsockopen('127.0.0.1', $port)) === false; ++$i) {
-                usleep(100000);
-            }
-            $token = str_repeat('p', 43);
-            $config = ['enabled' => true, 'project_root' => dirname(__DIR__), 'push_url' => "http://127.0.0.1:{$port}/ingest/v2", 'push_token' => $token];
+        $token = str_repeat('p', 43);
+        $this->withReceiver($this->tempDir(), function (string $url) use ($token, &$exitCode): void {
+            $config = ['enabled' => true, 'project_root' => dirname(__DIR__), 'push_url' => $url, 'push_token' => $token];
             file_put_contents($this->tempDir() . '/dws_debugger.json', json_encode($config));
             $command = sprintf('%s -d display_errors=stderr %s %s 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(__DIR__ . '/scripts/errors.php'), escapeshellarg($this->tempDir()));
             exec($command, $output, $exitCode);
-        } finally {
-            proc_terminate($receiver);
-            proc_close($receiver);
-        }
+        });
 
         self::assertSame(255, $exitCode);
         self::assertSame([], $this->logFiles($this->tempDir() . '/logs'), 'nothing is written to files');

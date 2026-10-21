@@ -117,7 +117,11 @@ $logger = new WappDebugger\Bridge\PsrLogger();                     // Psr\Log\Lo
 $monolog->pushHandler(new WappDebugger\Bridge\MonologHandler());   // Monolog 2 или 3 — какой установлен
 ```
 
-Уровни PSR-3 сводятся к пяти уровням выше (`critical`, `alert`, `emergency` → `error`, `notice` → `info`); исключение в ключе `exception` контекста пишется с трейсом. Laravel: добавьте обработчик в канал в `config/logging.php` (`'driver' => 'monolog', 'handler' => WappDebugger\Bridge\MonologHandler::class`). Symfony: зарегистрируйте его как сервис-обработчик Monolog.
+Уровни PSR-3 сводятся к пяти уровням выше (`critical`, `alert`, `emergency` → `error`, `notice` → `info`); исключение в ключе `exception` контекста пишется с трейсом.
+
+## Фреймворки и CMS
+
+Laravel, Symfony, WordPress и 1С-Битрикс подключаются несколькими строками или одним файлом: [integrations/README.ru.md](integrations/README.ru.md). Для Laravel есть канал логов `WappDebugger\Bridge\LaravelChannel`, для WordPress — готовый mu-plugin, для Битрикса — файл для `init.php`, для Symfony — конфиг `config/packages`.
 
 ## Настройки
 

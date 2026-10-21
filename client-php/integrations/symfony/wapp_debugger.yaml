@@ -1,0 +1,21 @@
+# wapp-debugger for Symfony: copy to config/packages/wapp_debugger.yaml (needs symfony/monolog-bundle).
+# Messages of every Monolog channel go to the viewer, Doctrine queries too (the doctrine channel in
+# dev), and Twig templates get wapp_debugger for the tag of the pages:
+#     {{ wapp_debugger.jsTag()|raw }}   before </body> of base.html.twig
+# Debugger::boot() runs in public/index.php and bin/console (see integrations/README.md).
+services:
+    WappDebugger\Debugger:
+        factory: ['WappDebugger\Debugger', 'instance']
+    WappDebugger\Bridge\MonologHandler:
+        autowire: false
+        arguments: ['@WappDebugger\Debugger', 'debug']
+
+monolog:
+    handlers:
+        wapp_debugger:
+            type: service
+            id: WappDebugger\Bridge\MonologHandler
+
+twig:
+    globals:
+        wapp_debugger: '@WappDebugger\Debugger'

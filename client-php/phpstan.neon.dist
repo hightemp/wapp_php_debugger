@@ -14,3 +14,6 @@ parameters:
         - src/Bridge/Monolog3Handler.php
         - src/Bridge/MonologHandler.php
         - tests/Bridge/MonologHandlerTest.php
+        # the Laravel channel builds a MonologHandler: the same reason
+        - src/Bridge/LaravelChannel.php
+        - tests/Bridge/LaravelChannelTest.php
