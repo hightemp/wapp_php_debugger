@@ -19,8 +19,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The PHP matrix and the desktop on three systems run only when a change concerns them; a skipped
+  # job counts as passed. A tag, a new branch or a manual run checks everything.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      php: ${{ steps.areas.outputs.php }}
+      desktop: ${{ steps.areas.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: areas
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') && github.event.before || '') }}
+        run: scripts/changed-areas.sh "$BASE" HEAD | tee -a "$GITHUB_OUTPUT"
+
   php-test:
     name: PHP ${{ matrix.php }} tests${{ matrix.psr-log && format(' (psr/log {0})', matrix.psr-log) || '' }}
+    needs: changes
+    if: needs.changes.outputs.php == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -49,6 +68,8 @@ jobs:
 
   php-lint:
     name: PHP lint
+    needs: changes
+    if: needs.changes.outputs.php == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,6 +93,7 @@ jobs:
       - run: make tools
       - run: make server-lint
       - run: make server-test
+      - run: make server-fuzz
       # SSH against a real OpenSSH server in Docker: host key, SFTP, the debugger switch
       - run: make ssh-e2e
       - run: make workflows-lint
@@ -123,7 +145,7 @@ jobs:
       - run: make ui-deps
       - run: make build
       # The installer from the README one-liner, against a fake GitHub Releases server
-      - run: make scripts-lint install-test
+      - run: make scripts-lint install-test changed-areas-test
 
   e2e:
     name: Browser tests (Playwright)
@@ -157,6 +179,8 @@ jobs:
 
   desktop:
     name: Desktop on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

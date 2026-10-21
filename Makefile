@@ -19,6 +19,7 @@ LDFLAGS := -s -w -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$
 
 GOLANGCI_LINT_VERSION := v2.15.0
 ACTIONLINT_VERSION := v1.7.12
+GOVULNCHECK_VERSION := v1.9.0
 # The generator runs via npx: it has a TypeScript 5 peer dependency while the UI uses TypeScript 6
 OPENAPI_TS_VERSION := 7.13.0
 GENERATED := server/internal/api/openapi.gen.go server/internal/libclient/client.gen.go ui/src/lib/api/schema.gen.d.ts
@@ -26,6 +27,7 @@ GORELEASER_VERSION := v2.18.3
 GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
 GORELEASER := $(TOOLS_BIN)/goreleaser
 ACTIONLINT := $(TOOLS_BIN)/actionlint
+GOVULNCHECK := $(TOOLS_BIN)/govulncheck
 # The Wails CLI of the version in server/go.mod: AppImage, .deb, Windows resources
 WAILS_VERSION = $(shell cd server && go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
 WAILS3 = $(TOOLS_BIN)/wails3$(EXE)
@@ -50,13 +52,16 @@ doctor: ## Check that the required tools are installed
 	exit $$status
 
 .PHONY: tools
-tools: $(GOLANGCI_LINT) $(ACTIONLINT) ## Install pinned linter versions into .tools/bin
+tools: $(GOLANGCI_LINT) $(ACTIONLINT) $(GOVULNCHECK) ## Install pinned linter versions into .tools/bin
 
 $(GOLANGCI_LINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 $(ACTIONLINT):
 	GOBIN=$(TOOLS_BIN) go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+
+$(GOVULNCHECK):
+	GOBIN=$(TOOLS_BIN) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 $(WAILS3):
 	GOBIN=$(TOOLS_BIN) go install -tags "$(if $(filter gtk3,$(LINUX_GTK)),gtk3)" github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION)
@@ -145,9 +150,22 @@ server-deps: ## Go server dependencies
 	cd server && go mod download
 
 .PHONY: server-lint
-server-lint: $(GOLANGCI_LINT) ## go vet and golangci-lint
+server-lint: $(GOLANGCI_LINT) $(GOVULNCHECK) ## go vet, golangci-lint and govulncheck (known vulnerabilities in code that is called)
 	cd server && go vet ./...
 	cd server && $(GOLANGCI_LINT) run ./...
+	cd server && $(GOVULNCHECK) ./...
+
+# Each fuzz test for FUZZTIME: what a log or a remote server sends must never crash the parsers.
+# A failing input lands in testdata/fuzz of the package; commit it as a regression test.
+FUZZTIME ?= 10s
+FUZZ_TESTS := ./internal/logformat:FuzzParseV2Chunk ./internal/logformat:FuzzParseV1 \
+	./internal/logformat:FuzzDetectFormat ./internal/thirdparty:FuzzConvert
+
+.PHONY: server-fuzz
+server-fuzz: ## Short fuzz runs of the log parsers (FUZZTIME=10s each)
+	cd server && for test in $(FUZZ_TESTS); do \
+		go test "$${test%%:*}" -run '^$$' -fuzz "^$${test##*:}$$" -fuzztime $(FUZZTIME); \
+	done
 
 .PHONY: server-test
 server-test: ## Go server tests (race detector, no cache: tests read spec/ outside the module)
@@ -197,9 +215,11 @@ ui-deps: ## UI dependencies
 	cd ui && npm ci --no-audit --no-fund
 
 .PHONY: ui-lint
-ui-lint: ## ESLint, Stylelint (colors only from theme tokens), Prettier and svelte-check
+ui-lint: ## ESLint, Stylelint (colors only from theme tokens), Prettier, svelte-check, npm audit
 	cd ui && npm run lint
 	cd ui && npm run check
+	# What ships in the viewer: dev tools (linters, test runners) are not in the build
+	cd ui && npm audit --omit=dev --audit-level=low
 
 .PHONY: ui-test
 ui-test: ## UI tests (Vitest)
@@ -271,6 +291,10 @@ docker-build: ## Build the server image wapp-debugger:dev (see Dockerfile)
 install-test: ## Test scripts/install.sh against a fake GitHub Releases server
 	scripts/install_test.sh
 
+.PHONY: changed-areas-test
+changed-areas-test: ## Test scripts/changed-areas.sh, which CI uses to skip jobs a change does not need
+	scripts/changed-areas_test.sh
+
 .PHONY: ssh-e2e
 ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, no ssh-agent)
 	scripts/ssh-e2e.sh
@@ -278,7 +302,7 @@ ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, n
 .PHONY: scripts-lint
 scripts-lint: ## shellcheck the shell scripts (shellcheck binary, or its Docker image)
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; \
-	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh; fi
+	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh /s/changed-areas.sh /s/changed-areas_test.sh; fi
 
 .PHONY: workflows-lint
 workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows
