@@ -78,15 +78,18 @@
 
 <Dialog {open} title={i18n.t('appearance.title')} {onclose}>
   <div class="settings">
-    <Select
-      label={i18n.t('appearance.theme')}
-      options={themes}
-      value={settings.theme}
-      onchange={(theme: string) => save({ theme })}
-    />
-    <button type="button" class="link" onclick={oneditthemes}
-      >{i18n.t('appearance.editThemes')}</button
-    >
+    <div class="field">
+      <span class="label" aria-hidden="true">{i18n.t('appearance.theme')}</span>
+      <Select
+        label={i18n.t('appearance.theme')}
+        options={themes}
+        value={settings.theme}
+        onchange={(theme: string) => save({ theme })}
+      />
+      <button type="button" class="link" onclick={oneditthemes}
+        >{i18n.t('appearance.editThemes')}</button
+      >
+    </div>
 
     <div class="field">
       <span class="label">{i18n.t('appearance.accent')}</span>
@@ -110,22 +113,28 @@
       {/if}
     </div>
 
-    <SegmentedControl
-      label={i18n.t('appearance.density')}
-      options={[
-        { value: 'comfortable', label: i18n.t('appearance.comfortable') },
-        { value: 'compact', label: i18n.t('appearance.compact') },
-      ]}
-      value={settings.density}
-      onchange={(density: Settings['density']) => save({ density })}
-    />
+    <div class="field">
+      <span class="label" aria-hidden="true">{i18n.t('appearance.density')}</span>
+      <SegmentedControl
+        label={i18n.t('appearance.density')}
+        options={[
+          { value: 'comfortable', label: i18n.t('appearance.comfortable') },
+          { value: 'compact', label: i18n.t('appearance.compact') },
+        ]}
+        value={settings.density}
+        onchange={(density: Settings['density']) => save({ density })}
+      />
+    </div>
 
-    <Select
-      label={i18n.t('appearance.fontSize')}
-      options={fontSizes.map((size) => ({ value: size, label: `${size} px` }))}
-      value={settings.ui_font_size}
-      onchange={(size: number) => save({ ui_font_size: size })}
-    />
+    <div class="field">
+      <span class="label" aria-hidden="true">{i18n.t('appearance.fontSize')}</span>
+      <Select
+        label={i18n.t('appearance.fontSize')}
+        options={fontSizes.map((size) => ({ value: size, label: `${size} px` }))}
+        value={settings.ui_font_size}
+        onchange={(size: number) => save({ ui_font_size: size })}
+      />
+    </div>
 
     <div class="field">
       <label class="field">

@@ -107,6 +107,7 @@
     grid-template-columns: auto 9ch;
     gap: var(--space-2);
     align-items: center;
+    justify-content: start;
   }
 
   .swatch {

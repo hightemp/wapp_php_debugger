@@ -177,22 +177,28 @@
   <div class="editor">
     <div class="form">
       <div class="head">
-        <Select
-          label={i18n.t('themeEditor.theme')}
-          options={choices}
-          value={draft.id}
-          onchange={(id: string) => edit(id)}
-        />
+        <div class="name">
+          <span aria-hidden="true">{i18n.t('themeEditor.theme')}</span>
+          <Select
+            label={i18n.t('themeEditor.theme')}
+            options={choices}
+            value={draft.id}
+            onchange={(id: string) => edit(id)}
+          />
+        </div>
         <label class="name">
           <span>{i18n.t('themeEditor.name')}</span>
           <input type="text" maxlength="60" bind:value={draft.name} />
         </label>
-        <SegmentedControl
-          label={i18n.t('themeEditor.base')}
-          options={themeBases.map((value) => ({ value, label: i18n.t(`theme.${value}`) }))}
-          value={draft.base}
-          onchange={(value: ThemeBase) => (draft.base = value)}
-        />
+        <div class="name">
+          <span aria-hidden="true">{i18n.t('themeEditor.base')}</span>
+          <SegmentedControl
+            label={i18n.t('themeEditor.base')}
+            options={themeBases.map((value) => ({ value, label: i18n.t(`theme.${value}`) }))}
+            value={draft.base}
+            onchange={(value: ThemeBase) => (draft.base = value)}
+          />
+        </div>
       </div>
       {#each groups as { group, tokens } (group)}
         <fieldset class="group">

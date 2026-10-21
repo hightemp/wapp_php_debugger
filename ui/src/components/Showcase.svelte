@@ -37,7 +37,7 @@
     <SegmentedControl
       label={i18n.t('theme.label')}
       options={[
-        { value: 'all' as const, label: '∗' },
+        { value: 'all' as const, label: i18n.t('showcase.all') },
         ...themeBases.map((value) => ({ value, label: i18n.t(`theme.${value}`) })),
       ]}
       value={shown}
@@ -108,6 +108,8 @@
 
 <style>
   .showcase {
+    display: grid;
+    grid-template-rows: auto 1fr;
     min-height: 100vh;
     background: var(--bg);
     color: var(--text);

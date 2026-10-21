@@ -294,6 +294,7 @@ const en = {
   'showcase.intro':
     'Every component in every theme: check a change of tokens or of a component here.',
   'showcase.back': 'Back to the viewer',
+  'showcase.all': 'All',
   'servers.open': 'Servers',
   'servers.title': 'Servers',
   'servers.add': 'Add server',
@@ -682,6 +683,7 @@ const ru: Record<MessageKey, Entry> = {
   'showcase.intro':
     'Все компоненты во всех темах: здесь видно, что меняет правка токенов или компонента.',
   'showcase.back': 'Вернуться к просмотрщику',
+  'showcase.all': 'Все',
   'servers.open': 'Серверы',
   'servers.title': 'Серверы',
   'servers.add': 'Добавить сервер',
