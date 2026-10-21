@@ -207,7 +207,23 @@ ui-test: ## UI tests (Vitest)
 
 .PHONY: e2e
 e2e: build ## Browser tests (Playwright) of the built viewer on the v2 fixtures
-	cd ui && NO_PROXY='*' no_proxy='*' npx playwright test
+	cd ui && NO_PROXY='*' no_proxy='*' npx playwright test --project chromium
+
+# Screens are compared with ui/e2e/__screenshots__ inside the Playwright image: the same fonts on
+# every machine and in CI. The image matches @playwright/test in ui/package.json.
+PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.63.0-noble
+VISUAL_FLAGS ?=
+
+.PHONY: e2e-visual
+e2e-visual: ## Screenshots of the built viewer in every theme against the committed ones (Docker)
+	@test -x $(DIST)/wapp-debugger || $(MAKE) build
+	docker run --rm --network host --user "$$(id -u):$$(id -g)" -e HOME=/tmp -e CI \
+		-v "$(ROOT):/work" -w /work/ui $(PLAYWRIGHT_IMAGE) \
+		npx playwright test --project visual $(VISUAL_FLAGS)
+
+.PHONY: e2e-visual-update
+e2e-visual-update: ## Take the screenshots again after a change of the look that is meant
+	$(MAKE) e2e-visual VISUAL_FLAGS=--update-snapshots
 
 .PHONY: ui-build
 ui-build: ## Build the UI into server/web/dist

@@ -2,8 +2,11 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
+import { resetSettings } from './settings';
 
 // The path of a user through the viewer, on logs the real library wrote (spec/fixtures/v2-library)
+
+test.beforeEach(({ request }) => resetSettings(request));
 
 async function openTheItemPage(page: Page) {
   await page.goto('/');

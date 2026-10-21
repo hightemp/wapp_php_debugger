@@ -6,6 +6,8 @@ const port = Number(process.env.E2E_PORT ?? 18840);
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
+  // One viewer serves the whole run and keeps settings: tests go one after another
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
@@ -14,7 +16,27 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Screenshots compared with the ones in e2e/__screenshots__ are taken in the Playwright Docker
+  // image only (make e2e-visual): fonts differ from machine to machine
+  snapshotPathTemplate: '{testDir}/__screenshots__/{arg}{ext}',
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: 'disabled' } },
+  projects: [
+    {
+      name: 'chromium',
+      testIgnore: /visual\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'visual',
+      testMatch: /visual\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+        locale: 'en-US',
+        timezoneId: 'UTC',
+      },
+    },
+  ],
   webServer: {
     command: 'node e2e/serve.mjs',
     url: `http://127.0.0.1:${port}/`,
