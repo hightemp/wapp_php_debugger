@@ -1,0 +1,25 @@
+name: Idea
+description: Something that would make debugging easier
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What gets in the way
+      description: The debugging task and what makes it hard now
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      options:
+        - Viewer (server, web UI)
+        - Desktop app
+        - PHP library (client-php)
+        - Integrations (frameworks, CMS)
+        - Something else

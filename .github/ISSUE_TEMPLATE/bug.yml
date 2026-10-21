@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in the viewer, the desktop app or the PHP library does not work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Please leave secrets out: logs may hold passwords, tokens or personal data.
+        A security problem goes to a private report instead (Security → Report a vulnerability).
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      options:
+        - Viewer (server, web UI)
+        - Desktop app
+        - PHP library (client-php)
+        - Agent or pushed logs
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: '`wapp-debugger version`, the version in the header of the UI, or `Debugger::VERSION`'
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Where it runs
+      description: OS, browser, PHP version; how projects are connected (local, SSH, HTTP, pushed)
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected and what happened
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or a log file
+      description: The output of the viewer, or a request exported from it (Export), with secrets removed
+      render: text
