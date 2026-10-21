@@ -47,8 +47,39 @@ checksum:
 snapshot:
   version_template: '0.0.0-snapshot-{{ .ShortCommit }}'
 
+# A software bill of materials of each archive (syft; CI installs it, a local snapshot skips it without)
+sboms:
+  - artifacts: archive
+
+# Release notes from Conventional Commits since the previous tag: what a user of the viewer, the
+# desktop app or the library notices. Tests, CI, builds and docs stay in the history.
 changelog:
-  disable: true
+  use: git
+  sort: asc
+  abbrev: 7
+  filters:
+    exclude:
+      - '^(test|ci|build|chore|style|refactor)(\(.+\))?!?:'
+      - '^docs(\(plan\))?:.*iteration done'
+      - '^Merge '
+  groups:
+    - title: Breaking changes
+      regexp: '^\w+(\(.+\))?!:'
+      order: 0
+    - title: New
+      regexp: '^feat(\(.+\))?:'
+      order: 1
+    - title: Fixes
+      regexp: '^fix(\(.+\))?:'
+      order: 2
+    - title: Security
+      regexp: '^sec(urity)?(\(.+\))?:'
+      order: 3
+    - title: Documentation
+      regexp: '^docs(\(.+\))?:'
+      order: 4
+    - title: Other
+      order: 999
 
 release:
   # The one-file PHP library (make php-bundle): curl -fsSLO …/releases/latest/download/wapp-debugger.php
@@ -56,6 +87,10 @@ release:
     - glob: dist/wapp-debugger.php
     # curl -fsSL …/releases/latest/download/install.sh | sh
     - glob: scripts/install.sh
+  footer: |
+    Every file is attested by the release workflow (build provenance):
+    `gh attestation verify <file> --repo hightemp/wapp_php_debugger`; `checksums.txt` has
+    the SHA-256 of each, `*.sbom.json` the components of each server archive.
   # Published by hand after a look at the notes and the desktop archives the release workflow adds
   draft: true
   replace_existing_draft: true

@@ -275,7 +275,7 @@ release: $(GORELEASER) ui-build php-bundle ## Publish a draft GitHub release for
 
 .PHONY: release-snapshot
 release-snapshot: $(GORELEASER) ui-build php-bundle ## Local release check: server archives for all OSes in dist/release
-	$(GORELEASER) release --snapshot --clean
+	$(GORELEASER) release --snapshot --clean $(if $(shell command -v syft),,--skip=sbom)
 
 .PHONY: desktop-package
 desktop-package: $(WAILS3) ## Desktop app and its installers for the current OS into dist/release-desktop (unsigned)
