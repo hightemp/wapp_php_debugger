@@ -64,7 +64,7 @@ wapp-debugger serve --logs-dir /var/www/app/tmp/logs   # откройте http:/
    __start('db'); /* ... */ __stop('db'); // таймер
    ```
 
-   Ошибки, исключения и фатальные ошибки пишутся сами, секреты маскируются. PSR-3, Monolog, все настройки и переход с библиотеки v1 — в [client-php/README.ru.md](client-php/README.ru.md). Старые проекты могут остаться на библиотеке v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): просмотрщик читает обе.
+   Ошибки, исключения и фатальные ошибки пишутся сами, секреты маскируются. Laravel, Symfony, WordPress и 1С-Битрикс: [client-php/integrations](client-php/integrations/README.ru.md). PSR-3, Monolog, все настройки и переход с библиотеки v1 — в [client-php/README.ru.md](client-php/README.ru.md). Старые проекты могут остаться на библиотеке v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): просмотрщик читает обе.
 
 3. **Запустите просмотрщик**:
 
@@ -186,6 +186,8 @@ WAPP_DEBUGGER_TOKEN=$(openssl rand -hex 32) dist/wapp-debugger serve --addr 0.0.
 | `server/cmd/wapp-debugger-desktop/` | Десктоп-версия на Wails v3 |
 | `client-php/` | PHP-библиотека 2.x; в `v1/` — библиотека v1 для старых проектов |
 | `spec/` | Форматы логов, контракты API и фикстуры |
+
+С версии 1.0 формат логов v2 и API (`/api/v1`, приёмник логов по HTTP, HTTP-режим библиотеки) меняются только обратно совместимо: библиотека или скрипт, написанные под 1.0, работают с любым просмотрщиком 1.x ([spec/frozen](spec/frozen/README.md)). У релизов есть контрольные суммы, SBOM и подтверждение происхождения сборки (`gh attestation verify <файл> --repo hightemp/wapp_php_debugger`); о проблемах безопасности — приватным сообщением ([SECURITY.md](SECURITY.md)).
 
 Старого PHP-просмотрщика на EasyUI больше нет; он остался в истории git (тег `legacy-hotfix` — его последняя версия).
 

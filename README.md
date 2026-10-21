@@ -67,7 +67,7 @@ The one-liners work from the first published release that carries these files (v
    __start('db'); /* ... */ __stop('db'); // timer
    ```
 
-   Errors, exceptions and fatal errors are logged by themselves, secrets are masked. PSR-3, Monolog, all the settings and the upgrade from library v1 are in [client-php/README.md](client-php/README.md). Old projects can keep library v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): the viewer reads both.
+   Errors, exceptions and fatal errors are logged by themselves, secrets are masked. Laravel, Symfony, WordPress and 1C-Bitrix: [client-php/integrations](client-php/integrations/README.md). PSR-3, Monolog, all the settings and the upgrade from library v1 are in [client-php/README.md](client-php/README.md). Old projects can keep library v1 ([`client-php/v1/Debugger.class.php`](client-php/v1/Debugger.class.php)): the viewer reads both.
 
 3. **Run the viewer**:
 
@@ -189,6 +189,8 @@ The library itself has no HTTP commands by default (`?debug_msg=…` needs the `
 | `server/cmd/wapp-debugger-desktop/` | Desktop app on Wails v3 |
 | `client-php/` | PHP library 2.x; `v1/` keeps library v1 for old projects |
 | `spec/` | Log formats, API contracts and fixtures |
+
+Since 1.0, log format v2 and the APIs (`/api/v1`, the receiver of pushed logs, the HTTP mode of the library) change only in a backward compatible way: a library or a script written for 1.0 works with every 1.x viewer ([spec/frozen](spec/frozen/README.md)). Releases have checksums, SBOMs and build provenance (`gh attestation verify <file> --repo hightemp/wapp_php_debugger`); security problems go to a private report ([SECURITY.md](SECURITY.md)).
 
 The old PHP viewer with EasyUI is gone; it stays in the git history (tag `legacy-hotfix` is its last version).
 

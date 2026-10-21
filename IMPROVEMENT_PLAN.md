@@ -142,9 +142,9 @@
 
 **`ci.yml`** — на каждый push и pull request:
 
-- [ ] `concurrency` с отменой устаревших прогонов одной ветки; фильтры `paths`, чтобы правка только UI не гоняла PHP-матрицу (при этом job-ы, обязательные для merge, всё равно отчитываются). — *частично: `concurrency` есть; фильтров `paths` нет.*
+- [x] `concurrency` с отменой устаревших прогонов одной ветки; фильтры `paths`, чтобы правка только UI не гоняла PHP-матрицу (при этом job-ы, обязательные для merge, всё равно отчитываются). — *частично: `concurrency` есть; фильтров `paths` нет.* — *v1.0: job `changes` (`scripts/changed-areas.sh`, с тестом) пропускает PHP-матрицу и десктоп, если правка их не касается; пропущенная задача считается пройденной; теги, новые ветки и ручной запуск проверяют всё.*
 - [x] Job **php**: матрица версий PHP 7.4 / 8.0 / 8.1 / 8.2 / 8.3 / 8.4 (п. 10.13) → `make php-lint php-test`; кэш Composer.
-- [ ] Job **go**: `make server-lint server-test server-fuzz`; `setup-go` с кэшем; тесты SSH-источника против `openssh-server` в service-контейнере. — *частично: lint и тесты есть; fuzz и SSH-тесты — нет (SSH — фаза 7).*
+- [x] Job **go**: `make server-lint server-test server-fuzz`; `setup-go` с кэшем; тесты SSH-источника против `openssh-server` в service-контейнере. — *частично: lint и тесты есть; fuzz и SSH-тесты — нет (SSH — фаза 7).* — *v1.0: `make server-fuzz` (по 10 с на fuzz-тест парсеров v1/v2 и импорта чужих логов) в job go; SSH — `make ssh-e2e` против настоящего OpenSSH в Docker (фаза 7).*
 - [x] Job **ui**: `make ui-lint ui-test ui-build`; кэш npm.
 - [x] Job **e2e**: собрать бинарник (`make build`), запустить на фикстурах логов, прогнать Playwright во всех встроенных темах; при падении загрузить отчёт и скриншоты как artifacts. — *фаза 8: `make e2e`, фикстуры v2 от настоящей библиотеки.*
 - [x] Job **generate**: `make generate-check`. Отстающий OpenAPI или sqlc-код ломает сборку.
@@ -153,21 +153,21 @@
 
 **`release.yml`** — на тег `v*` (SemVer):
 
-- [ ] **Сервер**: GoReleaser собирает `wapp-debugger` для linux/darwin/windows × amd64/arm64 (UI встроен), архивы, `checksums.txt`, SBOM (syft), changelog. — *частично: архивы и `checksums.txt` есть; SBOM — нет.*
+- [x] **Сервер**: GoReleaser собирает `wapp-debugger` для linux/darwin/windows × amd64/arm64 (UI встроен), архивы, `checksums.txt`, SBOM (syft), changelog. — *частично: архивы и `checksums.txt` есть; SBOM — нет.* — *v1.0: SBOM каждого архива (syft), заметки релиза из Conventional Commits.*
 - [x] **Docker**: multi-arch образ (`linux/amd64`, `linux/arm64`) в GHCR, теги `vX.Y.Z`, `vX.Y`, `latest`.
 - [x] **Десктоп**: матрица по ОС → установщики macOS (`.dmg`, universal), Windows (NSIS `.exe`), Linux (AppImage, `.deb`). Загружаются в тот же GitHub Release. ❓ *Подпись и нотаризация — п. 10.28.* — *частично: пока неподписанные архивы для трёх ОС; установщики — фаза 9.* — *сделано в фазе 9: `make desktop-package` в `release.yml`, без подписи (п. 10.28).*
 - [ ] **PHP-библиотека**: split подкаталога `client-php/` в отдельный репозиторий и тег там же → обновление на Packagist (п. 10.14). — *частично: `release-php.yml` готов и проверен пробным split (фаза 6); нужны репозиторий, deploy key и регистрация в Packagist.*
-- [ ] Attestations происхождения сборки (`actions/attest-build-provenance`) для бинарников и образа.
-- [ ] Release notes: генерация из Conventional Commits. ❓ *Ручной тег + GoReleaser changelog или release-please с PR релиза — п. 10.30.*
+- [x] Attestations происхождения сборки (`actions/attest-build-provenance`) для бинарников и образа. — *v1.0: архивы, библиотека, `install.sh`, пакеты десктопа и образ (в реестре); у образа ещё SBOM и provenance `mode=max`.*
+- [x] Release notes: генерация из Conventional Commits. ❓ *Ручной тег + GoReleaser changelog или release-please с PR релиза — п. 10.30.* — *v1.0: по п. 10.30 — changelog GoReleaser: группы «Breaking changes», «New», «Fixes», «Security», «Documentation»; test/ci/build/chore не попадают.*
 - [x] Draft-релиз → проверка → публикация вручную (или сразу публиковать, когда процесс устоится).
 
 **Сопутствующее:**
 
 - [x] `dependabot.yml`: `gomod`, `npm`, `composer`, `github-actions`, раз в неделю, с группировкой мелких обновлений.
-- [ ] CodeQL для Go и JS/TS; `govulncheck` и `npm audit --omit=dev` в CI.
+- [x] CodeQL для Go и JS/TS; `govulncheck` и `npm audit --omit=dev` в CI. — *v1.0: `codeql.yml` (push и раз в неделю); `govulncheck` в `make server-lint` — нашёл 29 уязвимостей stdlib Go 1.26.0, toolchain поднят до 1.26.10; `npm audit --omit=dev` в `make ui-lint`. Первый прогон CodeQL: тест CSP усилен, обход каталогов поиска проектов — намеренное поведение (алерт закрыт с пояснением).*
 - [x] Actions закреплены по SHA, минимальные `permissions` у каждого workflow (`contents: read` по умолчанию; `contents: write`, `packages: write`, `id-token: write` — только в release).
 - [ ] Секреты (сертификаты подписи, Apple ID, токен Packagist) — только в environment `release` с ручным подтверждением. — *частично: deploy key PHP-библиотеки — в environment `release`; подпись десктопа — фаза 9.*
-- [ ] Шаблоны issue и PR, `CONTRIBUTING.md` с командами `make`. — *частично: `CONTRIBUTING.md` есть; шаблонов issue/PR нет.*
+- [x] Шаблоны issue и PR, `CONTRIBUTING.md` с командами `make`. — *частично: `CONTRIBUTING.md` есть; шаблонов issue/PR нет.* — *v1.0: формы bug/idea, шаблон PR с чек-листом, `SECURITY.md`.*
 - [x] **Однострочники установки в README** (запрос владельца): `curl` для скачивания однофайловой библиотеки и для установки сервера (скрипт сам выбирает архив под ОС и архитектуру из последнего релиза, сверяет `checksums.txt`) (фаза 7, шаг 1).
 
 ---
@@ -285,7 +285,7 @@
 
 ### 5.3 Интеграции
 
-- [ ] Готовые инструкции и провайдеры для Laravel (ServiceProvider + Monolog channel), Symfony (bundle), WordPress, Bitrix, plain PHP.
+- [x] Готовые инструкции и провайдеры для Laravel (ServiceProvider + Monolog channel), Symfony (bundle), WordPress, Bitrix, plain PHP. — *v1.0, по решению владельца — инструкции и тонкие файлы без зависимостей: канал `Bridge\LaravelChannel`, mu-plugin WordPress, файл для `init.php` Битрикса, конфиг `config/packages` для Symfony, plain PHP — `client-php/integrations/README.md`; WordPress и Битрикс проверены в процессах с поддельной CMS.*
 - [x] Xdebug-ссылки: кнопка «запустить запрос повторно с `XDEBUG_SESSION`». — *v0.7: переключатель «С Xdebug» добавляет `XDEBUG_SESSION=1` к «Открыть снова» и к curl.*
 - [x] Хелперы библиотеки: логирование SQL (обёртка над PDO / событие ORM) с длительностью, логирование HTTP-запросов (Guzzle middleware) — перенесено из п. 4.1; вместе с ними вкладка SQL в UI (п. 5.1). — *v0.5: `Sql::watch($pdo)`, `Debugger::sql()`/`http()`, `Bridge\GuzzleMiddleware` — без зависимостей.*
 
@@ -829,7 +829,7 @@ Server (local | ssh | http)   — тип подключения, парамет�
 3. ✅ **v0.7 — обмен и сравнение**: копирование запроса как cURL, повтор с `XDEBUG_SESSION`, экспорт и импорт запроса (JSONL/ZIP), сравнение двух запросов (diff переменных), несколько запросов во вкладках.
 4. ✅ **v0.8 — новые источники**: приём логов по HTTP прямо в просмотрщик (`HttpWriter` библиотеки, токен), JS-клиент `debugger.js` для фронтенда с привязкой к `request_id` страницы, импорт сторонних логов (`php_errors.log`, Laravel, nginx), агент `wapp-debugger agent` (п. 7.6).
 5. ✅ **v0.9 — оформление** (ветка `phase-10-v09`): настройки UI на сервере (`/api/v1/settings`), акцентный цвет, плотность, шрифты, рамка окружения, редактор тем с импортом и экспортом, `prefers-contrast`, Stylelint на цвета, витрина компонентов, визуальные снапшоты тем. — *Язык интерфейса тоже хранится в настройках. Stylelint тянет `braces` с открытым advisory без исправленной версии (только dev-зависимость): учесть при `npm audit` в v1.0.*
-6. **v1.0 — готовность** (критерии ниже): интеграции и инструкции (Laravel, Symfony, WordPress, Bitrix), заморозка формата v2 и API v1, CI — CodeQL, `govulncheck`, `npm audit`, attestations, SBOM, fuzz, фильтры `paths`; release notes, шаблоны issue/PR, публикация `client-php` 2.0.0 и релизов.
+6. ✅ **v1.0 — готовность** (критерии ниже; ветка `phase-10-v10`): интеграции и инструкции (Laravel, Symfony, WordPress, Bitrix), заморозка формата v2 и API v1, CI — CodeQL, `govulncheck`, `npm audit`, attestations, SBOM, fuzz, фильтры `paths`; release notes, шаблоны issue/PR, публикация `client-php` 2.0.0 и релизов. — *Заморозка: `spec/frozen/v1.0`, `make spec-compat` (oasdiff) и тест логов v2. Осталось владельцу: публикация `client-php` 2.0.0 (репозиторий для split, deploy key, Packagist), публикация черновиков релизов, защита `main`, включить private vulnerability reporting (на него ссылаются `SECURITY.md` и шаблоны issue). Отложенное — в `ROADMAP.md`.*
 
 ### 8.3 Зависимости и сроки
 
@@ -920,7 +920,7 @@ Server (local | ssh | http)   — тип подключения, парамет�
 | 10.27 | Транспорт UI ↔ ядро в десктопе | REST через `AssetServer.Handler` + события Wails / Wails bindings (сгенерированные методы) / локальный HTTP-порт | REST через asset handler: один API для веба и десктопа; сделать прототип live-потока до начала основной работы |
 | 10.28 | **Подпись приложений** | Без подписи (предупреждения Gatekeeper/SmartScreen) / подпись macOS ($99/год Apple Developer) / плюс Windows-сертификат | Первые версии без подписи с инструкцией по запуску; подпись macOS — как только будут пользователи вне команды. Нужно решение по бюджету на сертификаты |
 | 10.29 | Автообновление десктопа | Нет (только уведомление о новой версии) / самообновление по GitHub Releases / через пакетные менеджеры | Уведомление о новой версии по GitHub Releases API в первой версии; самообновление — после появления подписи |
-| 10.30 | Процесс релиза | Ручной тег + changelog GoReleaser / release-please (PR релиза, автоверсия по Conventional Commits) | release-please: версия и changelog из коммитов, релиз — merge PR |
+| 10.30 | ✅ Процесс релиза | — | **Решено (v1.0):** ручной тег после подтверждения + changelog GoReleaser из Conventional Commits; черновик релиза публикуется вручную |
 | 10.31 | Сборка на Windows без make | Только Git Bash/WSL / дублирующий `make.ps1` / Taskfile вместо make | Git Bash/WSL; CI на Windows вызывает те же цели через bash |
 | 10.32 | Каналы распространения десктопа | Только GitHub Releases / плюс Homebrew cask, winget, Scoop, AUR, Flatpak | GitHub Releases в первой версии; Homebrew cask и winget — следующими (автоматизируются GoReleaser) |
 | 10.33 | Версионирование компонентов | Одна версия на всё (сервер, десктоп, UI, PHP-библиотека) / отдельная версия PHP-библиотеки | Сервер, десктоп и UI — одна версия; PHP-библиотека — своя SemVer, совместимость по версии формата логов (`v`) |
@@ -929,4 +929,4 @@ Server (local | ssh | http)   — тип подключения, парамет�
 | 10.36 | ✅ Чтение легаси-библиотеки (после hotfix) по HTTP | — | **Решено:** только библиотека 2.x; старые команды `?debug_msg=…` просмотрщик не поддерживает |
 | 10.37 | ✅ Полнотекстовый поиск: по словам или по подстроке | — | **Решено:** FTS5 `unicode61` (слова и префиксы); вторая таблица `trigram` по `message` — только если в фазе 5 понадобится поиск кусков имён и путей |
 | 10.39 | **Лицензия** | MIT / Apache-2.0 / GPL-3.0 / другая | ✅ **MIT** (решено): файл `LICENSE` в корне, `"license": "MIT"` в `client-php/composer.json`, архивы релиза включают `LICENSE` |
-| 10.40 | Язык этого плана | Оставить русским (рабочий документ) / перевести на английский | Оставить русским до v0.1.0; для контрибьюторов к релизу — короткий `ROADMAP.md` на английском по итогам плана |
+| 10.40 | ✅ Язык этого плана | Оставить русским (рабочий документ) / перевести на английский | Оставить русским до v0.1.0; для контрибьюторов к релизу — короткий `ROADMAP.md` на английском по итогам плана — *v1.0: `ROADMAP.md` на английском.* |
