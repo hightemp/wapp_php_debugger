@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func fixturesDir(t *testing.T, version string) string {
+func fixturesDir(t testing.TB, version string) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

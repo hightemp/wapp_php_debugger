@@ -1,6 +1,7 @@
 package thirdparty
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -122,5 +123,17 @@ func TestOnlyKnownFormats(t *testing.T) {
 	b, _, _ := Convert("php_errors.log", fixture(t, "php_errors.log"))
 	if string(a) != string(b) {
 		t.Fatal("the conversion is not stable")
+	}
+}
+
+// Found by FuzzConvert: a year 0000 gave a time before 1970, which no v2 stream may have
+func TestDatesBefore1970AreNoEntries(t *testing.T) {
+	_, ok, err := Convert("error.log", []byte("0000/10/10 00:00:00 [error] 1#1: *1 open() failed\n"))
+	if !ok || err == nil {
+		t.Fatalf("ok=%v err=%v: an nginx log with no entries to place in time", ok, err)
+	}
+	data, ok, err := Convert("error.log", []byte("0000/10/10 00:00:00 [error] 1#1: old\n2026/10/10 10:00:00 [error] 1#1: new\n"))
+	if !ok || err != nil || bytes.Contains(data, []byte(`"message":"old"`)) || !bytes.Contains(data, []byte(`new`)) {
+		t.Fatalf("ok=%v err=%v\n%s", ok, err, data)
 	}
 }

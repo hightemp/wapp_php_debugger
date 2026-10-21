@@ -66,7 +66,8 @@ func convert(f format, name string, data []byte) ([]byte, error) {
 	var continued []string
 	flush := func() {
 		if match != nil {
-			if e, ok := f.parse(match, continued); ok {
+			// A time before 1970 is no time of a log: the stream keeps Unix milliseconds
+			if e, ok := f.parse(match, continued); ok && e.ts >= 0 {
 				entries = append(entries, e)
 			}
 		}
