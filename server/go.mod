@@ -2,6 +2,8 @@ module github.com/hightemp/wapp_php_debugger/server
 
 go 1.26.0
 
+toolchain go1.26.10
+
 require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/getkin/kin-openapi v0.151.0
