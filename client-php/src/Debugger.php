@@ -10,7 +10,7 @@ namespace WappDebugger;
  */
 final class Debugger
 {
-    public const VERSION = '2.0.0-dev';
+    public const VERSION = '2.0.0';
 
     private const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
         | JSON_PRESERVE_ZERO_FRACTION | JSON_PARTIAL_OUTPUT_ON_ERROR;
