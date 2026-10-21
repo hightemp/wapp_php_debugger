@@ -7,7 +7,8 @@ describe('index.html', () => {
   const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
 
   it('has no inline scripts', () => {
-    const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+    // Any case and spacing of the tags: HTML does not care
+    const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
     expect(scripts.length).toBeGreaterThan(0);
     for (const [, attributes, body] of scripts) {
       expect(attributes).toMatch(/\bsrc=/);

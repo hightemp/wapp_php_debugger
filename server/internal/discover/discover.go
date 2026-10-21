@@ -165,6 +165,8 @@ func resolve(ctx context.Context, fsys FS, configPath string) Found {
 type Local struct{}
 
 // ReadDir lists a directory; symlinks are reported as neither directories nor files.
+// The directory comes from the user of the viewer on purpose: it is a root they asked to search on
+// their own machine (behind loopback or the token); only dws_debugger.json files are read.
 func (Local) ReadDir(_ context.Context, dir string) ([]Entry, error) {
 	items, err := os.ReadDir(dir)
 	if err != nil {
