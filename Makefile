@@ -197,7 +197,7 @@ ui-deps: ## UI dependencies
 	cd ui && npm ci --no-audit --no-fund
 
 .PHONY: ui-lint
-ui-lint: ## ESLint, Prettier and svelte-check
+ui-lint: ## ESLint, Stylelint (colors only from theme tokens), Prettier and svelte-check
 	cd ui && npm run lint
 	cd ui && npm run check
 
