@@ -12,7 +12,7 @@ require (
 	github.com/pkg/sftp v1.13.11
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/wailsapp/wails/v3 v3.0.0-beta.32
-	go.yaml.in/yaml/v3 v3.0.4
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/crypto v0.58.0
 	modernc.org/sqlite v1.60.1
 )
