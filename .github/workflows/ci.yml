@@ -147,7 +147,7 @@ jobs:
       - run: make ui-deps
       - run: make build
       # The installer from the README one-liner, against a fake GitHub Releases server
-      - run: make scripts-lint install-test changed-areas-test
+      - run: make scripts-lint install-test changed-areas-test release-check-test
 
   e2e:
     name: Browser tests (Playwright)

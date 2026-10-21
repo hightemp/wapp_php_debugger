@@ -287,6 +287,7 @@ generate-check: generate ## Check that generated code matches what is committed
 
 .PHONY: release
 release: $(GORELEASER) ui-build php-bundle ## Publish a draft GitHub release for the current tag (CI only: needs GITHUB_TOKEN)
+	scripts/release-check.sh "$$(git describe --tags --exact-match --match 'v[0-9]*')"
 	$(GORELEASER) release --clean
 
 .PHONY: release-snapshot
@@ -311,6 +312,10 @@ install-test: ## Test scripts/install.sh against a fake GitHub Releases server
 changed-areas-test: ## Test scripts/changed-areas.sh, which CI uses to skip jobs a change does not need
 	scripts/changed-areas_test.sh
 
+.PHONY: release-check-test
+release-check-test: ## Test scripts/release-check.sh: no stable release with a pre-release library
+	scripts/release-check_test.sh
+
 .PHONY: ssh-e2e
 ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, no ssh-agent)
 	scripts/ssh-e2e.sh
@@ -318,7 +323,7 @@ ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, n
 .PHONY: scripts-lint
 scripts-lint: ## shellcheck the shell scripts (shellcheck binary, or its Docker image)
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; \
-	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh /s/changed-areas.sh /s/changed-areas_test.sh; fi
+	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh /s/changed-areas.sh /s/changed-areas_test.sh /s/release-check.sh /s/release-check_test.sh; fi
 
 .PHONY: workflows-lint
 workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows
