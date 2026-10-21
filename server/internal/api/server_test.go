@@ -131,7 +131,7 @@ func TestListRequestsValidatesParameters(t *testing.T) {
 
 func TestNotImplementedAndUnknownAPI(t *testing.T) {
 	e := newTestEnv(t)
-	response, body := get(t, e.server.URL+"/api/v1/settings")
+	response, body := send(t, http.MethodDelete, e.server.URL+"/api/v1/requests/1", nil)
 	assertProblem(t, response, body, 501)
 	response, body = get(t, e.server.URL+"/api/v1/no-such-thing")
 	assertProblem(t, response, body, 404)

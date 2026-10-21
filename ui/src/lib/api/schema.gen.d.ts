@@ -471,7 +471,7 @@ export interface paths {
         };
         /** Get UI settings */
         get: operations["getSettings"];
-        /** Save UI settings */
+        /** Save UI settings; other windows get settings_updated */
         put: operations["updateSettings"];
         post?: never;
         delete?: never;
@@ -915,10 +915,10 @@ export interface components {
         StreamEvent: {
             /**
              * @description request_created / request_updated carry request; messages_added carries request_id and count;
-             *     server_status carries server_id and connection; resync tells the client to reload everything.
+             *     server_status carries server_id and connection; settings_updated carries settings; resync tells the client to reload everything.
              * @enum {string}
              */
-            event: "request_created" | "request_updated" | "messages_added" | "server_status" | "resync";
+            event: "request_created" | "request_updated" | "messages_added" | "server_status" | "settings_updated" | "resync";
             request?: components["schemas"]["Request"];
             /** Format: int64 */
             request_id?: number;
@@ -926,6 +926,7 @@ export interface components {
             /** Format: int64 */
             server_id?: number;
             connection?: components["schemas"]["ServerConnection"];
+            settings?: components["schemas"]["Settings"];
         };
         /**
          * @example {
@@ -964,28 +965,62 @@ export interface components {
             locale?: "en" | "ru";
         };
         /**
-         * @description UI settings. Stored by the viewer; localStorage is only a cache.
+         * @description UI settings, the same in every browser and in the desktop app. Stored by the viewer;
+         *     localStorage is only a cache for the first paint. A save is published as settings_updated.
          * @example {
          *       "theme": "system",
          *       "accent_color": null,
          *       "density": "comfortable",
          *       "ui_font_size": 14,
          *       "mono_font": null,
-         *       "locale": "ru",
-         *       "editor": "vscode"
+         *       "env_frame": true,
+         *       "locale": null,
+         *       "custom_themes": []
          *     }
          */
         Settings: {
-            /** @enum {string} */
-            theme: "light" | "dark" | "system" | "high-contrast";
-            accent_color?: string | null;
-            /** @enum {string} */
+            /** @description A built-in theme, or custom:<id> of one of custom_themes; system follows prefers-color-scheme and prefers-contrast */
+            theme: string;
+            /** @description Accent over any theme; null keeps the accent of the theme */
+            accent_color: string | null;
+            /**
+             * @description Row height of lists
+             * @enum {string}
+             */
             density: "compact" | "comfortable";
-            ui_font_size?: number;
-            mono_font?: string | null;
+            ui_font_size: number;
+            /** @description font-family of code and variables, from fonts installed locally; null is the system stack */
+            mono_font: string | null;
+            /** @description A frame around the window in the color of the environment of the chosen project (stage */
+            env_frame: boolean;
+            /**
+             * @description null follows the browser
+             * @enum {string|null}
+             */
+            locale: "en" | "ru" | null;
+            custom_themes: components["schemas"]["CustomTheme"][];
+        };
+        /**
+         * @description A theme of the user — tokens over a built-in base theme. The same object is the file of export and import.
+         * @example {
+         *       "id": "solarized",
+         *       "name": "Solarized",
+         *       "base": "light",
+         *       "tokens": {
+         *         "bg": "#fdf6e3",
+         *         "accent": "#268bd2"
+         *       }
+         *     }
+         */
+        CustomTheme: {
+            id: string;
+            name: string;
             /** @enum {string} */
-            locale: "ru" | "en";
-            editor: components["schemas"]["Editor"];
+            base: "light" | "dark" | "high-contrast";
+            /** @description Color tokens of theme.css without the leading dashes, e.g. bg, accent, level-error; the rest come from base */
+            tokens: {
+                [key: string]: string;
+            };
         };
     };
     responses: {

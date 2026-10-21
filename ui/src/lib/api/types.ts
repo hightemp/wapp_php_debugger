@@ -27,4 +27,5 @@ export type SourcePreview = Schemas['SourcePreview'];
 export type MessagePage = Schemas['MessagePage'];
 export type StreamEvent = Schemas['StreamEvent'];
 export type Settings = Schemas['Settings'];
+export type CustomTheme = Schemas['CustomTheme'];
 export type Problem = Schemas['Problem'];

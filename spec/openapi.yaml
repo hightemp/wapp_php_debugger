@@ -750,7 +750,7 @@ paths:
     put:
       tags: [settings]
       operationId: updateSettings
-      summary: Save UI settings
+      summary: Save UI settings; other windows get settings_updated
       requestBody:
         required: true
         content:
@@ -1264,15 +1264,16 @@ components:
       properties:
         event:
           type: string
-          enum: [request_created, request_updated, messages_added, server_status, resync]
+          enum: [request_created, request_updated, messages_added, server_status, settings_updated, resync]
           description: |
             request_created / request_updated carry request; messages_added carries request_id and count;
-            server_status carries server_id and connection; resync tells the client to reload everything.
+            server_status carries server_id and connection; settings_updated carries settings; resync tells the client to reload everything.
         request: { $ref: '#/components/schemas/Request' }
         request_id: { type: integer, format: int64 }
         count: { type: integer, minimum: 1 }
         server_id: { type: integer, format: int64 }
         connection: { $ref: '#/components/schemas/ServerConnection' }
+        settings: { $ref: '#/components/schemas/Settings' }
       example: { event: messages_added, request_id: 42, count: 3 }
 
     DesktopSettings:
@@ -1309,15 +1310,53 @@ components:
 
     Settings:
       type: object
-      description: UI settings. Stored by the viewer; localStorage is only a cache.
-      required: [theme, density, locale, editor]
+      description: |
+        UI settings, the same in every browser and in the desktop app. Stored by the viewer;
+        localStorage is only a cache for the first paint. A save is published as settings_updated.
+      required: [theme, accent_color, density, ui_font_size, mono_font, env_frame, locale, custom_themes]
       additionalProperties: false
       properties:
-        theme: { type: string, enum: [light, dark, system, high-contrast] }
-        accent_color: { type: string, pattern: '^#[0-9a-fA-F]{6}$', nullable: true }
-        density: { type: string, enum: [compact, comfortable] }
-        ui_font_size: { type: integer, minimum: 10, maximum: 24 }
-        mono_font: { type: string, nullable: true }
-        locale: { type: string, enum: [ru, en] }
-        editor: { $ref: '#/components/schemas/Editor' }
-      example: { theme: system, accent_color: null, density: comfortable, ui_font_size: 14, mono_font: null, locale: ru, editor: vscode }
+        theme:
+          type: string
+          pattern: '^(light|dark|system|high-contrast|custom:[a-z0-9-]{1,40})$'
+          description: A built-in theme, or custom:<id> of one of custom_themes; system follows prefers-color-scheme and prefers-contrast
+        accent_color:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          nullable: true
+          description: Accent over any theme; null keeps the accent of the theme
+        density: { type: string, enum: [compact, comfortable], description: Row height of lists }
+        ui_font_size: { type: integer, minimum: 12, maximum: 18 }
+        mono_font:
+          type: string
+          maxLength: 200
+          pattern: "^[A-Za-z0-9 ,'_-]+$"
+          nullable: true
+          description: font-family of code and variables, from fonts installed locally; null is the system stack
+        env_frame: { type: boolean, description: A frame around the window in the color of the environment of the chosen project, for stage and prod }
+        locale:
+          type: string
+          enum: [en, ru]
+          nullable: true
+          description: null follows the browser
+        custom_themes:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/CustomTheme' }
+      example: { theme: system, accent_color: null, density: comfortable, ui_font_size: 14, mono_font: null, env_frame: true, locale: null, custom_themes: [] }
+
+    CustomTheme:
+      type: object
+      description: A theme of the user — tokens over a built-in base theme. The same object is the file of export and import.
+      required: [id, name, base, tokens]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-z0-9-]{1,40}$' }
+        name: { type: string, minLength: 1, maxLength: 60 }
+        base: { type: string, enum: [light, dark, high-contrast] }
+        tokens:
+          type: object
+          maxProperties: 64
+          description: Color tokens of theme.css without the leading dashes, e.g. bg, accent, level-error; the rest come from base
+          additionalProperties: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+      example: { id: solarized, name: Solarized, base: light, tokens: { bg: '#fdf6e3', accent: '#268bd2' } }
