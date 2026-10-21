@@ -1333,7 +1333,7 @@ components:
           pattern: "^[A-Za-z0-9 ,'_-]+$"
           nullable: true
           description: font-family of code and variables, from fonts installed locally; null is the system stack
-        env_frame: { type: boolean, description: A frame around the window in the color of the environment of the chosen project, for stage and prod }
+        env_frame: { type: boolean, description: 'A frame around the window in the color of the environment of the chosen project, for stage and prod' }
         locale:
           type: string
           enum: [en, ru]

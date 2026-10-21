@@ -991,7 +991,7 @@ export interface components {
             ui_font_size: number;
             /** @description font-family of code and variables, from fonts installed locally; null is the system stack */
             mono_font: string | null;
-            /** @description A frame around the window in the color of the environment of the chosen project (stage */
+            /** @description A frame around the window in the color of the environment of the chosen project, for stage and prod */
             env_frame: boolean;
             /**
              * @description null follows the browser
