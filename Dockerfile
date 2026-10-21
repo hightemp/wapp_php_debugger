@@ -1,7 +1,7 @@
 # wapp-debugger server image: docker build -t wapp-debugger . (make docker-build)
 # Build stages run on the build platform and cross-compile, so multi-arch builds need no emulation.
 
-FROM --platform=$BUILDPLATFORM node:24-alpine AS ui
+FROM --platform=$BUILDPLATFORM node:26-alpine AS ui
 WORKDIR /src/ui
 COPY ui/package.json ui/package-lock.json ./
 RUN npm ci --no-audit --no-fund
