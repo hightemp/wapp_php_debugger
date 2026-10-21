@@ -13,6 +13,7 @@
     open,
     title,
     role = 'dialog',
+    wide = false,
     onclose,
     children,
     footer,
@@ -20,6 +21,8 @@
     open: boolean;
     title: string;
     role?: 'dialog' | 'alertdialog';
+    /** Room for an editor next to its preview. */
+    wide?: boolean;
     onclose: () => void;
     children: Snippet;
     footer?: Snippet;
@@ -91,6 +94,7 @@
     <div
       bind:this={panel}
       class="panel"
+      class:wide
       {role}
       aria-modal="true"
       aria-labelledby={titleId}
@@ -118,7 +122,7 @@
     display: grid;
     place-items: center;
     padding: var(--space-6);
-    background: rgb(0 0 0 / 45%);
+    background: var(--backdrop);
   }
 
   .panel {
@@ -130,6 +134,10 @@
     background: var(--surface);
     color: var(--text);
     box-shadow: var(--shadow-small);
+  }
+
+  .panel.wide {
+    width: min(1040px, 100%);
   }
 
   .header {

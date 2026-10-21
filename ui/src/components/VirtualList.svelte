@@ -66,13 +66,24 @@
     };
   });
 
-  // The height of a row, from the first one rendered
+  // The height of a row, from the first one rendered; again when the rendered rows change their
+  // height (density, font size)
   $effect(() => {
     void items.length;
-    const first = list?.querySelector(':scope > ul > li');
-    if (first instanceof HTMLElement && first.offsetHeight > 0) {
-      rowHeight = first.offsetHeight;
+    const rows = list?.querySelector(':scope > ul');
+    const measure = () => {
+      const first = rows?.querySelector(':scope > li');
+      if (first instanceof HTMLElement && first.offsetHeight > 0) {
+        rowHeight = first.offsetHeight;
+      }
+    };
+    measure();
+    if (!rows || typeof ResizeObserver === 'undefined') {
+      return;
     }
+    const resize = new ResizeObserver(measure);
+    resize.observe(rows);
+    return () => resize.disconnect();
   });
 
   const virtual = $derived(rowHeight > 0 && height > 0);

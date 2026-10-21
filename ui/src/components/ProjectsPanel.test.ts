@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '../lib/i18n/locale.svelte';
 import { fakeTransport, sampleProject, sampleServer } from '../test/transport';
@@ -150,7 +150,12 @@ describe('ProjectsPanel', () => {
 describe('ProjectsPanel with several servers', () => {
   beforeEach(() => i18n.set('en'));
 
-  function setupServers(selectedId?: number, onselectserver = vi.fn()) {
+  function setupServers(
+    selectedId?: number,
+    onselectserver = vi.fn(),
+    selectedServerId?: number,
+    onenvironment = vi.fn(),
+  ) {
     const fake = fakeTransport({
       listServers: vi.fn(async () => ({
         items: [
@@ -176,8 +181,15 @@ describe('ProjectsPanel with several servers', () => {
       })),
     });
     const onselect = vi.fn();
-    render(ProjectsPanel, { transport: fake.transport, selectedId, onselect, onselectserver });
-    return { ...fake, onselect };
+    render(ProjectsPanel, {
+      transport: fake.transport,
+      selectedId,
+      selectedServerId,
+      onselect,
+      onselectserver,
+      onenvironment,
+    });
+    return { ...fake, onselect, onenvironment };
   }
 
   const group = async (name: string) => (await screen.findByRole('group', { name })) as HTMLElement;
@@ -227,6 +239,18 @@ describe('ProjectsPanel with several servers', () => {
     expect(await screen.findByRole('status', { name: 'Environment' })).toHaveTextContent(
       'prod · prod-web',
     );
+  });
+
+  it('tells the environment of the chosen project or server', async () => {
+    const project = setupServers(30);
+    await vi.waitFor(() => expect(project.onenvironment).toHaveBeenLastCalledWith('prod'));
+    cleanup();
+    const server = setupServers(undefined, vi.fn(), 2);
+    await vi.waitFor(() => expect(server.onenvironment).toHaveBeenLastCalledWith('stage'));
+    cleanup();
+    const all = setupServers();
+    await screen.findByRole('group', { name: /stage/ });
+    expect(all.onenvironment).toHaveBeenLastCalledWith(undefined);
   });
 
   it('asks for the project name before clearing logs on prod', async () => {

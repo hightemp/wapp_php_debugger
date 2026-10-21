@@ -47,6 +47,11 @@ describe('route', () => {
     expect(parseRoute('#/requests/42/messages/x')).toEqual({ requestId: 42 });
   });
 
+  it('opens the component showcase', () => {
+    expect(parseRoute('#/dev/components')).toEqual({ showcase: true });
+    expect(formatRoute({ showcase: true })).toBe('#/dev/components');
+  });
+
   it('formats the selection back', () => {
     expect(formatRoute({})).toBe('#/');
     expect(formatRoute({ requestId: 42 })).toBe('#/requests/42');

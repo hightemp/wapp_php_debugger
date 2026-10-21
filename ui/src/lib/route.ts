@@ -1,6 +1,7 @@
 // The selection lives in the URL hash so a project, a request or a message can be shared as a link:
 // #/projects/3/requests/42/messages/1001 (every part is optional from the right; the project part too).
 // #/servers/2/… selects the feed of a server instead of a project; …/requests/42/compare/41 compares two.
+// #/dev/components is the component showcase.
 
 export interface Route {
   projectId?: number;
@@ -9,12 +10,19 @@ export interface Route {
   messageId?: number;
   /** Another request to compare this one with: #/requests/42/compare/41 */
   compareId?: number;
+  /** The component showcase in every theme instead of the viewer. */
+  showcase?: boolean;
 }
+
+const showcaseHash = '#/dev/components';
 
 const pattern =
   /^#(?:\/(projects|servers)\/(\d+))?(?:\/requests\/(\d+)(?:\/messages\/(\d+)|\/compare\/(\d+))?)?(?:\/.*)?$/;
 
 export function parseRoute(hash: string): Route {
+  if (hash === showcaseHash) {
+    return { showcase: true };
+  }
   const [, scope, scopeId, request, message, compare] = pattern.exec(hash) ?? [];
   const route: Route = {};
   if (scope === 'projects') {
@@ -34,6 +42,9 @@ export function parseRoute(hash: string): Route {
 }
 
 export function formatRoute(route: Route): string {
+  if (route.showcase) {
+    return showcaseHash;
+  }
   let hash = '#';
   if (route.projectId !== undefined) {
     hash = `#/projects/${route.projectId}`;

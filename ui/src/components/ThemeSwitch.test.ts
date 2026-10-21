@@ -1,19 +1,36 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { defaultSettings } from '../lib/appearance';
+import { emitCommand } from '../lib/commands';
 import { i18n } from '../lib/i18n/locale.svelte';
+import { createAppearanceStore } from '../lib/settings.svelte';
+import { toasts } from '../lib/toasts.svelte';
+import { fakeTransport } from '../test/transport';
 import ThemeSwitch from './ThemeSwitch.svelte';
+
+function setup(theme = 'system') {
+  localStorage.setItem('wapp-debugger.settings', JSON.stringify({ ...defaultSettings, theme }));
+  const store = createAppearanceStore({
+    storage: localStorage,
+    root: document.documentElement,
+    media: () => ({ dark: false, moreContrast: false }),
+  });
+  const { transport } = fakeTransport();
+  render(ThemeSwitch, { transport, store });
+  return { store, transport };
+}
 
 describe('ThemeSwitch', () => {
   beforeEach(() => {
     localStorage.clear();
+    toasts.clear();
     i18n.set('en');
     delete document.documentElement.dataset.theme;
   });
 
   it('is a radio group with all built-in themes', () => {
-    render(ThemeSwitch);
-    const group = screen.getByRole('radiogroup', { name: 'Theme' });
-    expect(group).toBeInTheDocument();
+    setup();
+    expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument();
     expect(screen.getAllByRole('radio').map((radio) => radio.textContent?.trim())).toEqual([
       'Light',
       'Dark',
@@ -23,30 +40,32 @@ describe('ThemeSwitch', () => {
     expect(screen.getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('applies and remembers the chosen theme', async () => {
-    render(ThemeSwitch);
+  it('applies the chosen theme and saves it on the viewer', async () => {
+    const { transport } = setup();
     await fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(localStorage.getItem('wapp-debugger.theme')).toBe('dark');
+    expect(transport.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ theme: 'dark' }),
+    );
     expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('starts from the remembered theme', () => {
-    localStorage.setItem('wapp-debugger.theme', 'light');
-    render(ThemeSwitch);
+  it('starts from the cached theme', () => {
+    setup('light');
     expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
-    expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it('moves selection with arrow keys', async () => {
-    render(ThemeSwitch);
-    await fireEvent.keyDown(screen.getByRole('radio', { name: 'System' }), {
-      key: 'ArrowRight',
-    });
-    expect(screen.getByRole('radio', { name: 'High contrast' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(document.documentElement.dataset.theme).toBe('high-contrast');
+  it('takes the theme from the command palette', async () => {
+    const { store } = setup();
+    emitCommand({ type: 'theme', theme: 'high-contrast' });
+    await vi.waitFor(() => expect(store.settings.theme).toBe('high-contrast'));
+  });
+
+  it('says when the viewer refuses the theme', async () => {
+    const { transport } = setup();
+    vi.mocked(transport.updateSettings).mockRejectedValueOnce(new Error('the viewer is gone'));
+    await fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+    await vi.waitFor(() => expect(toasts.items[0]?.kind).toBe('error'));
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 });

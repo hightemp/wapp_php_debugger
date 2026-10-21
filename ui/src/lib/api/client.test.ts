@@ -181,6 +181,29 @@ describe('createHttpTransport', () => {
     expect(new Headers(importInit?.headers).get('Content-Type')).toBe('application/yaml');
   });
 
+  it('gets and saves the UI settings', async () => {
+    const settings = {
+      theme: 'dark',
+      accent_color: null,
+      density: 'compact' as const,
+      ui_font_size: 14,
+      mono_font: null,
+      env_frame: true,
+      locale: null,
+      custom_themes: [],
+    };
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse(settings));
+    const transport = createHttpTransport({ baseUrl: '', fetch: fetchMock });
+
+    await expect(transport.getSettings()).resolves.toEqual(settings);
+    await transport.updateSettings(settings);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/settings');
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  });
+
   it('accepts 204 No Content', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     await expect(
@@ -203,11 +226,18 @@ describe('createHttpTransport', () => {
     listeners.get('request_created')?.(
       new MessageEvent('request_created', { data: '{"event":"request_created","request_id":7}' }),
     );
+    listeners.get('settings_updated')?.(
+      new MessageEvent('settings_updated', { data: '{"event":"settings_updated"}' }),
+    );
     listeners.get('resync')?.(new MessageEvent('resync', { data: '{"event":"resync"}' }));
     unsubscribe();
 
     expect(createEventSource).toHaveBeenCalledWith('/api/v1/stream');
-    expect(received).toEqual([{ event: 'request_created', request_id: 7 }, { event: 'resync' }]);
+    expect(received).toEqual([
+      { event: 'request_created', request_id: 7 },
+      { event: 'settings_updated' },
+      { event: 'resync' },
+    ]);
     expect(source.close).toHaveBeenCalled();
   });
 

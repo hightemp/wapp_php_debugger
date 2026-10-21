@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Transport } from '../lib/api/client';
-  import type { Project, Server } from '../lib/api/types';
+  import type { Environment, Project, Server } from '../lib/api/types';
   import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { onCommand } from '../lib/commands';
@@ -18,6 +18,7 @@
     onselect,
     onselectserver = () => {},
     onopenrequest = () => {},
+    onenvironment = () => {},
   }: {
     transport: Transport;
     selectedId?: number;
@@ -27,6 +28,8 @@
     onselectserver?: (id: number) => void;
     /** Opens a request of a project: the one just imported */
     onopenrequest?: (projectId: number, requestId: number) => void;
+    /** The environment of the chosen project or server feed; none for all projects. */
+    onenvironment?: (environment: Environment | undefined) => void;
   } = $props();
 
   let projects = $state<Project[]>([]);
@@ -39,6 +42,10 @@
 
   const selected = $derived(projects.find((project) => project.id === selectedId));
   const selectedServer = $derived(servers.find((server) => server.id === selected?.server_id));
+  const environment = $derived(
+    (selectedServer ?? servers.find((server) => server.id === selectedServerId))?.environment,
+  );
+  $effect(() => onenvironment(environment));
   // Changes on stage and prod are confirmed; clearing and removing — by typing the project name
   const risky = $derived(
     selectedServer?.environment === 'stage' || selectedServer?.environment === 'prod',

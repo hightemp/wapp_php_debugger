@@ -517,7 +517,8 @@
     grid-template-columns: 11ch 1fr;
     gap: var(--space-1) var(--space-3);
     align-items: center;
-    padding: var(--space-2) var(--space-4);
+    padding: var(--row-padding-y) var(--space-4);
+    line-height: var(--row-line-height);
     font-variant-numeric: tabular-nums;
   }
 

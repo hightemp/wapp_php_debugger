@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import AppearanceDialog from './components/AppearanceDialog.svelte';
   import LanguageSwitch from './components/LanguageSwitch.svelte';
   import MessageDetail from './components/MessageDetail.svelte';
   import ProjectsPanel from './components/ProjectsPanel.svelte';
@@ -10,11 +11,15 @@
   import CommandPalette, { type PaletteCommand } from './components/CommandPalette.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import ShortcutsDialog from './components/ShortcutsDialog.svelte';
+  import Showcase from './components/Showcase.svelte';
+  import ThemeEditor from './components/ThemeEditor.svelte';
   import Toaster from './components/Toaster.svelte';
   import { emitCommand } from './lib/commands';
   import { themePreferences } from './lib/theme';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport, type UpdateInfo } from './lib/api/client';
+  import type { Environment } from './lib/api/types';
+  import { appearance, saveSettings, type AppearanceStore } from './lib/settings.svelte';
   import {
     createWailsEventSource,
     isDesktop,
@@ -30,11 +35,26 @@
       baseUrl: '',
       createEventSource: isDesktop() ? createWailsEventSource(openWailsStream) : undefined,
     }),
-  }: { transport?: Transport } = $props();
+    store = appearance,
+  }: { transport?: Transport; store?: AppearanceStore } = $props();
 
   let version = $state('');
   let desktop = $state(false);
   let settingsOpen = $state(false);
+  let appearanceOpen = $state(false);
+  let themeEditorOpen = $state(false);
+  // The environment of the chosen project or server: stage and prod frame the window
+  let environment = $state<Environment | undefined>(undefined);
+  const envFrame = $derived(
+    store.settings.env_frame && (environment === 'stage' || environment === 'prod')
+      ? environment
+      : undefined,
+  );
+
+  function chooseLocale(locale: 'en' | 'ru') {
+    i18n.set(locale);
+    void saveSettings(transport, { locale }, store);
+  }
   let update = $state<UpdateInfo | undefined>(undefined);
 
   // A newer version: asked now and every hour (the viewer itself asks GitHub once a day)
@@ -117,8 +137,28 @@
         label: i18n.t('palette.theme', { theme: i18n.t(`theme.${theme}`) }),
         run: () => emitCommand({ type: 'theme', theme }),
       })),
-      { id: 'lang-en', label: 'Language: English', run: () => i18n.set('en') },
-      { id: 'lang-ru', label: 'Язык: русский', run: () => i18n.set('ru') },
+      ...store.settings.custom_themes.map((theme) => ({
+        id: `theme-custom-${theme.id}`,
+        label: i18n.t('palette.theme', { theme: theme.name }),
+        run: () => emitCommand({ type: 'theme', theme: `custom:${theme.id}` }),
+      })),
+      {
+        id: 'appearance',
+        label: i18n.t('palette.appearance'),
+        run: () => (appearanceOpen = true),
+      },
+      {
+        id: 'theme-editor',
+        label: i18n.t('palette.themeEditor'),
+        run: () => (themeEditorOpen = true),
+      },
+      {
+        id: 'showcase',
+        label: i18n.t('palette.showcase'),
+        run: () => navigate({ showcase: true }),
+      },
+      { id: 'lang-en', label: 'Language: English', run: () => chooseLocale('en') },
+      { id: 'lang-ru', label: 'Язык: русский', run: () => chooseLocale('ru') },
       ...(desktop
         ? [{ id: 'settings', label: i18n.t('settings.title'), run: () => (settingsOpen = true) }]
         : []),
@@ -234,6 +274,8 @@
     }
   }
 
+  onMount(() => store.connect(transport));
+
   onMount(() => {
     transport
       .getVersion()
@@ -253,103 +295,111 @@
   });
 </script>
 
-<div class="app">
-  <header class="header">
-    <h1 class="title">{i18n.t('app.title')}</h1>
-    {#if version}
-      <span class="version">{version}</span>
-    {/if}
-    {#if update?.url}
-      {@const url = update.url}
-      <a
-        class="update"
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onclick={(event) => {
-          // Inside the desktop window the system browser opens it
-          if (isDesktop()) {
-            event.preventDefault();
-            void openInBrowser(url);
-          }
-        }}>{i18n.t('update.available', { version: update.latest ?? '' })}</a
+{#if route.showcase}
+  <Showcase />
+{:else}
+  <div class="app" data-env-frame={envFrame}>
+    <header class="header">
+      <h1 class="title">{i18n.t('app.title')}</h1>
+      {#if version}
+        <span class="version">{version}</span>
+      {/if}
+      {#if update?.url}
+        {@const url = update.url}
+        <a
+          class="update"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onclick={(event) => {
+            // Inside the desktop window the system browser opens it
+            if (isDesktop()) {
+              event.preventDefault();
+              void openInBrowser(url);
+            }
+          }}>{i18n.t('update.available', { version: update.latest ?? '' })}</a
+        >
+      {/if}
+      <span class="spacer"></span>
+      <LanguageSwitch onchange={chooseLocale} />
+      <ThemeSwitch {transport} {store} />
+      <button type="button" class="settings" onclick={() => (appearanceOpen = true)}
+        >{i18n.t('appearance.open')}</button
       >
-    {/if}
-    <span class="spacer"></span>
-    <LanguageSwitch />
-    <ThemeSwitch />
-    {#if desktop}
-      <button type="button" class="settings" onclick={() => (settingsOpen = true)}
-        >{i18n.t('settings.title')}</button
-      >
-    {/if}
-  </header>
-  <main class="panes">
-    <div class="pane feed">
-      <ProjectsPanel
-        {transport}
-        selectedId={route.projectId}
-        selectedServerId={route.serverId}
-        onopenrequest={(projectId, requestId) => navigate({ projectId, requestId })}
-        onselect={(id) => navigate({ projectId: id })}
-        onselectserver={(id) => navigate({ serverId: id })}
-      />
-      <RequestList
-        {transport}
-        projectId={route.projectId}
-        serverId={route.serverId}
-        selectedId={route.requestId}
-        onselect={(id) => navigate({ ...scope, requestId: id })}
-      />
-    </div>
-    {#if route.requestId !== undefined && route.compareId !== undefined}
-      {@const requestId = route.requestId}
-      <div class="pane wide">
-        <RequestTabs
+      {#if desktop}
+        <button type="button" class="settings" onclick={() => (settingsOpen = true)}
+          >{i18n.t('settings.title')}</button
+        >
+      {/if}
+    </header>
+    <main class="panes">
+      <div class="pane feed">
+        <ProjectsPanel
           {transport}
-          currentId={requestId}
-          onselect={(id) => navigate({ ...scope, requestId: id })}
-          oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
+          selectedId={route.projectId}
+          selectedServerId={route.serverId}
+          onopenrequest={(projectId, requestId) => navigate({ projectId, requestId })}
+          onselect={(id) => navigate({ projectId: id })}
+          onselectserver={(id) => navigate({ serverId: id })}
+          onenvironment={(value) => (environment = value)}
         />
-        <RequestCompare
+        <RequestList
           {transport}
-          {requestId}
-          otherId={route.compareId}
-          onclose={() => navigate({ ...scope, requestId })}
+          projectId={route.projectId}
+          serverId={route.serverId}
+          selectedId={route.requestId}
+          onselect={(id) => navigate({ ...scope, requestId: id })}
         />
       </div>
-    {:else}
-      <div class="pane">
-        {#if route.requestId !== undefined}
-          {@const requestId = route.requestId}
+      {#if route.requestId !== undefined && route.compareId !== undefined}
+        {@const requestId = route.requestId}
+        <div class="pane wide">
           <RequestTabs
             {transport}
             currentId={requestId}
             onselect={(id) => navigate({ ...scope, requestId: id })}
             oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
           />
-          <RequestDetail
+          <RequestCompare
             {transport}
-            requestId={route.requestId}
-            selectedMessageId={route.messageId}
-            onselectmessage={(id) =>
-              navigate({ ...scope, requestId: route.requestId, messageId: id })}
-            onselectrequest={(id) => navigate({ ...scope, requestId: id })}
+            {requestId}
+            otherId={route.compareId}
+            onclose={() => navigate({ ...scope, requestId })}
           />
-        {:else}
-          <p class="hint">{i18n.t('detail.empty')}</p>
-        {/if}
-      </div>
-      <div class="pane">
-        {#if route.messageId !== undefined}
-          <MessageDetail {transport} messageId={route.messageId} />
-        {:else if route.requestId !== undefined}
-          <p class="hint">{i18n.t('message.empty')}</p>
-        {/if}
-      </div>
-    {/if}
-  </main>
-</div>
+        </div>
+      {:else}
+        <div class="pane">
+          {#if route.requestId !== undefined}
+            {@const requestId = route.requestId}
+            <RequestTabs
+              {transport}
+              currentId={requestId}
+              onselect={(id) => navigate({ ...scope, requestId: id })}
+              oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
+            />
+            <RequestDetail
+              {transport}
+              requestId={route.requestId}
+              selectedMessageId={route.messageId}
+              onselectmessage={(id) =>
+                navigate({ ...scope, requestId: route.requestId, messageId: id })}
+              onselectrequest={(id) => navigate({ ...scope, requestId: id })}
+            />
+          {:else}
+            <p class="hint">{i18n.t('detail.empty')}</p>
+          {/if}
+        </div>
+        <div class="pane">
+          {#if route.messageId !== undefined}
+            <MessageDetail {transport} messageId={route.messageId} />
+          {:else if route.requestId !== undefined}
+            <p class="hint">{i18n.t('message.empty')}</p>
+          {/if}
+        </div>
+      {/if}
+    </main>
+  </div>
+{/if}
 
 <svelte:window onkeydown={onKeydown} />
 <CommandPalette
@@ -359,6 +409,17 @@
   onclose={() => (paletteOpen = false)}
 />
 <ShortcutsDialog open={helpOpen} onclose={() => (helpOpen = false)} />
+<AppearanceDialog
+  open={appearanceOpen}
+  {transport}
+  {store}
+  onclose={() => (appearanceOpen = false)}
+  oneditthemes={() => {
+    appearanceOpen = false;
+    themeEditorOpen = true;
+  }}
+/>
+<ThemeEditor open={themeEditorOpen} {transport} {store} onclose={() => (themeEditorOpen = false)} />
 <Toaster />
 
 {#if desktop}
@@ -394,6 +455,24 @@
     display: grid;
     grid-template-rows: auto 1fr;
     height: 100vh;
+  }
+
+  /* Over everything and never in the way: the frame takes no clicks */
+  .app[data-env-frame]::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    border: 3px solid var(--env-frame);
+    pointer-events: none;
+  }
+
+  .app[data-env-frame='stage'] {
+    --env-frame: var(--env-stage);
+  }
+
+  .app[data-env-frame='prod'] {
+    --env-frame: var(--env-prod);
   }
 
   .header {

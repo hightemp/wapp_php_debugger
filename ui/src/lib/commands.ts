@@ -1,13 +1,12 @@
 // Commands from the keyboard and the palette to the parts of the UI that carry them out.
-import type { ThemePreference } from './theme';
-
 export type Command =
   | { type: 'filter'; text: string }
   | { type: 'focus-filter' }
   | { type: 'focus-projects' }
   | { type: 'open-servers' }
   | { type: 'add-project' }
-  | { type: 'theme'; theme: ThemePreference };
+  /** A built-in theme or custom:<id>. */
+  | { type: 'theme'; theme: string };
 
 const listeners = new Set<(command: Command) => void>();
 

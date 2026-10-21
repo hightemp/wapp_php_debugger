@@ -9,8 +9,10 @@ import type {
   Request,
   RequestDetail,
   Server,
+  Settings,
   StreamEvent,
 } from '../lib/api/types';
+import { defaultSettings } from '../lib/appearance';
 
 export function sampleRequest(id: number, overrides: Partial<Request> = {}): Request {
   return {
@@ -95,7 +97,8 @@ export function sampleServer(id: number, overrides: Partial<Server> = {}): Serve
 
 /** A Transport whose methods are vi.fn() with empty answers; override what a test needs. */
 export function fakeTransport(overrides: Partial<Transport> = {}) {
-  let emit: (event: StreamEvent) => void = () => {};
+  // Every subscriber gets the events, as from the shared EventSource of the real transport
+  const listeners = new Set<(event: StreamEvent) => void>();
   const unsubscribe = vi.fn();
   const transport = {
     getVersion: vi.fn(async () => ({
@@ -127,6 +130,8 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
       update_check: true,
     })),
     updateDesktopSettings: vi.fn(async (settings: DesktopSettings) => settings),
+    getSettings: vi.fn(async (): Promise<Settings> => ({ ...defaultSettings })),
+    updateSettings: vi.fn(async (settings: Settings) => settings),
     listRequests: vi.fn(async () => ({ items: [], next_cursor: null })),
     getRequest: vi.fn(async (id: number) => sampleRequestDetail(id)),
     listMessages: vi.fn(async () => ({ items: [], next_cursor: null })),
@@ -156,10 +161,18 @@ export function fakeTransport(overrides: Partial<Transport> = {}) {
     setDebuggerState: vi.fn(async (_id: number, enabled: boolean) => ({ enabled })),
     clearProjectLogs: vi.fn(async () => ({ removed_files: 0 })),
     subscribe: vi.fn((onEvent: (event: StreamEvent) => void) => {
-      emit = onEvent;
-      return unsubscribe;
+      listeners.add(onEvent);
+      return () => {
+        listeners.delete(onEvent);
+        unsubscribe();
+      };
     }),
     ...overrides,
   } satisfies Transport;
-  return { transport, unsubscribe, emit: (event: StreamEvent) => emit(event) };
+  const emit = (event: StreamEvent) => {
+    for (const listener of [...listeners]) {
+      listener(event);
+    }
+  };
+  return { transport, unsubscribe, emit };
 }

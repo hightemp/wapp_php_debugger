@@ -17,6 +17,7 @@ import type {
   ServerCheck,
   ServerInput,
   ServerPatch,
+  Settings,
   RequestPage,
   SourcePreview,
   StreamEvent,
@@ -85,6 +86,9 @@ export interface Transport {
   getUpdates(): Promise<UpdateInfo>;
   getDesktopSettings(): Promise<DesktopSettings>;
   updateDesktopSettings(settings: DesktopSettings): Promise<DesktopSettings>;
+  /** UI settings, the same in every window; a save comes to the others as settings_updated. */
+  getSettings(): Promise<Settings>;
+  updateSettings(settings: Settings): Promise<Settings>;
   listRequests(params: ListRequestsParams): Promise<RequestPage>;
   getRequest(id: number): Promise<RequestDetail>;
   listMessages(requestId: number, params: ListMessagesParams): Promise<MessagePage>;
@@ -161,11 +165,12 @@ export interface HttpTransportOptions {
   createEventSource?: (url: string) => EventSourceLike;
 }
 
-const streamEventNames = [
+export const streamEventNames = [
   'request_created',
   'request_updated',
   'messages_added',
   'server_status',
+  'settings_updated',
   'resync',
 ] as const;
 
@@ -233,6 +238,8 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
     getDesktopSettings: () => getJSON<DesktopSettings>('/api/v1/desktop/settings'),
     updateDesktopSettings: (settings) =>
       request<DesktopSettings>('PUT', '/api/v1/desktop/settings', {}, settings),
+    getSettings: () => getJSON<Settings>('/api/v1/settings'),
+    updateSettings: (settings) => request<Settings>('PUT', '/api/v1/settings', {}, settings),
     listRequests: (params) => getJSON<RequestPage>('/api/v1/requests', params),
     getRequest: (id) => getJSON<RequestDetail>(`/api/v1/requests/${id}`),
     listMessages: (requestId, params) =>

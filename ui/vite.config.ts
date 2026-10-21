@@ -13,5 +13,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest-setup.ts'],
     include: ['src/**/*.test.ts'],
+    // theme.css?raw is the source of theme tokens (lib/themeTokens.ts): tests need its text
+    css: { include: [/theme\.css/] },
   },
 });

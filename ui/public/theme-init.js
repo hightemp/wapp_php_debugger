@@ -1,18 +1,49 @@
-// Theme before the first paint, no flash. Same logic as src/lib/theme.ts.
-// A separate file, not an inline script: the viewer is served with script-src 'self'.
+// Appearance before the first paint, no flash: the settings cached by the UI (lib/appearance.ts,
+// appearanceOf and applyAppearance; theme-init.test.ts keeps the two in step). A separate file,
+// not an inline script: the viewer is served with script-src 'self'.
 (function () {
-  var preference = 'system';
+  var settings = {};
   try {
-    preference = localStorage.getItem('wapp-debugger.theme') || 'system';
+    var cached = localStorage.getItem('wapp-debugger.settings');
+    settings = cached
+      ? JSON.parse(cached) || {}
+      : { theme: localStorage.getItem('wapp-debugger.theme') };
   } catch {
-    // storage is blocked: keep the system theme
+    // storage is blocked or broken: the defaults
   }
-  if (['light', 'dark', 'system', 'high-contrast'].indexOf(preference) < 0) {
-    preference = 'system';
+  var media = function (query) {
+    return !!(window.matchMedia && matchMedia(query).matches);
+  };
+  var root = document.documentElement;
+  var theme = settings.theme;
+  var custom = null;
+  (settings.custom_themes || []).forEach(function (item) {
+    if ('custom:' + item.id === theme) {
+      custom = item;
+    }
+  });
+  if (custom) {
+    theme = custom.base;
+    Object.keys(custom.tokens || {}).forEach(function (name) {
+      root.style.setProperty('--' + name, custom.tokens[name]);
+    });
+  } else if (['light', 'dark', 'high-contrast'].indexOf(theme) < 0) {
+    theme = media('(prefers-contrast: more)')
+      ? 'high-contrast'
+      : media('(prefers-color-scheme: dark)')
+        ? 'dark'
+        : 'light';
   }
-  if (preference === 'system') {
-    preference =
-      window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (settings.accent_color) {
+    root.style.setProperty('--accent', settings.accent_color);
   }
-  document.documentElement.dataset.theme = preference;
+  if (settings.ui_font_size && settings.ui_font_size !== 14) {
+    root.style.setProperty('--font-size', settings.ui_font_size + 'px');
+    root.style.setProperty('--font-size-small', settings.ui_font_size - 2 + 'px');
+  }
+  if (settings.mono_font) {
+    root.style.setProperty('--font-mono', settings.mono_font + ', ui-monospace, monospace');
+  }
+  root.dataset.theme = theme;
+  root.dataset.density = settings.density || 'comfortable';
 })();

@@ -509,7 +509,8 @@
     grid-template-columns: 8ch 1fr auto auto;
     gap: var(--space-3);
     width: 100%;
-    padding: var(--space-2) var(--space-4);
+    padding: var(--row-padding-y) var(--space-4);
+    line-height: var(--row-line-height);
     border: 0;
     background: none;
     color: var(--text);

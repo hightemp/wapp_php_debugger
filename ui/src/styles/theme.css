@@ -1,5 +1,7 @@
-/* Theme tokens. Components take colors only from here.
-   Color pair contrast is checked by theme.test.ts (WCAG AA; AAA for body text in the high contrast theme). */
+/* Theme tokens. Components take colors only from here (Stylelint refuses colors anywhere else).
+   Color pair contrast is checked by theme.test.ts (WCAG AA; AAA for body text in the high contrast theme).
+   A theme applies to any element with data-theme, not only the root: the theme editor previews in place.
+   Settings put the accent, fonts and custom themes over these as inline variables (lib/appearance.ts). */
 
 :root {
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
@@ -12,10 +14,18 @@
   --space-4: 12px;
   --space-6: 24px;
   --radius: 6px;
+  --row-padding-y: var(--space-2);
+  --row-line-height: 1.45;
   color-scheme: light dark;
 }
 
-:root[data-theme='light'] {
+/* Density of lists: requests and messages */
+:root[data-density='compact'] {
+  --row-padding-y: 1px;
+  --row-line-height: 1.25;
+}
+
+[data-theme='light'] {
   color-scheme: light;
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -40,9 +50,10 @@
   --env-stage: #8f5400;
   --env-prod: #c62828;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 12%);
+  --backdrop: rgb(0 0 0 / 45%);
 }
 
-:root[data-theme='dark'] {
+[data-theme='dark'] {
   color-scheme: dark;
   --bg: #0f1115;
   --surface: #161a20;
@@ -67,9 +78,10 @@
   --env-stage: #e3b341;
   --env-prod: #ff7b72;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 50%);
+  --backdrop: rgb(0 0 0 / 60%);
 }
 
-:root[data-theme='high-contrast'] {
+[data-theme='high-contrast'] {
   color-scheme: dark;
   --bg: #000000;
   --surface: #000000;
@@ -94,6 +106,7 @@
   --env-stage: #ffd23f;
   --env-prod: #ff6b6b;
   --shadow-small: 0 0 0 1px #ffffff;
+  --backdrop: rgb(0 0 0 / 80%);
 }
 
 *,
