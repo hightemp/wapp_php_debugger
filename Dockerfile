@@ -8,7 +8,7 @@ RUN npm ci --no-audit --no-fund
 COPY ui/ ./
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS server
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS server
 ARG TARGETOS TARGETARCH
 ARG VERSION=dev COMMIT=none BUILD_DATE=unknown
 WORKDIR /src/server
