@@ -178,6 +178,8 @@ test('errors of a page come in as a child of its PHP request', async ({ page, re
   const parent = feed.items.find((item) => item.url?.includes('/catalog/item'));
   expect(parent).toBeDefined();
   const ingest = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 18840) + 1}`;
+  // Every run names its page apart: the viewer keeps the children of runs before it
+  const run = Date.now().toString(36);
 
   // The shop page as PHP would print it: Debugger::jsTag(), then a script that fails. A real local
   // server: Chrome lets a page reach a local receiver only from the same address space.
@@ -190,7 +192,7 @@ test('errors of a page come in as a child of its PHP request', async ({ page, re
   await new Promise<void>((done) => shop.listen(0, '127.0.0.1', done));
   const { port } = shop.address() as AddressInfo;
   try {
-    await page.goto(`http://127.0.0.1:${port}/catalog/item?id=42`);
+    await page.goto(`http://127.0.0.1:${port}/catalog/item?id=42&run=${run}`);
     await page.waitForTimeout(300);
     await page.goto('/'); // leaving the page sends the rest with a beacon
   } finally {
@@ -198,7 +200,7 @@ test('errors of a page come in as a child of its PHP request', async ({ page, re
   }
 
   const requests = page.getByRole('region', { name: 'Requests' });
-  const child = requests.getByRole('button', { name: /GET \/catalog\/item\?id=42.*1 error/ });
+  const child = requests.getByRole('button', { name: new RegExp(`run=${run}.*1 error`) });
   await expect(child).toBeVisible({ timeout: 10_000 });
   await child.click();
   await expect(
