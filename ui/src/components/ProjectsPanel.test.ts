@@ -140,6 +140,25 @@ describe('ProjectsPanel', () => {
     expect(screen.queryByRole('button', { name: 'shop' })).not.toBeInTheDocument();
   });
 
+  it('keeps the names of projects and its buttons when collapsed to a rail', async () => {
+    const fake = fakeTransport({
+      listProjects: vi.fn(async () => ({ items: [sampleProject(1, { name: 'shop' })] })),
+    });
+    render(ProjectsPanel, {
+      transport: fake.transport,
+      selectedId: 1,
+      collapsed: true,
+      onselect: vi.fn(),
+    });
+    const shop = await screen.findByRole('button', { name: 'shop' });
+    expect(shop).toHaveAttribute('title', 'shop');
+    expect(screen.getByRole('button', { name: 'All projects' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add project' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Servers' })).toBeInTheDocument();
+    // The actions of the project need the room of the full panel
+    expect(screen.queryByRole('switch', { name: 'Debugger' })).not.toBeInTheDocument();
+  });
+
   it('opens the servers', async () => {
     setup();
     await fireEvent.click(await screen.findByRole('button', { name: 'Servers' }));

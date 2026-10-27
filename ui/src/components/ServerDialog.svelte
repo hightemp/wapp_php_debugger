@@ -2,6 +2,8 @@
   import { ApiError } from '../lib/api/client';
   import type { ServerInput } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { emitCommand } from '../lib/commands';
+  import { Globe, Help, KeyRound, Server } from '../lib/icons';
   import Dialog from './Dialog.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import Switch from './Switch.svelte';
@@ -102,15 +104,21 @@
   }
 </script>
 
-<Dialog {open} title={i18n.t('server.newTitle')} {onclose}>
+<Dialog {open} title={i18n.t('server.newTitle')} icon={Server} {onclose}>
   <form id="server-form" class="form" onsubmit={submit}>
+    <button
+      type="button"
+      class="btn btn-ghost help"
+      onclick={() => emitCommand({ type: 'help', topic: 'servers' })}
+      ><Help size={14} />{i18n.t('server.help')}</button
+    >
     <div class="field">
       <span>{i18n.t('server.kind')}</span>
       <SegmentedControl
         label={i18n.t('server.kind')}
         options={[
-          { value: 'ssh', label: 'SSH' },
-          { value: 'http', label: 'HTTP' },
+          { value: 'ssh', label: 'SSH', icon: KeyRound },
+          { value: 'http', label: 'HTTP', icon: Globe },
         ]}
         value={kind}
         onchange={(value: Kind) => (kind = value)}
@@ -118,21 +126,22 @@
     </div>
     <label class="field">
       <span>{i18n.t('server.name')}</span>
-      <input bind:value={name} placeholder="stage" autocomplete="off" />
+      <input class="input mono" bind:value={name} placeholder="stage" autocomplete="off" />
     </label>
     {#if kind === 'ssh'}
       <label class="field">
         <span>{i18n.t('server.host')}</span>
-        <input bind:value={host} placeholder="stage-web" autocomplete="off" />
+        <input class="input mono" bind:value={host} placeholder="stage-web" autocomplete="off" />
       </label>
-      <div class="row">
+      <div class="form-row port-row">
         <label class="field">
           <span>{i18n.t('server.user')}</span>
-          <input bind:value={user} placeholder="deploy" autocomplete="off" />
+          <input class="input mono" bind:value={user} placeholder="deploy" autocomplete="off" />
         </label>
         <label class="field port">
           <span>{i18n.t('server.port')}</span>
           <input
+            class="input mono"
             bind:value={port}
             placeholder="22"
             inputmode="numeric"
@@ -143,13 +152,19 @@
       </div>
       <label class="field">
         <span>{i18n.t('server.jumpHosts')}</span>
-        <input bind:value={jumpHosts} placeholder={i18n.t('server.jumpHint')} autocomplete="off" />
+        <input
+          class="input mono"
+          bind:value={jumpHosts}
+          placeholder={i18n.t('server.jumpHint')}
+          autocomplete="off"
+        />
       </label>
     {:else}
       <p class="hint">{i18n.t('server.httpHint')}</p>
       <label class="field">
         <span>{i18n.t('server.baseUrl')}</span>
         <input
+          class="input mono"
           bind:value={baseUrl}
           placeholder="https://shop.example.test"
           autocomplete="off"
@@ -162,6 +177,7 @@
       <label class="field">
         <span>{i18n.t('server.token')}</span>
         <input
+          class="input mono"
           type="password"
           bind:value={token}
           placeholder={i18n.t('server.tokenHint')}
@@ -197,50 +213,26 @@
     {/if}
   </form>
   {#snippet footer()}
-    <button type="button" class="button" onclick={onclose}>{i18n.t('dialog.cancel')}</button>
-    <button type="submit" form="server-form" class="button primary" disabled={!complete || saving}>
+    <button type="button" class="btn btn-large" onclick={onclose}>{i18n.t('dialog.cancel')}</button>
+    <button
+      type="submit"
+      form="server-form"
+      class="btn btn-large btn-primary"
+      disabled={!complete || saving}
+    >
       {i18n.t('project.save')}
     </button>
   {/snippet}
 </Dialog>
 
 <style>
-  .form {
-    display: grid;
-    gap: var(--space-3);
+  .port-row {
+    grid-template-columns: minmax(0, 1fr) 10ch;
   }
 
-  .row {
-    display: grid;
-    grid-template-columns: 1fr 8ch;
-    gap: var(--space-3);
-  }
-
-  .field {
-    display: grid;
-    gap: var(--space-1);
-    color: var(--text-muted);
-    font-size: var(--font-size-small);
-  }
-
-  input {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-sunken);
-    color: var(--text);
-    font: inherit;
-    font-family: var(--font-mono);
-    font-size: var(--font-size);
-  }
-
-  input[aria-invalid='true'] {
-    border-color: var(--level-error);
-  }
-
-  input:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 0;
+  .help {
+    justify-self: start;
+    padding-left: 0;
   }
 
   .switch-field {
@@ -251,44 +243,9 @@
     font-size: var(--font-size-small);
   }
 
-  .hint {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--font-size-small);
-  }
-
   .warning {
     margin: 0;
     color: var(--level-warning);
     font-size: var(--font-size-small);
-  }
-
-  .failure {
-    margin: 0;
-    color: var(--level-error);
-  }
-
-  .button {
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .primary {
-    border-color: var(--accent);
-  }
-
-  .button:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 </style>

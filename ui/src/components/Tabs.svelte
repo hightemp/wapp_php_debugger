@@ -1,5 +1,7 @@
 <script lang="ts" generics="T extends string">
   // Tabs (WAI-ARIA): arrows move between tabs, the panel is labelled by its tab — panelId(id).
+  import type { Component } from 'svelte';
+
   let {
     label,
     tabs,
@@ -8,7 +10,7 @@
     onchange,
   }: {
     label: string;
-    tabs: readonly { id: T; label: string; count?: number }[];
+    tabs: readonly { id: T; label: string; count?: number; icon?: Component<{ size?: number }> }[];
     value: T;
     /** Tabs are tab-<prefix>-<id>, their panels panel-<prefix>-<id> */
     idPrefix: string;
@@ -54,6 +56,10 @@
       tabindex={tab.id === value ? 0 : -1}
       onclick={() => onchange(tab.id)}
     >
+      {#if tab.icon}
+        {@const Icon = tab.icon}
+        <Icon size={14} />
+      {/if}
       {#if tab.count !== undefined}{`${tab.label} `}<span class="count">{tab.count}</span
         >{:else}{tab.label}{/if}
     </button>
@@ -69,7 +75,10 @@
   }
 
   button {
-    padding: var(--space-2) var(--space-3);
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    padding: var(--space-3) var(--space-3) var(--space-2);
     border: 0;
     border-bottom: 2px solid transparent;
     background: none;

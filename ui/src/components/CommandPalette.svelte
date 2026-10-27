@@ -2,6 +2,7 @@
   // Ctrl+K: type to find a command, arrows to choose, Enter to run. Typed text that is no command
   // can still filter the feed.
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { Command } from '../lib/icons';
   import Dialog from './Dialog.svelte';
 
   export interface PaletteCommand {
@@ -67,7 +68,7 @@
   }
 </script>
 
-<Dialog {open} title={i18n.t('palette.title')} {onclose}>
+<Dialog {open} title={i18n.t('palette.title')} icon={Command} {onclose}>
   <input
     class="input"
     type="text"

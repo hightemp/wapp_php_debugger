@@ -1,3 +1,5 @@
+import type { HelpTopic } from './help';
+
 // Commands from the keyboard and the palette to the parts of the UI that carry them out.
 export type Command =
   | { type: 'filter'; text: string }
@@ -6,7 +8,9 @@ export type Command =
   | { type: 'open-servers' }
   | { type: 'add-project' }
   /** A built-in theme or custom:<id>. */
-  | { type: 'theme'; theme: string };
+  | { type: 'theme'; theme: string }
+  /** The help, on a topic of lib/help.ts. */
+  | { type: 'help'; topic?: HelpTopic };
 
 const listeners = new Set<(command: Command) => void>();
 

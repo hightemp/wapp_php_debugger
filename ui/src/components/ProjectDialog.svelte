@@ -2,6 +2,8 @@
   import { ApiError, type Transport } from '../lib/api/client';
   import type { Project, Server } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { emitCommand } from '../lib/commands';
+  import { Folder, Help } from '../lib/icons';
   import Dialog from './Dialog.svelte';
   import IngestToken from './IngestToken.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
@@ -138,8 +140,21 @@
   }
 </script>
 
-<Dialog {open} title={i18n.t(project ? 'project.editTitle' : 'project.newTitle')} {onclose}>
+<Dialog
+  {open}
+  title={i18n.t(project ? 'project.editTitle' : 'project.newTitle')}
+  icon={Folder}
+  {onclose}
+>
   <form id="project-form" class="form" onsubmit={submit}>
+    {#if !project}
+      <button
+        type="button"
+        class="btn btn-ghost help"
+        onclick={() => emitCommand({ type: 'help', topic: 'projects' })}
+        ><Help size={14} />{i18n.t('project.help')}</button
+      >
+    {/if}
     {#if !project && servers.length > 1 && serverId !== undefined}
       <div class="field">
         <span>{i18n.t('project.server')}</span>
@@ -157,36 +172,53 @@
     {/if}
     <label class="field">
       <span>{i18n.t('project.name')}</span>
-      <input bind:value={name} autocomplete="off" />
+      <input class="input mono" bind:value={name} autocomplete="off" />
     </label>
     <label class="field">
       <span>{i18n.t('project.rootPath')}</span>
-      <input bind:value={rootPath} placeholder="/var/www/app" autocomplete="off" />
+      <input
+        class="input mono"
+        bind:value={rootPath}
+        placeholder="/var/www/app"
+        autocomplete="off"
+      />
     </label>
     {#if !viaLibrary}
       <label class="field">
         <span>{i18n.t('project.logsDir')}</span>
-        <input bind:value={logsDir} placeholder="/var/www/app/tmp/logs" autocomplete="off" />
+        <input
+          class="input mono"
+          bind:value={logsDir}
+          placeholder="/var/www/app/tmp/logs"
+          autocomplete="off"
+        />
       </label>
     {/if}
     <label class="field">
       <span>{i18n.t('project.localPath')}</span>
-      <input bind:value={localPath} placeholder={i18n.t('project.optional')} autocomplete="off" />
+      <input
+        class="input mono"
+        bind:value={localPath}
+        placeholder={i18n.t('project.optional')}
+        autocomplete="off"
+      />
     </label>
     {#if !viaLibrary}
       <label class="field">
         <span>{i18n.t('project.configPath')}</span>
         <input
+          class="input mono"
           bind:value={configPath}
           placeholder={i18n.t('project.optional')}
           autocomplete="off"
         />
       </label>
     {/if}
-    <div class="row">
+    <div class="form-row">
       <label class="field">
         <span>{i18n.t('project.keepDays')}</span>
         <input
+          class="input mono"
           bind:value={keepDays}
           inputmode="numeric"
           placeholder={i18n.t('project.noLimit')}
@@ -197,6 +229,7 @@
       <label class="field">
         <span>{i18n.t('project.keepMegabytes')}</span>
         <input
+          class="input mono"
           bind:value={keepMegabytes}
           inputmode="numeric"
           placeholder={i18n.t('project.noLimit')}
@@ -223,84 +256,21 @@
     {/if}
   </form>
   {#snippet footer()}
-    <button type="button" class="button" onclick={onclose}>{i18n.t('dialog.cancel')}</button>
-    <button type="submit" form="project-form" class="button primary" disabled={!complete || saving}>
+    <button type="button" class="btn btn-large" onclick={onclose}>{i18n.t('dialog.cancel')}</button>
+    <button
+      type="submit"
+      form="project-form"
+      class="btn btn-large btn-primary"
+      disabled={!complete || saving}
+    >
       {i18n.t('project.save')}
     </button>
   {/snippet}
 </Dialog>
 
 <style>
-  .form {
-    display: grid;
-    gap: var(--space-3);
-  }
-
-  .field {
-    display: grid;
-    gap: var(--space-1);
-    font-size: var(--font-size-small);
-    color: var(--text-muted);
-  }
-
-  input {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-sunken);
-    color: var(--text);
-    font: inherit;
-    font-family: var(--font-mono);
-    font-size: var(--font-size);
-  }
-
-  input:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 0;
-  }
-
-  .row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
-  }
-
-  .hint {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--font-size-small);
-  }
-
-  input[aria-invalid='true'] {
-    border-color: var(--level-error);
-  }
-
-  .failure {
-    margin: 0;
-    color: var(--level-error);
-  }
-
-  .button {
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .primary {
-    border-color: var(--accent);
-  }
-
-  .button:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+  .help {
+    justify-self: start;
+    padding-left: 0;
   }
 </style>

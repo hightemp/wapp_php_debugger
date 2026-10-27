@@ -18,6 +18,7 @@ describe('contrast', () => {
     expect(problems.map((p) => `${p.foreground}/${p.background}`)).toEqual([
       'text/bg',
       'text/surface',
+      'text/accent-soft',
     ]);
     expect(problems[0]?.minimum).toBe(4.5);
     expect(problems[0]?.ratio).toBeLessThan(4.5);

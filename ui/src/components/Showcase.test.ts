@@ -22,6 +22,10 @@ describe('Showcase', () => {
       expect(within(column).getByRole('combobox', { name: 'Server' })).toBeInTheDocument();
       expect(within(column).getByRole('tablist', { name: 'Request' })).toBeInTheDocument();
       expect(within(column).getByRole('textbox', { name: 'Color of accent' })).toBeInTheDocument();
+      // The shared controls: buttons, an icon button with its name, badges
+      expect(within(column).getByRole('button', { name: 'Add project' })).toBeInTheDocument();
+      expect(within(column).getByRole('button', { name: 'Clear logs' })).toBeInTheDocument();
+      expect(within(column).getByText('1 error')).toHaveClass('badge-error');
       // The variables tree and the preview of the viewer
       expect(within(column).getAllByText('"Blue mug"')).toHaveLength(2);
     }

@@ -12,8 +12,13 @@
   --space-2: 4px;
   --space-3: 8px;
   --space-4: 12px;
+  --space-5: 16px;
   --space-6: 24px;
+  --space-8: 32px;
   --radius: 6px;
+  --radius-large: 10px;
+  --sidebar-width: 248px;
+  --sidebar-rail: 52px;
   --row-padding-y: var(--space-2);
   --row-line-height: 1.45;
   color-scheme: light dark;
@@ -35,6 +40,8 @@
   --text: #1b1f24;
   --text-muted: #555e6a;
   --accent: #2f6fed;
+  --accent-soft: #e6eefd;
+  --accent-contrast: #ffffff;
   --level-error: #c62828;
   --level-warning: #8f5400;
   --level-info: #1d6b40;
@@ -42,6 +49,7 @@
   --level-debug: #6650c8;
   --level-error-soft: #fde8e8;
   --level-warning-soft: #fdf1dc;
+  --level-info-soft: #e3f3e9;
   --syntax-string: #1d6b40;
   --syntax-number: #1f5fbf;
   --syntax-keyword: #8a3ab9;
@@ -50,6 +58,7 @@
   --env-stage: #8f5400;
   --env-prod: #c62828;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 12%);
+  --shadow-large: 0 12px 32px rgb(0 0 0 / 18%);
   --backdrop: rgb(0 0 0 / 45%);
 }
 
@@ -63,6 +72,8 @@
   --text: #e6e9ee;
   --text-muted: #9ea8b6;
   --accent: #6ea0ff;
+  --accent-soft: #1a2740;
+  --accent-contrast: #0b0d10;
   --level-error: #ff7b72;
   --level-warning: #e3b341;
   --level-info: #56d364;
@@ -70,6 +81,7 @@
   --level-debug: #b4a7ff;
   --level-error-soft: #3a1d1f;
   --level-warning-soft: #33290f;
+  --level-info-soft: #13291b;
   --syntax-string: #7ee787;
   --syntax-number: #79c0ff;
   --syntax-keyword: #d2a8ff;
@@ -78,6 +90,7 @@
   --env-stage: #e3b341;
   --env-prod: #ff7b72;
   --shadow-small: 0 1px 2px rgb(0 0 0 / 50%);
+  --shadow-large: 0 12px 32px rgb(0 0 0 / 60%);
   --backdrop: rgb(0 0 0 / 60%);
 }
 
@@ -91,6 +104,8 @@
   --text: #ffffff;
   --text-muted: #e0e0e0;
   --accent: #ffff00;
+  --accent-soft: #2e2e00;
+  --accent-contrast: #000000;
   --level-error: #ff6b6b;
   --level-warning: #ffd23f;
   --level-info: #6bff8b;
@@ -98,6 +113,7 @@
   --level-debug: #c9b8ff;
   --level-error-soft: #2a0000;
   --level-warning-soft: #2a2200;
+  --level-info-soft: #002a0c;
   --syntax-string: #6bff8b;
   --syntax-number: #8fd3ff;
   --syntax-keyword: #ffb3ff;
@@ -106,6 +122,7 @@
   --env-stage: #ffd23f;
   --env-prod: #ff6b6b;
   --shadow-small: 0 0 0 1px #ffffff;
+  --shadow-large: 0 0 0 2px #ffffff;
   --backdrop: rgb(0 0 0 / 80%);
 }
 

@@ -65,11 +65,11 @@
     <p class="hint warning">{i18n.t('ingest.receiverOff')}</p>
   {/if}
   <div class="buttons">
-    <button type="button" class="action" disabled={busy} onclick={() => void make()}
+    <button type="button" class="btn" disabled={busy} onclick={() => void make()}
       >{i18n.t(enabled ? 'ingest.renew' : 'ingest.make')}</button
     >
     {#if enabled}
-      <button type="button" class="action" disabled={busy} onclick={() => void stop()}
+      <button type="button" class="btn" disabled={busy} onclick={() => void stop()}
         >{i18n.t('ingest.stop')}</button
       >
     {/if}
@@ -115,18 +115,6 @@
     gap: var(--space-2);
   }
 
-  .action {
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .action:focus-visible,
   textarea:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;

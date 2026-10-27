@@ -3,6 +3,7 @@
   import type { Transport } from '../lib/api/client';
   import type { DesktopSettings, Project } from '../lib/api/types';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { Settings } from '../lib/icons';
   import Dialog from './Dialog.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import Switch from './Switch.svelte';
@@ -53,7 +54,7 @@
   }
 </script>
 
-<Dialog {open} title={i18n.t('settings.title')} {onclose}>
+<Dialog icon={Settings} {open} title={i18n.t('settings.title')} {onclose}>
   {#if settings}
     {@const current = settings}
     <div class="settings">

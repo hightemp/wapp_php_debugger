@@ -3,12 +3,33 @@
   import type { MessageDetail } from '../lib/api/types';
   import { formatDuration, formatTime } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import {
+    Braces,
+    Bug,
+    CalendarClock,
+    CircleX,
+    Clock,
+    Code,
+    FileCode,
+    Info,
+    Layers,
+    MessageSquare,
+    TriangleAlert,
+  } from '../lib/icons';
   import CodePreview from './CodePreview.svelte';
   import JsonTree from './JsonTree.svelte';
 
   type Frame = NonNullable<MessageDetail['source']>;
 
   let { transport, messageId }: { transport: Transport; messageId: number } = $props();
+
+  const levelIcons = {
+    error: CircleX,
+    warning: TriangleAlert,
+    info: Info,
+    message: MessageSquare,
+    debug: Bug,
+  } as const;
 
   let message = $state<MessageDetail | null>(null);
   let status = $state<'loading' | 'ready' | 'not-found' | 'error'>('loading');
@@ -62,17 +83,21 @@
   {:else if !message}
     <p class="state">{i18n.t('detail.loading')}</p>
   {:else}
+    {@const LevelIcon = levelIcons[message.level]}
     <header class="header" data-level={message.level}>
-      <span class="level">{i18n.t(`levelName.${message.level}`)}</span>
-      <span class="time">{formatTime(message.ts)}</span>
+      <span class="level"><LevelIcon size={13} />{i18n.t(`levelName.${message.level}`)}</span>
+      <span class="time"><CalendarClock size={12} />{formatTime(message.ts)}</span>
       {#if message.type === 'timer'}
-        <span class="time">{formatDuration(message.duration_ms, i18n.locale)}</span>
+        <span class="time"
+          ><Clock size={12} />{formatDuration(message.duration_ms, i18n.locale)}</span
+        >
       {/if}
       {#each message.tags as tag (tag)}<span class="tag">#{tag}</span>{/each}
     </header>
 
     {#if message.exception_class}
       <p class="exception">
+        <CircleX size={14} />
         <span>{message.exception_class}</span>
         {#if message.code}<span class="code">{i18n.t('message.code', { code: message.code })}</span
           >{/if}
@@ -82,6 +107,7 @@
 
     {#if message.source?.file}
       <p class="source">
+        <FileCode size={13} />
         {#if message.source.editor_url}
           <a href={message.source.editor_url}>{location(message.source)}</a>
         {:else}
@@ -89,9 +115,9 @@
         {/if}
         <button
           type="button"
-          class="code-toggle"
+          class="chip code-toggle"
           aria-expanded={showCode}
-          onclick={() => (showCode = !showCode)}>{i18n.t('code.show')}</button
+          onclick={() => (showCode = !showCode)}><Code size={12} />{i18n.t('code.show')}</button
         >
       </p>
       {#if showCode}
@@ -99,7 +125,7 @@
       {/if}
     {/if}
 
-    <h3 class="subtitle">{i18n.t('message.context')}</h3>
+    <h3 class="subtitle"><Braces size={13} />{i18n.t('message.context')}</h3>
     {#if message.context}
       <div class="block"><JsonTree value={message.context} searchable /></div>
     {:else}
@@ -119,7 +145,7 @@
     {/if}
 
     {#if message.trace && message.trace.length > 0}
-      <h3 class="subtitle">{i18n.t('message.trace')}</h3>
+      <h3 class="subtitle"><Layers size={13} />{i18n.t('message.trace')}</h3>
       <ol class="frames">
         {#each message.trace as frame, index (index)}
           <li>
@@ -132,7 +158,7 @@
             {#if frame.file}
               <button
                 type="button"
-                class="code-toggle"
+                class="chip code-toggle"
                 aria-label={i18n.t('code.frame')}
                 aria-expanded={openFrames.includes(index)}
                 onclick={() => toggleFrame(index)}>{i18n.t('code.short')}</button
@@ -149,57 +175,54 @@
 </section>
 
 <style>
-  .code-toggle {
-    margin-left: var(--space-2);
-    padding: 0 var(--space-2);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text-muted);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .code-toggle[aria-expanded='true'] {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-
-  .code-toggle:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
-
   .message {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-4);
     overflow: auto;
   }
 
   .header {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-3);
-    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+    align-items: center;
     font-size: var(--font-size-small);
   }
 
   .level {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
     color: var(--level-message);
     font-family: var(--font-mono);
     font-weight: 600;
   }
 
   [data-level='error'] .level {
+    background: var(--level-error-soft);
     color: var(--level-error);
   }
 
   [data-level='warning'] .level {
+    background: var(--level-warning-soft);
     color: var(--level-warning);
   }
 
   [data-level='info'] .level {
+    background: var(--level-info-soft);
     color: var(--level-info);
+  }
+
+  [data-level='debug'] .level {
+    color: var(--level-debug);
+  }
+
+  .time {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
   }
 
   .time,
@@ -210,8 +233,10 @@
 
   .exception {
     display: flex;
-    gap: var(--space-3);
-    margin: var(--space-3) 0 0;
+    gap: var(--space-2);
+    align-items: center;
+    margin: var(--space-4) 0 0;
+    color: var(--level-error);
     font-family: var(--font-mono);
     font-weight: 600;
   }
@@ -223,15 +248,33 @@
 
   .text {
     margin: var(--space-3) 0;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
     overflow-wrap: anywhere;
     font-family: var(--font-mono);
     white-space: pre-wrap;
   }
 
   .source {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
     margin: 0 0 var(--space-3);
+    color: var(--text-muted);
     font-family: var(--font-mono);
     font-size: var(--font-size-small);
+  }
+
+  .code-toggle {
+    margin-left: var(--space-1);
+  }
+
+  .code-toggle[aria-expanded='true'] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--text);
   }
 
   a {
@@ -239,10 +282,15 @@
   }
 
   .subtitle {
-    margin: var(--space-4) 0 var(--space-2);
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    margin: var(--space-5) 0 var(--space-2);
     color: var(--text-muted);
-    font-size: var(--font-size-small);
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .block {
@@ -262,8 +310,14 @@
   .frames li {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-3);
+    gap: var(--space-1) var(--space-3);
+    align-items: center;
     padding: var(--space-1) 0;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .frames li:last-child {
+    border-bottom: 0;
   }
 
   .state {

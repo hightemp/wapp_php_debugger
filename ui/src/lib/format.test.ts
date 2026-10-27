@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockSkew, formatDuration, formatTime, requestTitle } from './format';
+import { clockSkew, formatDuration, formatTime, outcomeKind, requestTitle } from './format';
 
 describe('formatDuration', () => {
   it('uses ms below a second and s above', () => {
@@ -23,6 +23,19 @@ describe('formatTime', () => {
 });
 
 describe('requestTitle', () => {
+  it('names a CLI run by its script and arguments', () => {
+    expect(
+      requestTitle({
+        sapi: 'cli',
+        argv: ['/var/www/app/bin/console', 'queue:work', '--queue=emails'],
+      }),
+    ).toBe('console queue:work --queue=emails');
+    expect(requestTitle({ sapi: 'cli', argv: ['import.php'] })).toBe('import.php');
+    // Logs of library v1 and runs without argv stay CLI
+    expect(requestTitle({ sapi: 'cli', argv: null })).toBe('CLI');
+    expect(requestTitle({ sapi: 'cli' })).toBe('CLI');
+  });
+
   it('shows method and path for web requests', () => {
     expect(
       requestTitle({ sapi: 'web', method: 'GET', url: 'https://shop.test/catalog?id=1' }),
@@ -61,5 +74,26 @@ describe('clockSkew', () => {
     expect(clockSkew(-2000)).toBeUndefined();
     expect(clockSkew(12400)).toBe('+12');
     expect(clockSkew(-2600)).toBe('−3');
+  });
+});
+
+describe('outcomeKind', () => {
+  const base = { finished: true, error_count: 0, warning_count: 0, status_code: 200 };
+
+  it('is bad for errors, server errors and unfinished requests', () => {
+    expect(outcomeKind({ ...base, error_count: 1 })).toBe('bad');
+    expect(outcomeKind({ ...base, status_code: 502 })).toBe('bad');
+    expect(outcomeKind({ ...base, finished: false })).toBe('bad');
+    expect(outcomeKind({ ...base, status_code: null, exit_code: 255 })).toBe('bad');
+  });
+
+  it('is a warning for warnings and client errors', () => {
+    expect(outcomeKind({ ...base, warning_count: 2 })).toBe('warn');
+    expect(outcomeKind({ ...base, status_code: 404 })).toBe('warn');
+  });
+
+  it('is ok otherwise', () => {
+    expect(outcomeKind(base)).toBe('ok');
+    expect(outcomeKind({ ...base, status_code: null, exit_code: 0 })).toBe('ok');
   });
 });

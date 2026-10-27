@@ -2,6 +2,7 @@
   // The filter line of the feed: free text and conditions (level:error status:5xx …), with
   // completions as a combobox (WAI-ARIA): arrows choose, Enter or Tab take one, Escape closes.
   import { onCommand } from '../lib/commands';
+  import { Search } from '../lib/icons';
   import { suggestions as complete } from '../lib/feedQuery';
 
   let {
@@ -71,6 +72,7 @@
 </script>
 
 <div class="line">
+  <span class="search-icon" aria-hidden="true"><Search size={14} /></span>
   <input
     bind:this={input}
     class="search"
@@ -112,10 +114,20 @@
     position: relative;
   }
 
+  .search-icon {
+    position: absolute;
+    top: 50%;
+    left: var(--space-3);
+    display: flex;
+    color: var(--text-muted);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
   .search {
     box-sizing: border-box;
     width: 100%;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 20px);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface-sunken);

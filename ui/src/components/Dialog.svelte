@@ -6,14 +6,16 @@
 <script lang="ts">
   // Modal dialog instead of native ones: labelled, traps Tab, closes on Escape, returns the focus.
   // Escape and Tab work wherever the focus is: a button that disappears takes the focus to <body>.
-  import type { Snippet } from 'svelte';
+  import type { Component, Snippet } from 'svelte';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { X } from '../lib/icons';
 
   let {
     open,
     title,
     role = 'dialog',
     wide = false,
+    icon,
     onclose,
     children,
     footer,
@@ -23,6 +25,8 @@
     role?: 'dialog' | 'alertdialog';
     /** Room for an editor next to its preview. */
     wide?: boolean;
+    /** An icon before the title. */
+    icon?: Component<{ size?: number }>;
     onclose: () => void;
     children: Snippet;
     footer?: Snippet;
@@ -45,7 +49,16 @@
     }
     stack.push(me);
     const previous = document.activeElement as HTMLElement | null;
-    queueMicrotask(() => (focusable()[1] ?? focusable()[0])?.focus());
+    // The first field of a form, else the first control after the close button
+    queueMicrotask(() =>
+      (
+        panel?.querySelector<HTMLElement>(
+          '.body :is(input, textarea, select):not([disabled], [type="file"])',
+        ) ??
+        focusable()[1] ??
+        focusable()[0]
+      )?.focus(),
+    );
     window.addEventListener('keydown', onKeydown);
     return () => {
       window.removeEventListener('keydown', onKeydown);
@@ -101,9 +114,17 @@
       tabindex="-1"
     >
       <header class="header">
+        {#if icon}
+          {@const Icon = icon}
+          <span class="title-icon"><Icon size={16} /></span>
+        {/if}
         <h2 id={titleId} class="title">{title}</h2>
-        <button type="button" class="close" aria-label={i18n.t('dialog.close')} onclick={onclose}
-          >×</button
+        <button
+          type="button"
+          class="icon-btn close"
+          aria-label={i18n.t('dialog.close')}
+          title={i18n.t('dialog.close')}
+          onclick={onclose}><X size={16} /></button
         >
       </header>
       <div class="body">{@render children()}</div>
@@ -126,14 +147,16 @@
   }
 
   .panel {
+    display: flex;
+    flex-direction: column;
     width: min(560px, 100%);
-    max-height: 100%;
-    overflow: auto;
+    /* The window, not the grid area: a percentage of an auto row would not hold the panel */
+    max-height: calc(100dvh - 2 * var(--space-6));
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-large);
     background: var(--surface);
     color: var(--text);
-    box-shadow: var(--shadow-small);
+    box-shadow: var(--shadow-large);
   }
 
   .panel.wide {
@@ -142,39 +165,58 @@
 
   .header {
     display: flex;
+    flex: none;
+    gap: var(--space-3);
     align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
     border-bottom: 1px solid var(--border);
   }
 
-  .title {
-    margin: 0;
-    font-size: 15px;
+  .title-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    color: var(--accent);
   }
 
-  .close {
-    padding: 0 var(--space-2);
-    border: 0;
-    background: none;
-    color: var(--text-muted);
-    font-size: 18px;
-    cursor: pointer;
+  .title {
+    flex: 1;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
   }
 
   .body {
-    padding: var(--space-4);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--space-5);
   }
 
   .footer {
     display: flex;
+    flex: none;
+    flex-wrap: wrap;
     gap: var(--space-3);
     justify-content: flex-end;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-3) var(--space-5);
     border-top: 1px solid var(--border);
   }
 
-  .close:focus-visible {
-    outline: 2px solid var(--accent);
+  @media (max-width: 600px) {
+    .backdrop {
+      padding: var(--space-3);
+    }
+
+    .panel {
+      max-height: calc(100dvh - 2 * var(--space-3));
+    }
+
+    .body {
+      padding: var(--space-4);
+    }
   }
 </style>

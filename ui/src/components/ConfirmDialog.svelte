@@ -40,14 +40,15 @@
   {#if confirmText !== undefined}
     <label class="field">
       <span>{i18n.t('dialog.typeToConfirm', { text: confirmText })}</span>
-      <input bind:value={typed} autocomplete="off" spellcheck="false" />
+      <input class="input mono" bind:value={typed} autocomplete="off" spellcheck="false" />
     </label>
   {/if}
   {#snippet footer()}
-    <button type="button" class="button" onclick={oncancel}>{i18n.t('dialog.cancel')}</button>
+    <button type="button" class="btn btn-large" onclick={oncancel}>{i18n.t('dialog.cancel')}</button
+    >
     <button
       type="button"
-      class="button primary"
+      class="btn btn-large btn-primary"
       class:danger
       disabled={!allowed}
       onclick={() => allowed && onconfirm()}>{confirmLabel}</button
@@ -68,48 +69,8 @@
     font-size: var(--font-size-small);
   }
 
-  input {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-sunken);
-    color: var(--text);
-    font: inherit;
-    font-family: var(--font-mono);
-    font-size: var(--font-size);
-  }
-
-  input:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 0;
-  }
-
-  .button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .button {
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .primary {
-    border-color: var(--accent);
-  }
-
   .danger {
     border-color: var(--level-error);
     color: var(--level-error);
-  }
-
-  .button:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 </style>

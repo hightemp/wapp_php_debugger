@@ -1,9 +1,30 @@
 <script lang="ts">
   import { ApiError, type Transport } from '../lib/api/client';
   import type { Level, Message, RequestDetail } from '../lib/api/types';
-  import { formatDuration, formatTime, requestTitle } from '../lib/format';
+  import { formatDuration, formatTime, outcomeKind, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { loadAllMessages } from '../lib/messages';
+  import {
+    Braces,
+    Bug,
+    CalendarClock,
+    ChartGantt,
+    CircleX,
+    Clock,
+    Cpu,
+    Database,
+    Download,
+    HardDrive,
+    Info,
+    List,
+    MessageSquare,
+    Pin,
+    Search,
+    StickyNote,
+    Terminal,
+    TriangleAlert,
+    User,
+  } from '../lib/icons';
   import RequestGlobals from './RequestGlobals.svelte';
   import RequestReplay from './RequestReplay.svelte';
   import RequestSql from './RequestSql.svelte';
@@ -26,6 +47,13 @@
   } = $props();
 
   const levels: Level[] = ['error', 'warning', 'info', 'message', 'debug'];
+  const levelIcons = {
+    error: CircleX,
+    warning: TriangleAlert,
+    info: Info,
+    message: MessageSquare,
+    debug: Bug,
+  } as const;
   let loadGeneration = 0;
 
   let request = $state<RequestDetail | null>(null);
@@ -174,16 +202,20 @@
     <p class="state">{i18n.t('detail.loading')}</p>
   {:else}
     <header class="header">
-      <h2 id="request-title" class="title">{requestTitle(request)}</h2>
+      <div class="headline">
+        <span class="outcome" data-kind={outcomeKind(request)}>
+          {#if request.sapi === 'cli'}<Terminal size={12} />{/if}{outcome(request)}
+        </span>
+        <h2 id="request-title" class="title">{requestTitle(request)}</h2>
+      </div>
       <p class="meta">
-        <span>{outcome(request)}</span>
-        <span>{formatDuration(request.duration_ms, i18n.locale)}</span>
-        <span>{formatTime(request.started_at)}</span>
+        <span><Clock size={12} />{formatDuration(request.duration_ms, i18n.locale)}</span>
+        <span><CalendarClock size={12} />{formatTime(request.started_at)}</span>
         {#if request.php_version}<span
-            >{i18n.t('detail.php', { version: request.php_version })}</span
+            ><Cpu size={12} />{i18n.t('detail.php', { version: request.php_version })}</span
           >{/if}
-        {#if request.hostname}<span>{request.hostname}</span>{/if}
-        {#if request.app_user}<span>{request.app_user}</span>{/if}
+        {#if request.hostname}<span><HardDrive size={12} />{request.hostname}</span>{/if}
+        {#if request.app_user}<span><User size={12} />{request.app_user}</span>{/if}
       </p>
       {#if request.argv && request.argv.length > 0}
         <p class="argv">{request.argv.join(' ')}</p>
@@ -191,18 +223,20 @@
       <div class="marks">
         <button
           type="button"
-          class="mark"
+          class="btn"
           aria-pressed={request.pinned}
-          onclick={() => request && mark({ pinned: !request.pinned })}>{i18n.t('marks.pin')}</button
+          onclick={() => request && mark({ pinned: !request.pinned })}
+          ><Pin size={14} />{i18n.t('marks.pin')}</button
         >
         <button
           type="button"
-          class="mark"
+          class="btn"
           aria-expanded={editingNote}
-          onclick={() => (editingNote = !editingNote)}>{i18n.t('marks.note')}</button
+          onclick={() => (editingNote = !editingNote)}
+          ><StickyNote size={14} />{i18n.t('marks.note')}</button
         >
-        <a class="mark" href={`/api/v1/requests/${request.id}/export`} download
-          >{i18n.t('transfer.export')}</a
+        <a class="btn" href={`/api/v1/requests/${request.id}/export`} download
+          ><Download size={14} />{i18n.t('transfer.export')}</a
         >
         <RequestReplay {transport} {request} {messages} />
       </div>
@@ -243,10 +277,10 @@
       label={i18n.t('views.label')}
       idPrefix="request"
       tabs={[
-        { id: 'messages', label: i18n.t('views.messages') },
-        { id: 'timeline', label: i18n.t('views.timeline') },
-        { id: 'sql', label: i18n.t('views.sql'), count: sqlCount },
-        { id: 'globals', label: i18n.t('views.globals') },
+        { id: 'messages', label: i18n.t('views.messages'), icon: List },
+        { id: 'timeline', label: i18n.t('views.timeline'), icon: ChartGantt },
+        { id: 'sql', label: i18n.t('views.sql'), count: sqlCount, icon: Database },
+        { id: 'globals', label: i18n.t('views.globals'), icon: Braces },
       ]}
       value={view}
       onchange={(next: View) => (view = next)}
@@ -276,15 +310,19 @@
     {:else}
       <div role="tabpanel" id="panel-request-messages" aria-labelledby="tab-request-messages">
         <div class="filters" role="group" aria-label={i18n.t('detail.filterLabel')}>
-          <input
-            class="search"
-            type="search"
-            aria-label={i18n.t('detail.search')}
-            placeholder={i18n.t('detail.search')}
-            value={searchInput}
-            oninput={(event) => onSearchInput(event.currentTarget.value)}
-          />
+          <span class="search-box">
+            <Search size={13} />
+            <input
+              class="search"
+              type="search"
+              aria-label={i18n.t('detail.search')}
+              placeholder={i18n.t('detail.search')}
+              value={searchInput}
+              oninput={(event) => onSearchInput(event.currentTarget.value)}
+            />
+          </span>
           {#each levels as level (level)}
+            {@const Icon = levelIcons[level]}
             <button
               type="button"
               class="chip"
@@ -292,7 +330,7 @@
               aria-pressed={activeLevels.includes(level)}
               onclick={() => toggleLevel(level)}
             >
-              {i18n.t(`level.${level}`)}
+              <Icon size={12} />{i18n.t(`level.${level}`)}
             </button>
           {/each}
         </div>
@@ -306,6 +344,7 @@
             label={i18n.t('detail.messages')}
           >
             {#snippet row(message: Message, index: number)}
+              {@const Icon = levelIcons[message.level]}
               <li
                 class="message"
                 data-message-id={message.id}
@@ -320,7 +359,8 @@
                   class="message-button"
                   onclick={() => onselectmessage(message.id)}
                 >
-                  <span class="level">{i18n.t(`levelName.${message.level}`)}</span>
+                  <span class="level"><Icon size={12} />{i18n.t(`levelName.${message.level}`)}</span
+                  >
                   <span class="text">{message.message}</span>
                   <span class="where">{location(message)}</span>
                   {#if message.duration_ms !== undefined && message.duration_ms !== null}
@@ -337,33 +377,91 @@
 </section>
 
 <style>
+  .detail {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .header {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .headline {
+    display: flex;
+    gap: var(--space-3);
+    align-items: baseline;
+    min-width: 0;
+  }
+
+  .outcome {
+    display: inline-flex;
+    flex: none;
+    gap: 3px;
+    align-items: center;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius);
+    background: var(--level-info-soft);
+    color: var(--level-info);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+  }
+
+  .outcome[data-kind='warn'] {
+    background: var(--level-warning-soft);
+    color: var(--level-warning);
+  }
+
+  .outcome[data-kind='bad'] {
+    background: var(--level-error-soft);
+    color: var(--level-error);
+  }
+
+  .title {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  .meta span {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+  }
+
+  .argv {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    overflow-wrap: anywhere;
+  }
+
   .marks {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
-    margin-top: var(--space-2);
+    align-items: center;
   }
 
-  .mark {
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text-muted);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  a.mark {
-    text-decoration: none;
-  }
-
-  .mark[aria-pressed='true'] {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-
-  .mark:focus-visible,
   .note-editor:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
@@ -371,13 +469,15 @@
 
   .note,
   .note-editor {
-    margin: var(--space-2) 0 0;
+    margin: 0;
     font-size: var(--font-size-small);
   }
 
   .note {
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-2) var(--space-3);
     border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--accent-soft);
     color: var(--text);
     white-space: pre-wrap;
   }
@@ -394,50 +494,18 @@
     resize: vertical;
   }
 
-  .detail {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .header {
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .title {
-    margin: 0;
-    overflow-wrap: anywhere;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    margin: var(--space-2) 0 0;
-    color: var(--text-muted);
-    font-size: var(--font-size-small);
-  }
-
-  .argv {
-    margin: var(--space-2) 0 0;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-small);
-  }
-
   .children {
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border);
   }
 
   .subtitle {
     margin: 0 0 var(--space-2);
     color: var(--text-muted);
-    font-size: var(--font-size-small);
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .plain {
@@ -460,13 +528,28 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border);
   }
 
-  .search {
+  .search-box {
+    position: relative;
+    display: flex;
     flex: 1 1 16ch;
-    padding: 2px var(--space-3);
+    align-items: center;
+    color: var(--text-muted);
+  }
+
+  .search-box :global(.lucide-icon) {
+    position: absolute;
+    left: var(--space-3);
+    pointer-events: none;
+  }
+
+  .search {
+    width: 100%;
+    padding: 3px var(--space-3) 3px calc(var(--space-3) + 18px);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface-sunken);
@@ -480,20 +563,20 @@
     outline-offset: 0;
   }
 
-  .chip {
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text-muted);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
+  .chip[data-level='error'] :global(.lucide-icon) {
+    color: var(--level-error);
   }
 
-  .chip[aria-pressed='true'] {
-    border-color: var(--accent);
-    color: var(--text);
+  .chip[data-level='warning'] :global(.lucide-icon) {
+    color: var(--level-warning);
+  }
+
+  .chip[data-level='info'] :global(.lucide-icon) {
+    color: var(--level-info);
+  }
+
+  .chip[data-level='debug'] :global(.lucide-icon) {
+    color: var(--level-debug);
   }
 
   .message {
@@ -501,20 +584,22 @@
   }
 
   .message[aria-current='true'] {
-    background: var(--surface-hover);
+    background: var(--accent-soft);
+    box-shadow: inset 3px 0 0 var(--accent);
   }
 
   .message-button {
     display: grid;
-    grid-template-columns: 8ch 1fr auto auto;
+    grid-template-columns: 11ch minmax(0, 1fr) auto auto;
     gap: var(--space-3);
+    align-items: center;
     width: 100%;
-    padding: var(--row-padding-y) var(--space-4);
-    line-height: var(--row-line-height);
+    padding: calc(var(--row-padding-y) + 1px) var(--space-4);
     border: 0;
     background: none;
     color: var(--text);
     font: inherit;
+    line-height: var(--row-line-height);
     text-align: left;
     cursor: pointer;
   }
@@ -524,13 +609,15 @@
   }
 
   .message-button:focus-visible,
-  .chip:focus-visible,
   .link:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
 
   .level {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
     color: var(--level-message);
     font-family: var(--font-mono);
     font-size: var(--font-size-small);
@@ -546,6 +633,10 @@
 
   [data-level='info'] .level {
     color: var(--level-info);
+  }
+
+  [data-level='debug'] .level {
+    color: var(--level-debug);
   }
 
   .text {

@@ -1,5 +1,16 @@
 <script lang="ts">
   import type { Transport } from '../lib/api/client';
+  import {
+    ArrowLeftRight,
+    FolderSearch,
+    Globe,
+    HardDrive,
+    KeyRound,
+    Plus,
+    RefreshCw,
+    Server as ServerIcon,
+    Trash,
+  } from '../lib/icons';
   import type { Server, ServerCheck, ServerCheckStep, ServerInput } from '../lib/api/types';
   import { clockSkew } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
@@ -185,17 +196,26 @@
   }
 </script>
 
-<Dialog {open} title={i18n.t('servers.title')} {onclose}>
+<Dialog {open} title={i18n.t('servers.title')} icon={ServerIcon} {onclose}>
   <ul class="servers">
     {#each servers as server (server.id)}
       {@const state = checks[server.id]}
       <li class="server" aria-label={server.name}>
         <div class="head">
+          <span class="kind" aria-hidden="true">
+            {#if server.kind === 'local'}<HardDrive
+                size={16}
+              />{:else if server.kind === 'ssh'}<KeyRound size={16} />{:else}<Globe
+                size={16}
+              />{/if}
+          </span>
           <span class="name">{server.name}</span>
           <span class="badge">{server.kind} · {server.environment}</span>
           <span class="address">{address(server)}</span>
           <span class="state" data-state={server.connection.state}
-            >{i18n.t(`connection.${server.connection.state}`)}</span
+            ><span class="dot" aria-hidden="true"></span>{i18n.t(
+              `connection.${server.connection.state}`,
+            )}</span
           >
           {#if clockSkew(server.connection.clock_offset_ms)}
             <span class="clock" title={i18n.t('servers.clockHint')}
@@ -207,26 +227,27 @@
           {#if server.kind !== 'http'}
             <button
               type="button"
-              class="action"
+              class="btn"
               aria-expanded={searching[server.id] ?? false}
               onclick={() => (searching[server.id] = !searching[server.id])}
-              >{i18n.t('discover.open')}</button
+              ><FolderSearch size={14} />{i18n.t('discover.open')}</button
             >
           {/if}
           {#if server.kind === 'http'}
             <button
               type="button"
-              class="action"
+              class="btn"
               aria-expanded={tokenFor === server.id}
-              onclick={() => toggleToken(server)}>{i18n.t('servers.token')}</button
+              onclick={() => toggleToken(server)}
+              ><KeyRound size={14} />{i18n.t('servers.token')}</button
             >
           {/if}
           {#if server.kind !== 'local'}
-            <button type="button" class="action" onclick={() => check(server)}
-              >{i18n.t('servers.check')}</button
+            <button type="button" class="btn" onclick={() => check(server)}
+              ><RefreshCw size={14} />{i18n.t('servers.check')}</button
             >
-            <button type="button" class="action danger" onclick={() => (removing = server)}>
-              {i18n.t('servers.remove')}
+            <button type="button" class="btn btn-danger" onclick={() => (removing = server)}>
+              <Trash size={14} />{i18n.t('servers.remove')}
             </button>
           {/if}
         </div>
@@ -241,13 +262,14 @@
             <label class="token-field">
               <span>{i18n.t('server.token')}</span>
               <input
+                class="input mono"
                 type="password"
                 autocomplete="off"
                 placeholder={i18n.t('server.tokenHint')}
                 bind:value={token}
               />
             </label>
-            <button type="submit" class="action primary" disabled={token.length < minTokenLength}
+            <button type="submit" class="btn btn-primary" disabled={token.length < minTokenLength}
               >{i18n.t('project.save')}</button
             >
           </form>
@@ -286,7 +308,7 @@
               <p class="note">{i18n.t('servers.keyHint', { file: key.file })}</p>
               <button
                 type="button"
-                class="action primary"
+                class="btn btn-primary"
                 onclick={() => trust(server, fingerprint)}
               >
                 {i18n.t('servers.trust')}
@@ -298,11 +320,11 @@
     {/each}
   </ul>
   {#snippet footer()}
-    <button type="button" class="action" onclick={() => (configOpen = true)}
-      >{i18n.t('config.open')}</button
+    <button type="button" class="btn" onclick={() => (configOpen = true)}
+      ><ArrowLeftRight size={14} />{i18n.t('config.open')}</button
     >
-    <button type="button" class="action primary" onclick={() => (adding = true)}
-      >{i18n.t('servers.add')}</button
+    <button type="button" class="btn btn-primary" onclick={() => (adding = true)}
+      ><Plus size={14} />{i18n.t('servers.add')}</button
     >
   {/snippet}
 </Dialog>
@@ -342,9 +364,27 @@
   }
 
   .server {
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border);
+    border-radius: var(--radius-large);
+    background: var(--surface);
+  }
+
+  .kind {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
     border-radius: var(--radius);
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentcolor;
   }
 
   .head {
@@ -372,6 +412,9 @@
   }
 
   .state {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
     margin-left: auto;
     font-size: var(--font-size-small);
   }
@@ -457,34 +500,5 @@
     background: var(--surface-sunken);
     color: var(--text);
     font: inherit;
-  }
-
-  .action:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .action {
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .primary {
-    border-color: var(--accent);
-  }
-
-  .danger {
-    color: var(--level-error);
-  }
-
-  .action:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 </style>

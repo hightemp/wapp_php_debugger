@@ -73,9 +73,14 @@
 <form class="search" onsubmit={search}>
   <label class="field">
     <span>{i18n.t('discover.roots')}</span>
-    <input bind:value={roots} placeholder="/var/www, /home/deploy" autocomplete="off" />
+    <input
+      class="input mono"
+      bind:value={roots}
+      placeholder="/var/www, /home/deploy"
+      autocomplete="off"
+    />
   </label>
-  <button type="submit" class="action" disabled={rootList.length === 0 || searching}
+  <button type="submit" class="btn" disabled={rootList.length === 0 || searching}
     >{i18n.t('discover.search')}</button
   >
 </form>
@@ -101,7 +106,7 @@
             {:else}
               <button
                 type="button"
-                class="action primary"
+                class="btn btn-primary"
                 disabled={adding !== undefined}
                 onclick={() => add(project)}>{i18n.t('discover.add')}</button
               >
@@ -134,22 +139,6 @@
     gap: var(--space-1);
     color: var(--text-muted);
     font-size: var(--font-size-small);
-  }
-
-  input {
-    padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-sunken);
-    color: var(--text);
-    font: inherit;
-    font-family: var(--font-mono);
-  }
-
-  input:focus-visible,
-  .action:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 
   .note,
@@ -199,27 +188,7 @@
     font-size: var(--font-size-small);
   }
 
-  .line .action {
+  .line .btn {
     margin-left: auto;
-  }
-
-  .action {
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .action:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .primary {
-    border-color: var(--accent);
   }
 </style>

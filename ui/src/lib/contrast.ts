@@ -32,6 +32,10 @@ export const contrastPairs: readonly [string, string, number][] = [
   ['env-stage', 'surface', 4.5],
   ['env-prod', 'surface', 4.5],
   ['accent', 'surface', 3],
+  ['accent', 'accent-soft', 3],
+  ['text', 'accent-soft', 4.5],
+  ['accent-contrast', 'accent', 4.5],
+  ['level-info', 'level-info-soft', 4.5],
   ['border', 'surface', 1.2],
 ];
 

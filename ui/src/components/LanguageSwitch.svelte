@@ -4,13 +4,25 @@
   import SegmentedControl from './SegmentedControl.svelte';
 
   // The App saves the choice with the settings on the viewer
-  let { onchange = (locale: Locale) => i18n.set(locale) }: { onchange?: (locale: Locale) => void } =
-    $props();
+  let {
+    onchange = (locale: Locale) => i18n.set(locale),
+    compact = false,
+  }: { onchange?: (locale: Locale) => void; compact?: boolean } = $props();
 
   // Language names are shown in their own language
   const options = $derived(
-    locales.map((locale) => ({ value: locale, label: i18n.t(`language.${locale}`) })),
+    locales.map((locale) => ({
+      value: locale,
+      label: i18n.t(`language.${locale}`),
+      short: locale.toUpperCase(),
+    })),
   );
 </script>
 
-<SegmentedControl label={i18n.t('language.label')} {options} value={i18n.locale} {onchange} />
+<SegmentedControl
+  label={i18n.t('language.label')}
+  {options}
+  value={i18n.locale}
+  {compact}
+  {onchange}
+/>

@@ -188,7 +188,7 @@
         </div>
         <label class="name">
           <span>{i18n.t('themeEditor.name')}</span>
-          <input type="text" maxlength="60" bind:value={draft.name} />
+          <input class="input mono" type="text" maxlength="60" bind:value={draft.name} />
         </label>
         <div class="name">
           <span aria-hidden="true">{i18n.t('themeEditor.base')}</span>
@@ -253,7 +253,7 @@
   </div>
 
   {#snippet footer()}
-    <label class="button file-button">
+    <label class="btn btn-large file-button">
       {i18n.t('themeEditor.import')}
       <input
         class="file"
@@ -263,18 +263,23 @@
         onchange={upload}
       />
     </label>
-    <button type="button" class="button" onclick={download}>{i18n.t('themeEditor.export')}</button>
+    <button type="button" class="btn btn-large" onclick={download}
+      >{i18n.t('themeEditor.export')}</button
+    >
     <span class="spacer"></span>
     {#if draft.id}
-      <button type="button" class="button danger" onclick={() => (deleting = true)}
+      <button type="button" class="btn btn-large btn-danger" onclick={() => (deleting = true)}
         >{i18n.t('themeEditor.delete')}</button
       >
     {/if}
-    <button type="button" class="button" onclick={() => (draft.tokens = {})}
+    <button type="button" class="btn btn-large" onclick={() => (draft.tokens = {})}
       >{i18n.t('themeEditor.reset')}</button
     >
-    <button type="button" class="button primary" disabled={saving} onclick={() => void save()}
-      >{i18n.t('themeEditor.save')}</button
+    <button
+      type="button"
+      class="btn btn-large btn-primary"
+      disabled={saving}
+      onclick={() => void save()}>{i18n.t('themeEditor.save')}</button
     >
   {/snippet}
 </Dialog>
@@ -392,29 +397,6 @@
     flex: 1;
   }
 
-  .button {
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .primary {
-    border-color: var(--accent);
-  }
-
-  .danger {
-    color: var(--level-error);
-  }
-
   /* The file input stays reachable from the keyboard inside its label, out of sight */
   .file-button {
     position: relative;
@@ -428,7 +410,6 @@
   }
 
   .file-button:focus-within,
-  .button:focus-visible,
   .reset:focus-visible,
   .name input:focus-visible {
     outline: 2px solid var(--accent);

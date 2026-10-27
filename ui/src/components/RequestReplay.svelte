@@ -4,6 +4,7 @@
   import type { Message, Request } from '../lib/api/types';
   import { isDesktop, openInBrowser } from '../lib/api/wails-stream';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { Copy, ExternalLink } from '../lib/icons';
   import { asCurl, withXdebug, type LoggedGlobals } from '../lib/replay';
   import { toasts } from '../lib/toasts.svelte';
   import Switch from './Switch.svelte';
@@ -54,12 +55,12 @@
 
 {#if url}
   <span class="replay">
-    <button type="button" class="action" onclick={() => void copyCurl()}
-      >{i18n.t('replay.curl')}</button
+    <button type="button" class="btn" onclick={() => void copyCurl()}
+      ><Copy size={14} />{i18n.t('replay.curl')}</button
     >
     {#if reopenable}
       <a
-        class="action"
+        class="btn"
         href={url}
         target="_blank"
         rel="noopener noreferrer"
@@ -69,7 +70,7 @@
             event.preventDefault();
             void openInBrowser(url);
           }
-        }}>{i18n.t('replay.open')}</a
+        }}><ExternalLink size={14} />{i18n.t('replay.open')}</a
       >
     {/if}
     <span class="xdebug">
@@ -89,27 +90,6 @@
     flex-wrap: wrap;
     gap: var(--space-2);
     align-items: center;
-  }
-
-  .action {
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text-muted);
-    font: inherit;
-    font-size: var(--font-size-small);
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .action:hover {
-    color: var(--text);
-  }
-
-  .action:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 
   .xdebug {
