@@ -157,7 +157,7 @@ wapp-debugger serve --logs-dir /var/www/app/tmp/logs   # откройте http:/
 - запуск при входе в систему; окно открывается там, где было;
 - сообщение в шапке о новой версии (GitHub Releases раз в сутки; отключается).
 
-Из исходников: `make desktop-build` (в Linux нужны GTK4 + WebKitGTK 6.0), затем `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` и здесь необязателен. `make desktop-package` собирает установщики текущей системы; подробнее — в [desktop/README.md](desktop/README.md).
+Из исходников: `make desktop-build` (нужен компилятор C, а в Linux ещё GTK4 + WebKitGTK 6.0; `make desktop-deps` проверяет их и подсказывает, как поставить недостающее в вашей системе), затем `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` и здесь необязателен. `make desktop-package` собирает установщики текущей системы; подробнее — в [desktop/README.md](desktop/README.md).
 
 ## Docker
 

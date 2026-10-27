@@ -199,8 +199,12 @@ LINUX_GTK ?= gtk4
 DESKTOP_TAGS := desktop embedui $(if $(filter gtk3,$(LINUX_GTK)),gtk3)
 DESKTOP_BIN := $(DIST)/wapp-debugger-desktop$(EXE)
 
+.PHONY: desktop-deps
+desktop-deps: ## Check the C compiler and, on Linux, GTK and WebKitGTK; prints how to install what is missing
+	scripts/desktop-deps.sh $(LINUX_GTK)
+
 .PHONY: desktop-build
-desktop-build: ui-build ## Build the desktop app for the current OS (requires CGO)
+desktop-build: desktop-deps ui-build ## Build the desktop app for the current OS (requires CGO)
 	cd server && CGO_ENABLED=1 go build -tags "$(DESKTOP_TAGS)" -trimpath -ldflags "$(LDFLAGS)" -o $(DESKTOP_BIN) ./cmd/wapp-debugger-desktop
 
 .PHONY: icons
@@ -208,7 +212,7 @@ icons: ## Render desktop/icons/icon.svg into the PNG, ICO and ICNS icons (needs 
 	node scripts/icons.mjs
 
 .PHONY: desktop-vet
-desktop-vet: ui-build ## go vet the desktop code (with its build tags; the embedded UI must be built)
+desktop-vet: desktop-deps ui-build ## go vet the desktop code (with its build tags; the embedded UI must be built)
 	cd server && CGO_ENABLED=1 go vet -tags "$(DESKTOP_TAGS)" ./cmd/wapp-debugger-desktop
 
 .PHONY: desktop-selftest
@@ -316,6 +320,10 @@ changed-areas-test: ## Test scripts/changed-areas.sh, which CI uses to skip jobs
 release-check-test: ## Test scripts/release-check.sh: no stable release with a pre-release library
 	scripts/release-check_test.sh
 
+.PHONY: desktop-deps-test
+desktop-deps-test: ## Test scripts/desktop-deps.sh against fake pkg-config and compilers
+	scripts/desktop-deps_test.sh
+
 .PHONY: ssh-e2e
 ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, no ssh-agent)
 	scripts/ssh-e2e.sh
@@ -323,7 +331,7 @@ ssh-e2e: ## The viewer against a real OpenSSH server in Docker (throwaway key, n
 .PHONY: scripts-lint
 scripts-lint: ## shellcheck the shell scripts (shellcheck binary, or its Docker image)
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; \
-	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh /s/changed-areas.sh /s/changed-areas_test.sh /s/release-check.sh /s/release-check_test.sh; fi
+	else docker run --rm -v "$(ROOT)/scripts:/s:ro" koalaman/shellcheck:v0.10.0 /s/install.sh /s/install_test.sh /s/ssh-e2e.sh /s/desktop-package.sh /s/changed-areas.sh /s/changed-areas_test.sh /s/release-check.sh /s/release-check_test.sh /s/desktop-deps.sh /s/desktop-deps_test.sh; fi
 
 .PHONY: workflows-lint
 workflows-lint: $(ACTIONLINT) ## Lint GitHub Actions workflows
