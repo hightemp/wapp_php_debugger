@@ -23,9 +23,10 @@ interface Options {
 }
 
 export function createAppearanceStore(options: Options) {
-  let current = $state<Settings>(loadCachedSettings(options.storage));
+  const cached = loadCachedSettings(options.storage);
+  let current = $state<Settings>(cached);
   // What the viewer has: a refused save goes back to it
-  let confirmed = current;
+  let confirmed = cached;
   let pending = 0;
 
   function show(settings: Settings) {
