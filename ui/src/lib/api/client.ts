@@ -313,14 +313,25 @@ export function createHttpTransport(options: HttpTransportOptions): Transport {
       subscribers.add(onEvent);
       if (!source) {
         const opened = createEventSource(`${options.baseUrl}/api/v1/stream`);
+        const deliver = (event: StreamEvent) => {
+          for (const subscriber of [...subscribers]) {
+            subscriber(event);
+          }
+        };
         for (const name of streamEventNames) {
-          opened.addEventListener(name, (message) => {
-            const event = JSON.parse(String(message.data)) as StreamEvent;
-            for (const subscriber of [...subscribers]) {
-              subscriber(event);
-            }
-          });
+          opened.addEventListener(name, (message) =>
+            deliver(JSON.parse(String(message.data)) as StreamEvent),
+          );
         }
+        // Events between the first load and the first connection have no Last-Event-ID to come back
+        // by: the subscribers load again once. Reconnections get the missed events from the server.
+        let connected = false;
+        opened.addEventListener('open', () => {
+          if (!connected) {
+            connected = true;
+            deliver({ event: 'resync' });
+          }
+        });
         source = opened;
       }
       return () => {

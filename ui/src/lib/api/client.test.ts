@@ -241,6 +241,26 @@ describe('createHttpTransport', () => {
     expect(source.close).toHaveBeenCalled();
   });
 
+  it('tells subscribers to reload once the stream first opens', () => {
+    // What happened between the first load and the connection has no Last-Event-ID to come back by
+    const listeners = new Map<string, (event: MessageEvent) => void>();
+    const source: EventSourceLike = {
+      addEventListener: (name, listener) => listeners.set(name, listener),
+      close: vi.fn(),
+    };
+    const transport = createHttpTransport({
+      baseUrl: '',
+      fetch: vi.fn(),
+      createEventSource: () => source,
+    });
+    const received: unknown[] = [];
+    transport.subscribe((event) => received.push(event));
+    listeners.get('open')?.(new MessageEvent('open'));
+    // A reconnection sends Last-Event-ID and the server sends what was missed
+    listeners.get('open')?.(new MessageEvent('open'));
+    expect(received).toEqual([{ event: 'resync' }]);
+  });
+
   it('shares one stream between subscribers and closes it after the last one leaves', () => {
     const listeners = new Map<string, (event: MessageEvent) => void>();
     const source: EventSourceLike = {
