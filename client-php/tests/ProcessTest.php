@@ -38,7 +38,7 @@ final class ProcessTest extends TestCase
     {
         [$exitCode, $output, $events] = $this->runScript('errors.php');
 
-        self::assertSame(255, $exitCode);
+        self::assertSame(255, $exitCode, $output);
         self::assertStringContainsString('Order 7 not found', $output, 'PHP still reports the uncaught exception');
         self::assertStringContainsString('Undefined index: discount', $output, 'and the warning');
         self::assertSame(['request_start', 'message', 'error', 'error', 'request_end'], array_column($events, 'type'));
@@ -53,7 +53,7 @@ final class ProcessTest extends TestCase
     {
         [$exitCode, $output, $events] = $this->runScript('fatal.php');
 
-        self::assertSame(255, $exitCode);
+        self::assertSame(255, $exitCode, $output);
         self::assertStringContainsString('Allowed memory size', $output);
         self::assertSame(['request_start', 'error', 'request_end'], array_column($events, 'type'));
         self::assertSame('fatal', $events[1]['kind']);
