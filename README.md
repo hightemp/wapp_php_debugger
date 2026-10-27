@@ -158,7 +158,7 @@ What the desktop adds to the browser version (**Settings** in the header):
 - start at login; the window comes back where it was;
 - a notice in the header when a newer version is out (GitHub Releases once a day; can be switched off).
 
-From source: `make desktop-build` (needs GTK4 + WebKitGTK 6.0 on Linux), then `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` is optional here too. `make desktop-package` builds the installers of the current system; more in [desktop/README.md](desktop/README.md).
+From source: `make desktop-build` (needs a C compiler and, on Linux, GTK4 + WebKitGTK 6.0; `make desktop-deps` checks them and prints how to install what is missing on your system), then `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` is optional here too. `make desktop-package` builds the installers of the current system; more in [desktop/README.md](desktop/README.md).
 
 ## Docker
 
