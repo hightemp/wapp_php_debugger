@@ -18,9 +18,11 @@ function storedLocale(): string | null {
   }
 }
 
-let current = $state<Locale>(
-  detectLocale(storedLocale(), typeof navigator === 'undefined' ? [] : navigator.languages),
+const initial = detectLocale(
+  storedLocale(),
+  typeof navigator === 'undefined' ? [] : navigator.languages,
 );
+let current = $state<Locale>(initial);
 
 function applyDocumentLanguage(locale: Locale) {
   if (typeof document !== 'undefined') {
@@ -28,7 +30,7 @@ function applyDocumentLanguage(locale: Locale) {
   }
 }
 
-applyDocumentLanguage(current);
+applyDocumentLanguage(initial);
 
 export const i18n = {
   get locale(): Locale {
