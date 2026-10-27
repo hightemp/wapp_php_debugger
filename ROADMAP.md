@@ -23,11 +23,11 @@ What 1.0 has and what comes after it. The detailed working plan is
 
 **Viewer**
 
-- Panels that resize and collapse; servers in the tree of projects; a narrow layout.
+- Panels that resize (the sidebar already folds and the layout narrows; servers group their projects).
 - A page of project settings with path mapping (server or container ↔ local copy) and its check.
 - A status line: the live stream, each server, files not imported yet, disk space.
-- Onboarding for an empty viewer; a raw JSON tab of a message; an overview and an errors tab of a
-  request; saved filters and a date range.
+- A raw JSON tab of a message; an overview and an errors tab of a request; saved filters and a
+  date range. (First steps for an empty viewer and help in the app are done.)
 
 **Sources**
 
