@@ -1,11 +1,11 @@
 # Integrations
 
+**English** · [Русский](README.ru.md)
+
 The library needs no framework: everything here is a few lines or one file to copy. In every case
 `dws_debugger.json` next to the project turns it on and off (see [the README](../README.md#start)),
 and without it nothing happens. Errors of the pages (`jsTag()`) need [pushing to the
 viewer](../README.md#pushing-to-the-viewer); without it the tag is empty.
-
-Русская версия — [README.ru.md](README.ru.md).
 
 ## Plain PHP
 
