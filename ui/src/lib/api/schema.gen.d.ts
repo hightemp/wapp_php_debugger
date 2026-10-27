@@ -785,6 +785,8 @@ export interface components {
             sapi: components["schemas"]["Sapi"];
             method?: string | null;
             url?: string | null;
+            /** @description The command line of a CLI run; absent for a web request */
+            argv?: string[] | null;
             is_ajax: boolean;
             status_code?: number | null;
             exit_code?: number | null;
@@ -807,7 +809,6 @@ export interface components {
         RequestDetail: components["schemas"]["Request"] & {
             /** @enum {string} */
             lang?: "php" | "js";
-            argv?: string[] | null;
             ip?: string | null;
             server_ip?: string | null;
             server_name?: string | null;

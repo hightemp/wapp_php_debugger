@@ -110,6 +110,34 @@ func TestListRequestsPaginatesNewestFirst(t *testing.T) {
 	}
 }
 
+// A CLI run in the feed carries its command line, so the feed can name it
+func TestListRequestsCarriesTheCommandLineOfCLIRuns(t *testing.T) {
+	e := newTestEnv(t)
+	_, body := get(t, e.server.URL+"/api/v1/requests?sapi=cli&limit=50")
+	var page struct {
+		Items []struct {
+			RequestKey string    `json:"request_key"`
+			Argv       *[]string `json:"argv"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(body), &page); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, item := range page.Items {
+		if item.Argv != nil && strings.Join(*item.Argv, " ") == "bin/console queue:work --queue=emails" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no argv of the CLI fixture in the feed: %s", body)
+	}
+	_, web := get(t, e.server.URL+"/api/v1/requests?sapi=web&limit=50")
+	if strings.Contains(web, `"argv"`) {
+		t.Fatalf("a web request has no argv: %s", web)
+	}
+}
+
 func assertProblem(t *testing.T, response *http.Response, body string, status int) {
 	t.Helper()
 	var problem Problem

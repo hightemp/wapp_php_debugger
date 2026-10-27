@@ -40,10 +40,7 @@ func (s *server) GetRequest(ctx context.Context, request GetRequestRequestObject
 		Lang: &lang, Ip: optional(detail.IP), ServerIp: optional(detail.ServerIP), ServerName: optional(detail.ServerName),
 		Hostname: optional(detail.Hostname), Pid: detail.PID, ProcessUser: optional(detail.ProcessUser), AppUser: optional(detail.AppUser),
 		SessionId: optional(detail.SessionID), LibraryVersion: optional(detail.LibraryVersion), PhpVersion: optional(detail.PHPVersion),
-		EndedAt: detail.EndedAt, MemoryPeakBytes: detail.MemoryPeakBytes, Children: &children,
-	}
-	if detail.Argv != nil {
-		response.Argv = &detail.Argv
+		EndedAt: detail.EndedAt, MemoryPeakBytes: detail.MemoryPeakBytes, Children: &children, Argv: base.Argv,
 	}
 	return response, nil
 }

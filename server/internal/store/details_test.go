@@ -161,3 +161,30 @@ func TestProjectLinksOnAnSSHServerCarryTheHost(t *testing.T) {
 		t.Fatalf("local project has a remote host: %+v", links)
 	}
 }
+
+// The feed names a CLI run by its command line: the row carries argv, a web request has none
+func TestRequestRowsCarryTheCommandLine(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	project, _ := s.EnsureLocalProject(ctx, "shop", "/r", "/r/logs")
+	ids := importV2(t, s, project.ProjectID, "web-request.jsonl", "cli-exception.jsonl")
+
+	page, err := s.ListRequests(ctx, RequestFilter{ProjectID: project.ProjectID, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	argv := map[int64][]string{}
+	for _, row := range page.Items {
+		argv[row.ID] = row.Argv
+	}
+	if got := strings.Join(argv[ids["cli-exception.jsonl"]], " "); got != "bin/console queue:work --queue=emails" {
+		t.Fatalf("cli argv = %q", got)
+	}
+	if argv[ids["web-request.jsonl"]] != nil {
+		t.Fatalf("web argv = %q", argv[ids["web-request.jsonl"]])
+	}
+	row, _, _ := s.GetRequest(ctx, ids["cli-exception.jsonl"])
+	if len(row.Argv) != 3 {
+		t.Fatalf("GetRequest argv = %q", row.Argv)
+	}
+}

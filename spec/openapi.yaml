@@ -1105,6 +1105,11 @@ components:
         sapi: { $ref: '#/components/schemas/Sapi' }
         method: { type: string, nullable: true }
         url: { type: string, nullable: true }
+        argv:
+          type: array
+          nullable: true
+          description: The command line of a CLI run; absent for a web request
+          items: { type: string }
         is_ajax: { type: boolean }
         status_code: { type: integer, nullable: true }
         exit_code: { type: integer, nullable: true }
@@ -1145,10 +1150,6 @@ components:
         - type: object
           properties:
             lang: { type: string, enum: [php, js] }
-            argv:
-              type: array
-              nullable: true
-              items: { type: string }
             ip: { type: string, nullable: true }
             server_ip: { type: string, nullable: true }
             server_name: { type: string, nullable: true }
