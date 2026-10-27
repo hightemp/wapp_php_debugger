@@ -833,6 +833,15 @@ The phase is iterative: every iteration is its own branch, tests (TDD, e2e for s
 5. ✅ **v0.9 — appearance** (branch `phase-10-v09`): UI settings on the server (`/api/v1/settings`), the accent color, density, fonts, the environment frame, a theme editor with import and export, `prefers-contrast`, Stylelint on colors, the component showcase, visual snapshots of themes. — *The interface language is kept in the settings too. Stylelint pulls in `braces` with an open advisory and no fixed version (a dev dependency only): to be kept in mind for `npm audit` in v1.0.*
 6. ✅ **v1.0 — readiness** (the criteria below; branch `phase-10-v10`): integrations and instructions (Laravel, Symfony, WordPress, Bitrix), freezing format v2 and API v1, CI — CodeQL, `govulncheck`, `npm audit`, attestations, SBOM, fuzz, `paths` filters; release notes, issue/PR templates, publishing `client-php` 2.0.0 and the releases. — *The freeze: `spec/frozen/v1.0`, `make spec-compat` (oasdiff) and a test of v2 logs. Left to the owner: publishing `client-php` 2.0.0 (a repository for the split, a deploy key, Packagist), publishing the draft releases, protecting `main`, turning on private vulnerability reporting (`SECURITY.md` and the issue templates link to it). What is postponed is in `ROADMAP.md`.*
 
+### 8.2o After 1.0
+
+Work after the 1.0 release, each part on its own branch and through a pull request (the user merges).
+
+1. ✅ **v1.0.1 — hotfix**: the library of a release reported `2.0.0-dev`; `scripts/release-check.sh` refuses a stable tag with a pre-release library.
+2. ✅ **CI and builds**: the fatal error test of the library is skipped where PHP itself exits with 1 on running out of memory (setup-php builds of PHP 7.4–8.1 from October 2026); `make desktop-deps` checks the C compiler, GTK and WebKitGTK and prints how to install them on the system (apt, dnf, pacman, zypper, apk; GTK3 where WebKitGTK 6.0 is missing).
+3. ✅ **Documents in two languages**: every document is a pair `X.md` (English) / `X.ru.md` (Russian) with a language switcher; this plan is translated, `IMPROVEMENT_PLAN.ru.md` is the Russian original; the repository has an English description, topics and badges.
+4. ✅ **UI redesign** (branch `feat/ui-redesign`): a sidebar with the projects, servers and tools that folds to a rail of icons; two columns below 1360px, one below 900px; Lucide icons; shared controls (`ui/src/styles/controls.css`) and new theme tokens with checked contrast; help in the app (`ui/src/lib/help.ts`: how it works, the library, projects, servers, pushing logs, reading requests, keys) linked from the dialogs and empty states; first steps in an empty viewer; CLI runs named by their script (`argv` in the feed API, compatible with 1.0). — *Found along the way: the port field of a new server and the fields of a new project ran out of the dialog (an e2e test now checks every field at 1440, 900 and 420px); a tall dialog did not fit the window.*
+
 ### 8.3 Dependencies and timing
 
 ```
