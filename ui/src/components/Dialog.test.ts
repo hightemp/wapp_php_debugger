@@ -21,6 +21,15 @@ describe('Dialog', () => {
     expect(dialog.contains(document.activeElement)).toBe(true);
   });
 
+  it('puts the focus into the first field of a form, past buttons before it', async () => {
+    const form = createRawSnippet(() => ({
+      render: () => '<div><button type="button">Help</button><input aria-label="Host" /></div>',
+    }));
+    render(Dialog, { open: true, title: 'Server', onclose: vi.fn(), children: form });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.activeElement).toBe(screen.getByLabelText('Host'));
+  });
+
   it('closes on Escape and on the close button', async () => {
     const onclose = vi.fn();
     render(Dialog, { open: true, title: 'Project', onclose, children: content });

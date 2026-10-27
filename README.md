@@ -88,7 +88,9 @@ The one-liners work from the first published release that carries these files (v
 
    Other flags: `--addr` (default `127.0.0.1:8820`; another address needs a token), `--token` (better `$WAPP_DEBUGGER_TOKEN`, out of the process list), `--db` (the database, by default in the user config directory; `secrets.json` with tokens of HTTP servers lives next to it), `--scan-interval` (fallback rescan of local directories, 5 s). `wapp-debugger serve --help` lists them all.
 
-The UI speaks English and Russian and has light, dark and high-contrast themes (switches in the header; "System" follows the color scheme and the contrast setting of the OS). **Appearance** in the header sets an accent color over any theme, the density of lists, the font size, the font of code (one installed on your computer) and a frame around the window in the color of stage and prod. The **theme editor** there makes themes of your own: colors over a built-in theme with a live preview and a contrast check, shared as `.theme.json` files (Export, Import). The viewer keeps these settings, so every browser and the desktop app look the same. Search looks for words in messages and their context or for a part of the URL.
+The window has a sidebar with the projects and servers (it folds to a rail of icons) and three panes: the feed, the request and the message. **Help** (?) at the bottom of the sidebar explains how the viewer works and how to connect the library, add a project or a server and push logs; with no projects yet the feed shows the first steps.
+
+The UI speaks English and Russian and has light, dark and high-contrast themes (switches at the bottom of the sidebar; "System" follows the color scheme and the contrast setting of the OS). **Appearance** next to them sets an accent color over any theme, the density of lists, the font size, the font of code (one installed on your computer) and a frame around the window in the color of stage and prod. The **theme editor** there makes themes of your own: colors over a built-in theme with a live preview and a contrast check, shared as `.theme.json` files (Export, Import). The viewer keeps these settings, so every browser and the desktop app look the same. Search looks for words in messages and their context or for a part of the URL.
 
 ## Projects on other servers
 
@@ -150,13 +152,13 @@ The same viewer in a window, without a network port. Installers are attached to 
 - Windows: SmartScreen → **More info** → **Run anyway**;
 - Linux: `sudo apt install ./wapp-debugger-desktop_*.deb`, or `chmod +x` the AppImage.
 
-What the desktop adds to the browser version (**Settings** in the header):
+What the desktop adds to the browser version (**Settings** at the bottom of the sidebar):
 
 - an icon in the tray (the menu bar on macOS) with the number of new requests with errors and a menu of the last ones; closing the window keeps the app there;
 - system notifications about new requests with errors — or warnings too — in all or chosen projects; a burst comes as one notice; a click opens the request;
 - links `wapp-debugger://open?project=3&request=42&message=1001` open the request in the app (from a chat, a ticket, a script); the installers register the scheme, a second start hands the link to the running window;
 - start at login; the window comes back where it was;
-- a notice in the header when a newer version is out (GitHub Releases once a day; can be switched off).
+- a notice at the top of the sidebar when a newer version is out (GitHub Releases once a day; can be switched off).
 
 From source: `make desktop-build` (needs a C compiler and, on Linux, GTK4 + WebKitGTK 6.0; `make desktop-deps` checks them and prints how to install what is missing on your system), then `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` is optional here too. `make desktop-package` builds the installers of the current system; more in [desktop/README.md](desktop/README.md).
 

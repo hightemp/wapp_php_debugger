@@ -38,3 +38,26 @@ test('the theme editor', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Theme editor…' }).click();
   await expect(page).toHaveScreenshot('theme-editor.png', { mask: mask(page) });
 });
+
+test('the help', async ({ page, request }) => {
+  await resetSettings(request, { theme: 'light' });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Help' }).click();
+  const help = page.getByRole('dialog', { name: 'Help' });
+  await expect(help).toHaveScreenshot('help-overview.png');
+  await help.getByRole('button', { name: /Connect the library/ }).click();
+  await expect(help).toHaveScreenshot('help-library.png');
+});
+
+test('the viewer in a narrower window', async ({ page, request }) => {
+  await resetSettings(request, { theme: 'light' });
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await page.goto('/');
+  await page
+    .getByRole('region', { name: 'Requests' })
+    .getByRole('button', { name: /\/catalog\/item\?id=42/ })
+    .click();
+  await page.getByRole('button', { name: /Loading the item/ }).click();
+  await expect(page.getByRole('region', { name: 'Message' })).toContainText('item_id');
+  await expect(page).toHaveScreenshot('viewer-narrow.png', { mask: mask(page) });
+});

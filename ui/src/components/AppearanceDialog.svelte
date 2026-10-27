@@ -10,6 +10,7 @@
   import { themePreferences } from '../lib/theme';
   import { builtInTokens } from '../lib/themeTokens';
   import ColorField from './ColorField.svelte';
+  import { Palette } from '../lib/icons';
   import Dialog from './Dialog.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import Select from './Select.svelte';
@@ -76,7 +77,7 @@
   }
 </script>
 
-<Dialog {open} title={i18n.t('appearance.title')} {onclose}>
+<Dialog icon={Palette} {open} title={i18n.t('appearance.title')} {onclose}>
   <div class="settings">
     <div class="field">
       <span class="label" aria-hidden="true">{i18n.t('appearance.theme')}</span>

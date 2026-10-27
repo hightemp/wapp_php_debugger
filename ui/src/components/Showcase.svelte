@@ -1,6 +1,7 @@
 <script lang="ts">
   // The component showcase (#/dev/components): every component in every built-in theme side by side,
   // to check a change of tokens or of a component at a glance. The e2e snapshots take it too.
+  import { Download, Eraser, Pin, Plus, Settings } from '../lib/icons';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { themeBases, type ThemeBase } from '../lib/themeTokens';
   import ColorField from './ColorField.svelte';
@@ -62,6 +63,26 @@
           value={density[theme] ?? 'comfortable'}
           onchange={(value) => (density[theme] = value)}
         />
+        <div class="row">
+          <button type="button" class="btn btn-primary"><Plus size={14} />Add project</button>
+          <button type="button" class="btn"><Download size={14} />Export</button>
+          <button type="button" class="btn" aria-pressed="true"><Pin size={14} />Pin</button>
+          <button type="button" class="btn btn-ghost">Help</button>
+          <button type="button" class="icon-btn" aria-label="Settings" title="Settings"
+            ><Settings size={16} /></button
+          >
+          <button type="button" class="icon-btn danger" aria-label="Clear logs" title="Clear logs"
+            ><Eraser size={16} /></button
+          >
+        </div>
+        <div class="row">
+          <span class="badge badge-error">1 error</span>
+          <span class="badge badge-warning">2 warnings</span>
+          <span class="badge badge-info">200</span>
+          <span class="badge badge-accent">pinned</span>
+          <button type="button" class="chip" aria-pressed="true">Errors</button>
+          <button type="button" class="chip">Debug</button>
+        </div>
         <div class="row">
           <Switch
             label="On"

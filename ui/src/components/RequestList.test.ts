@@ -40,10 +40,24 @@ describe('RequestList', () => {
     expect(rows[1]).toHaveTextContent('CLI');
   });
 
-  it('shows an empty state with a hint', async () => {
+  it('shows an empty state with a hint and the help', async () => {
     const { transport } = feed([{ items: [], next_cursor: null }]);
+    transport.listProjects = vi.fn(async () => ({ items: [sampleProject(1)] }));
+    const { onCommand } = await import('../lib/commands');
+    const commands: unknown[] = [];
+    const stop = onCommand((command) => commands.push(command));
     render(RequestList, { transport });
     expect(await screen.findByText('No requests yet')).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Nothing comes?' }));
+    expect(commands).toContainEqual({ type: 'help', topic: 'library' });
+    stop();
+  });
+
+  it('shows the first steps while there are no projects', async () => {
+    const { transport } = feed([{ items: [], next_cursor: null }]);
+    render(RequestList, { transport });
+    expect(await screen.findByRole('region', { name: 'Start debugging' })).toBeInTheDocument();
+    expect(screen.queryByText('No requests yet')).not.toBeInTheDocument();
   });
 
   it('shows an error and retries', async () => {
@@ -163,7 +177,7 @@ describe('RequestList', () => {
   it('unsubscribes from the stream when removed', async () => {
     const { transport, unsubscribe } = feed([{ items: [], next_cursor: null }]);
     const { unmount } = render(RequestList, { transport });
-    await screen.findByText('No requests yet');
+    await screen.findByRole('region', { name: 'Start debugging' });
     unmount();
     expect(unsubscribe).toHaveBeenCalled();
   });

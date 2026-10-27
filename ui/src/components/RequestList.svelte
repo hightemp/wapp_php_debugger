@@ -1,13 +1,28 @@
 <script lang="ts">
   import type { Transport } from '../lib/api/client';
   import type { Project, Request, Server } from '../lib/api/types';
-  import { formatDuration, formatTime, requestTitle } from '../lib/format';
+  import { formatDuration, formatTime, outcomeKind, requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
   import { applyStreamEvent } from '../lib/requests';
   import { onCommand } from '../lib/commands';
   import { toasts } from '../lib/toasts.svelte';
   import { parseFeedQuery } from '../lib/feedQuery';
+  import { emitCommand } from '../lib/commands';
+  import {
+    CircleX,
+    Clock,
+    Globe,
+    Inbox,
+    Layers,
+    MessageSquare,
+    Pause,
+    Pin,
+    Play,
+    Terminal,
+    TriangleAlert,
+  } from '../lib/icons';
   import FilterLine from './FilterLine.svelte';
+  import GettingStarted from './GettingStarted.svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import Switch from './Switch.svelte';
   import VirtualList from './VirtualList.svelte';
@@ -42,6 +57,9 @@
   let projects = $state<Project[]>([]);
   let environment = $state<EnvironmentFilter>('all');
 
+  // Until the names are known, an empty feed is not taken for one with no projects
+  let namesLoaded = $state(false);
+
   async function loadNames() {
     const [serverList, projectList] = await Promise.all([
       transport.listServers(),
@@ -49,6 +67,7 @@
     ]);
     servers = serverList.items;
     projects = projectList.items;
+    namesLoaded = true;
   }
 
   $effect(() => {
@@ -269,16 +288,6 @@
     }
     return request.status_code ? String(request.status_code) : '—';
   }
-
-  function outcomeKind(request: Request): string {
-    if (!request.finished || request.error_count > 0 || (request.status_code ?? 0) >= 500) {
-      return 'bad';
-    }
-    if (request.warning_count > 0 || (request.status_code ?? 0) >= 400) {
-      return 'warn';
-    }
-    return 'ok';
-  }
 </script>
 
 <section class="feed" aria-labelledby="feed-title">
@@ -299,9 +308,9 @@
       <SegmentedControl
         label={i18n.t('feed.sapi')}
         options={[
-          { value: 'all', label: i18n.t('feed.sapiAll') },
-          { value: 'web', label: i18n.t('feed.sapiWeb') },
-          { value: 'cli', label: i18n.t('feed.sapiCli') },
+          { value: 'all', label: i18n.t('feed.sapiAll'), icon: Layers },
+          { value: 'web', label: i18n.t('feed.sapiWeb'), icon: Globe },
+          { value: 'cli', label: i18n.t('feed.sapiCli'), icon: Terminal },
         ]}
         value={sapi}
         onchange={(value: Sapi) => (sapi = value)}
@@ -325,9 +334,10 @@
           onchange={(value: EnvironmentFilter) => (environment = value)}
         />
       {/if}
-      <button type="button" class="pause" aria-pressed={paused} onclick={togglePause}
-        >{i18n.t('feed.pause')}</button
-      >
+      <button type="button" class="btn pause" aria-pressed={paused} onclick={togglePause}>
+        {#if paused}<Play size={14} />{:else}<Pause size={14} />{/if}
+        {i18n.t('feed.pause')}
+      </button>
     </div>
     {#if paused && waiting > 0}
       <button type="button" class="waiting" onclick={togglePause}
@@ -339,16 +349,26 @@
   {#if status === 'loading' && items.length === 0}
     <p class="state">{i18n.t('feed.loading')}</p>
   {:else if status === 'error'}
-    <div class="state error" role="alert">
-      <p>{i18n.t('feed.error', { message: errorMessage })}</p>
-      <button type="button" class="action" onclick={load}>{i18n.t('feed.retry')}</button>
+    <div class="empty" role="alert">
+      <span class="empty-icon error"><CircleX size={22} /></span>
+      <p class="empty-text error">{i18n.t('feed.error', { message: errorMessage })}</p>
+      <button type="button" class="btn" onclick={load}>{i18n.t('feed.retry')}</button>
     </div>
   {:else if items.length === 0 && filtered}
     <p class="state">{i18n.t('feed.noMatches')}</p>
+  {:else if items.length === 0 && namesLoaded && projects.length === 0}
+    <GettingStarted />
   {:else if items.length === 0}
-    <div class="state">
-      <p class="state-title">{i18n.t('feed.emptyTitle')}</p>
-      <p class="hint">{i18n.t('feed.emptyHint')}</p>
+    <div class="empty">
+      <span class="empty-icon"><Inbox size={22} /></span>
+      <p class="empty-title">{i18n.t('feed.emptyTitle')}</p>
+      <p class="empty-text">{i18n.t('feed.emptyHint')}</p>
+      <button
+        type="button"
+        class="btn btn-ghost"
+        onclick={() => emitCommand({ type: 'help', topic: 'library' })}
+        >{i18n.t('feed.emptyHelp')}</button
+      >
     </div>
   {:else}
     <VirtualList {items} key={(request) => request.id} label={i18n.t('feed.title')}>
@@ -366,13 +386,20 @@
             data-kind={outcomeKind(request)}
             onclick={() => onselect(request.id)}
           >
-            <span class="outcome">{outcome(request)}</span>
-            <span class="title" title={request.url ?? request.request_key}
+            <span class="outcome">
+              {#if request.sapi === 'cli'}<Terminal size={12} />{/if}{outcome(request)}
+            </span>
+            <span
+              class="title"
+              title={request.url ?? request.argv?.join(' ') ?? request.request_key}
               >{requestTitle(request)}</span
+            >
+            <time class="time" datetime={new Date(request.started_at).toISOString()}
+              >{formatTime(request.started_at)}</time
             >
             <span class="meta">
               {#if request.pinned}
-                <span class="badge pinned">{i18n.t('marks.pinned')}</span>
+                <span class="badge badge-accent"><Pin size={11} />{i18n.t('marks.pinned')}</span>
               {/if}
               {#if request.note}
                 <span class="row-note" title={request.note}>{request.note}</span>
@@ -381,21 +408,26 @@
                 <span class="origin">{origin(request)}</span>
               {/if}
               {#if request.error_count > 0}
-                <span class="badge error"
-                  >{i18n.t('request.errors', { count: request.error_count })}</span
+                <span class="badge badge-error"
+                  ><CircleX size={11} />{i18n.t('request.errors', {
+                    count: request.error_count,
+                  })}</span
                 >
               {/if}
               {#if request.warning_count > 0}
-                <span class="badge warning"
-                  >{i18n.t('request.warnings', { count: request.warning_count })}</span
+                <span class="badge badge-warning"
+                  ><TriangleAlert size={11} />{i18n.t('request.warnings', {
+                    count: request.warning_count,
+                  })}</span
                 >
               {/if}
-              <span class="count"
-                >{i18n.t('request.messages', { count: request.message_count })}</span
+              <span class="stat"
+                ><MessageSquare size={12} />{i18n.t('request.messages', {
+                  count: request.message_count,
+                })}</span
               >
-              <span class="duration">{formatDuration(request.duration_ms, i18n.locale)}</span>
-              <time datetime={new Date(request.started_at).toISOString()}
-                >{formatTime(request.started_at)}</time
+              <span class="stat"
+                ><Clock size={12} />{formatDuration(request.duration_ms, i18n.locale)}</span
               >
             </span>
           </button>
@@ -403,7 +435,7 @@
       {/snippet}
     </VirtualList>
     {#if nextCursor}
-      <button type="button" class="action more" onclick={loadMore} disabled={loadingMore}>
+      <button type="button" class="btn more" onclick={loadMore} disabled={loadingMore}>
         {i18n.t('feed.loadMore')}
       </button>
     {/if}
@@ -411,66 +443,6 @@
 </section>
 
 <style>
-  .pause {
-    margin-left: auto;
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text-muted);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .pause[aria-pressed='true'] {
-    border-color: var(--level-warning);
-    color: var(--level-warning);
-  }
-
-  .waiting {
-    width: 100%;
-    margin-top: var(--space-2);
-    padding: var(--space-1);
-    border: 1px dashed var(--accent);
-    border-radius: var(--radius);
-    background: none;
-    color: var(--accent);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .pause:focus-visible,
-  .waiting:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
-
-  .badge.pinned {
-    background: var(--surface-sunken);
-    color: var(--accent);
-  }
-
-  .row-note {
-    max-width: 16ch;
-    overflow: hidden;
-    color: var(--text);
-    font-style: italic;
-    text-overflow: ellipsis;
-  }
-
-  .invalid {
-    margin: var(--space-1) 0 0;
-    color: var(--level-warning);
-    font-size: var(--font-size-small);
-  }
-
-  .origin {
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-  }
-
   .feed {
     display: flex;
     flex-direction: column;
@@ -480,14 +452,14 @@
   .toolbar {
     display: grid;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border);
   }
 
   .filters {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-3);
+    gap: var(--space-2) var(--space-3);
     align-items: center;
   }
 
@@ -499,27 +471,64 @@
     font-size: var(--font-size-small);
   }
 
+  .pause {
+    margin-left: auto;
+  }
+
+  .pause[aria-pressed='true'] {
+    border-color: var(--level-warning);
+    background: var(--level-warning-soft);
+    color: var(--level-warning);
+  }
+
+  .waiting {
+    width: 100%;
+    padding: var(--space-1);
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .waiting:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .invalid {
+    margin: 0;
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
+  }
+
   .item[aria-current='true'] .row {
-    background: var(--surface-hover);
+    background: var(--accent-soft);
     box-shadow: inset 3px 0 0 var(--accent);
   }
 
   .row {
+    display: grid;
+    grid-template-columns: minmax(10ch, max-content) minmax(0, 1fr) auto;
+    gap: 2px var(--space-3);
+    align-items: center;
     width: 100%;
+    padding: calc(var(--row-padding-y) + 2px) var(--space-4);
     border: 0;
     border-bottom: 1px solid var(--border);
     background: none;
     color: var(--text);
     font: inherit;
-    text-align: left;
-    cursor: pointer;
-    display: grid;
-    grid-template-columns: 11ch 1fr;
-    gap: var(--space-1) var(--space-3);
-    align-items: center;
-    padding: var(--row-padding-y) var(--space-4);
     line-height: var(--row-line-height);
+    text-align: left;
     font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+
+  .row:hover {
+    background: var(--surface-hover);
   }
 
   .row:focus-visible {
@@ -527,22 +536,28 @@
     outline-offset: -2px;
   }
 
-  .row:hover {
-    background: var(--surface-hover);
-  }
-
   .outcome {
-    white-space: nowrap;
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+    justify-self: start;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius);
+    background: var(--level-info-soft);
+    color: var(--level-info);
     font-family: var(--font-mono);
     font-size: var(--font-size-small);
-    color: var(--level-info);
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .row[data-kind='warn'] .outcome {
+    background: var(--level-warning-soft);
     color: var(--level-warning);
   }
 
   .row[data-kind='bad'] .outcome {
+    background: var(--level-error-soft);
     color: var(--level-error);
   }
 
@@ -553,30 +568,39 @@
     white-space: nowrap;
   }
 
+  .time {
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
+  }
+
   .meta {
-    grid-column: 2;
-    overflow: hidden;
     display: flex;
+    grid-column: 2 / 4;
     gap: var(--space-3);
     align-items: center;
+    overflow: hidden;
     color: var(--text-muted);
     font-size: var(--font-size-small);
     white-space: nowrap;
   }
 
-  .badge {
-    padding: 0 var(--space-2);
-    border-radius: var(--radius);
+  .stat {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
   }
 
-  .badge.error {
-    background: var(--level-error-soft);
-    color: var(--level-error);
+  .row-note {
+    max-width: 16ch;
+    overflow: hidden;
+    color: var(--text);
+    font-style: italic;
+    text-overflow: ellipsis;
   }
 
-  .badge.warning {
-    background: var(--level-warning-soft);
-    color: var(--level-warning);
+  .origin {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
   }
 
   .state {
@@ -584,37 +608,8 @@
     color: var(--text-muted);
   }
 
-  .state-title {
-    margin: 0 0 var(--space-2);
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .hint {
-    margin: 0;
-  }
-
   .error {
     color: var(--level-error);
-  }
-
-  .action {
-    padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .action:hover {
-    background: var(--surface-hover);
-  }
-
-  .action:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 
   .more {

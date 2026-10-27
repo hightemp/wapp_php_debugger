@@ -21,10 +21,14 @@ export function formatTime(ts: number): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
 }
 
-/** Feed row title: method and path for a web request, CLI for a console run. */
-export function requestTitle(request: Pick<Request, 'sapi' | 'method' | 'url'>): string {
+/** Feed row title: method and path for a web request, the script and its arguments for a console run. */
+export function requestTitle(
+  request: Pick<Request, 'sapi'> & Partial<Pick<Request, 'method' | 'url' | 'argv'>>,
+): string {
   if (request.sapi === 'cli') {
-    return 'CLI';
+    const [script, ...args] = request.argv ?? [];
+    // Logs of library v1 carry no command line
+    return script ? [script.split(/[\\/]/).pop() ?? script, ...args].join(' ') : 'CLI';
   }
   const url = request.url ?? '';
   let path = url;
@@ -35,6 +39,26 @@ export function requestTitle(request: Pick<Request, 'sapi' | 'method' | 'url'>):
     // v1 writes the URL as is; an unparsable one is shown whole
   }
   return request.method ? `${request.method} ${decodeReadable(path)}` : decodeReadable(path);
+}
+
+export type OutcomeKind = 'ok' | 'warn' | 'bad';
+
+/** How a request ended, for its color: errors, 5xx, a failed exit or no end are bad; warnings and 4xx warn. */
+export function outcomeKind(
+  request: Pick<Request, 'finished' | 'error_count' | 'warning_count' | 'status_code'> & {
+    exit_code?: number | null;
+  },
+): OutcomeKind {
+  const status = request.status_code ?? 0;
+  const failedExit =
+    request.exit_code !== null && request.exit_code !== undefined && request.exit_code !== 0;
+  if (!request.finished || request.error_count > 0 || status >= 500 || failedExit) {
+    return 'bad';
+  }
+  if (request.warning_count > 0 || status >= 400) {
+    return 'warn';
+  }
+  return 'ok';
 }
 
 /**

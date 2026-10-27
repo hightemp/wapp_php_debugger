@@ -217,10 +217,47 @@ test('a Laravel log comes in as a request of its own', async ({ page }) => {
     .setInputFiles(
       fileURLToPath(new URL('../../spec/fixtures/thirdparty/laravel.log', import.meta.url)),
     );
-  await expect(page.getByRole('heading', { level: 2, name: 'CLI' })).toBeVisible();
-  await expect(page.getByText('laravel.log', { exact: true })).toBeVisible();
+  // The request is named after the file it came from
+  await expect(page.getByRole('heading', { level: 2, name: 'laravel.log' })).toBeVisible();
   const messages = page.getByRole('list', { name: 'Messages' });
   await expect(messages).toContainText('User logged in');
   await expect(messages).toContainText('SQLSTATE[42S02]: Base table or view not found');
   await page.screenshot({ path: test.info().outputPath('laravel.png') });
 });
+
+// Every field of a form stays inside its dialog, whatever the width of the window
+async function expectFieldsInside(page: Page, name: string) {
+  const dialog = page.getByRole('dialog', { name });
+  const box = await dialog.boundingBox();
+  if (!box) {
+    throw new Error(`no box of the dialog ${name}`);
+  }
+  for (const field of await dialog
+    .locator('input:visible, textarea:visible, select:visible')
+    .all()) {
+    const html = await field.evaluate((element) => element.outerHTML);
+    const inner = await field.boundingBox();
+    if (!inner) {
+      throw new Error(`no box of ${html}`);
+    }
+    expect(inner.x, html).toBeGreaterThanOrEqual(box.x);
+    expect(inner.x + inner.width, html).toBeLessThanOrEqual(box.x + box.width);
+  }
+}
+
+for (const width of [1440, 900, 420]) {
+  test(`the fields of the server and project dialogs fit at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Servers' }).first().click();
+    await page.getByRole('button', { name: 'Add server' }).click();
+    await expectFieldsInside(page, 'New server');
+    await page.getByRole('radio', { name: 'HTTP' }).click();
+    await expectFieldsInside(page, 'New server');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: 'Add project' }).first().click();
+    await expectFieldsInside(page, 'New project');
+  });
+}

@@ -9,12 +9,26 @@
   import RequestTabs from './components/RequestTabs.svelte';
   import RequestList from './components/RequestList.svelte';
   import CommandPalette, { type PaletteCommand } from './components/CommandPalette.svelte';
+  import HelpDialog from './components/HelpDialog.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import ShortcutsDialog from './components/ShortcutsDialog.svelte';
   import Showcase from './components/Showcase.svelte';
   import ThemeEditor from './components/ThemeEditor.svelte';
   import Toaster from './components/Toaster.svelte';
-  import { emitCommand } from './lib/commands';
+  import { emitCommand, onCommand } from './lib/commands';
+  import type { HelpTopic } from './lib/help';
+  import {
+    Bug,
+    Command,
+    Help,
+    List,
+    MessageSquare,
+    Palette,
+    PanelLeftClose,
+    PanelLeftOpen,
+    Settings,
+    Sparkles,
+  } from './lib/icons';
   import { themePreferences } from './lib/theme';
   import ThemeSwitch from './components/ThemeSwitch.svelte';
   import { createHttpTransport, type Transport, type UpdateInfo } from './lib/api/client';
@@ -88,7 +102,44 @@
   });
 
   let paletteOpen = $state(false);
-  let helpOpen = $state(false);
+  let shortcutsOpen = $state(false);
+  let guideOpen = $state(false);
+  let guideTopic = $state<HelpTopic>('overview');
+
+  function openGuide(topic: HelpTopic = 'overview') {
+    guideTopic = topic;
+    guideOpen = true;
+  }
+
+  $effect(() =>
+    onCommand((command) => {
+      if (command.type === 'help') {
+        openGuide(command.topic);
+      }
+    }),
+  );
+
+  // The sidebar folds to a rail of icons; the choice stays in this browser, a narrow window starts
+  // folded
+  const sidebarKey = 'wapp-debugger.sidebar';
+  function storedSidebar(): boolean | undefined {
+    try {
+      const value = localStorage.getItem(sidebarKey);
+      return value === null ? undefined : value === 'collapsed';
+    } catch {
+      return undefined;
+    }
+  }
+  let collapsed = $state(storedSidebar() ?? window.innerWidth < 900);
+
+  function toggleSidebar() {
+    collapsed = !collapsed;
+    try {
+      localStorage.setItem(sidebarKey, collapsed ? 'collapsed' : 'expanded');
+    } catch {
+      // Private windows may refuse storage: the sidebar still folds for now
+    }
+  }
   let commands = $state<PaletteCommand[]>([]);
 
   // Commands of the palette: projects and servers as they are now, then the actions
@@ -162,7 +213,8 @@
       ...(desktop
         ? [{ id: 'settings', label: i18n.t('settings.title'), run: () => (settingsOpen = true) }]
         : []),
-      { id: 'help', label: i18n.t('keys.title'), hint: '?', run: () => (helpOpen = true) },
+      { id: 'guide', label: i18n.t('help.title'), run: () => openGuide() },
+      { id: 'help', label: i18n.t('keys.title'), hint: '?', run: () => (shortcutsOpen = true) },
     ];
     paletteOpen = true;
   }
@@ -259,7 +311,7 @@
         emitCommand({ type: 'focus-filter' });
         break;
       case '?':
-        helpOpen = true;
+        shortcutsOpen = true;
         break;
       default:
         return;
@@ -299,43 +351,47 @@
   <Showcase />
 {:else}
   <div class="app" data-env-frame={envFrame}>
-    <header class="header">
-      <h1 class="title">{i18n.t('app.title')}</h1>
-      {#if version}
-        <span class="version">{version}</span>
-      {/if}
+    <aside class="sidebar" aria-label={i18n.t('sidebar.label')} data-collapsed={collapsed}>
+      <div class="brand">
+        <span class="logo" aria-hidden="true"><Bug size={16} /></span>
+        <div class="brand-text" class:visually-hidden={collapsed}>
+          <h1 class="title">{i18n.t('app.title')}</h1>
+          {#if version}
+            <span class="version">{version}</span>
+          {/if}
+        </div>
+        <button
+          type="button"
+          class="icon-btn fold"
+          aria-label={i18n.t(collapsed ? 'sidebar.expand' : 'sidebar.collapse')}
+          title={i18n.t(collapsed ? 'sidebar.expand' : 'sidebar.collapse')}
+          onclick={toggleSidebar}
+        >
+          {#if collapsed}<PanelLeftOpen size={16} />{:else}<PanelLeftClose size={16} />{/if}
+        </button>
+      </div>
       {#if update?.url}
         {@const url = update.url}
+        {@const label = i18n.t('update.available', { version: update.latest ?? '' })}
         <a
           class="update"
           href={url}
           target="_blank"
           rel="noopener noreferrer"
+          title={label}
           onclick={(event) => {
             // Inside the desktop window the system browser opens it
             if (isDesktop()) {
               event.preventDefault();
               void openInBrowser(url);
             }
-          }}>{i18n.t('update.available', { version: update.latest ?? '' })}</a
+          }}><Sparkles size={14} /><span class:visually-hidden={collapsed}>{label}</span></a
         >
       {/if}
-      <span class="spacer"></span>
-      <LanguageSwitch onchange={chooseLocale} />
-      <ThemeSwitch {transport} {store} />
-      <button type="button" class="settings" onclick={() => (appearanceOpen = true)}
-        >{i18n.t('appearance.open')}</button
-      >
-      {#if desktop}
-        <button type="button" class="settings" onclick={() => (settingsOpen = true)}
-          >{i18n.t('settings.title')}</button
-        >
-      {/if}
-    </header>
-    <main class="panes">
-      <div class="pane feed">
+      <div class="nav">
         <ProjectsPanel
           {transport}
+          {collapsed}
           selectedId={route.projectId}
           selectedServerId={route.serverId}
           onopenrequest={(projectId, requestId) => navigate({ projectId, requestId })}
@@ -343,6 +399,50 @@
           onselectserver={(id) => navigate({ serverId: id })}
           onenvironment={(value) => (environment = value)}
         />
+      </div>
+      <div class="footer">
+        <div class="tools">
+          <button
+            type="button"
+            class="icon-btn"
+            aria-label={i18n.t('help.open')}
+            title={i18n.t('help.open')}
+            onclick={() => openGuide()}><Help size={16} /></button
+          >
+          <button
+            type="button"
+            class="icon-btn"
+            aria-label={i18n.t('palette.title')}
+            title={`${i18n.t('palette.title')} (Ctrl+K)`}
+            onclick={() => void openPalette()}><Command size={16} /></button
+          >
+          <button
+            type="button"
+            class="icon-btn"
+            aria-label={i18n.t('appearance.open')}
+            title={i18n.t('appearance.open')}
+            onclick={() => (appearanceOpen = true)}><Palette size={16} /></button
+          >
+          {#if desktop}
+            <button
+              type="button"
+              class="icon-btn"
+              aria-label={i18n.t('settings.title')}
+              title={i18n.t('settings.title')}
+              onclick={() => (settingsOpen = true)}><Settings size={16} /></button
+            >
+          {/if}
+        </div>
+        {#if !collapsed}
+          <div class="switches">
+            <ThemeSwitch {transport} {store} compact />
+            <LanguageSwitch onchange={chooseLocale} compact />
+          </div>
+        {/if}
+      </div>
+    </aside>
+    <main class="panes">
+      <div class="pane feed">
         <RequestList
           {transport}
           projectId={route.projectId}
@@ -367,34 +467,42 @@
             onclose={() => navigate({ ...scope, requestId })}
           />
         </div>
-      {:else}
+      {:else if route.requestId !== undefined}
+        {@const requestId = route.requestId}
         <div class="pane">
-          {#if route.requestId !== undefined}
-            {@const requestId = route.requestId}
-            <RequestTabs
-              {transport}
-              currentId={requestId}
-              onselect={(id) => navigate({ ...scope, requestId: id })}
-              oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
-            />
-            <RequestDetail
-              {transport}
-              requestId={route.requestId}
-              selectedMessageId={route.messageId}
-              onselectmessage={(id) =>
-                navigate({ ...scope, requestId: route.requestId, messageId: id })}
-              onselectrequest={(id) => navigate({ ...scope, requestId: id })}
-            />
-          {:else}
-            <p class="hint">{i18n.t('detail.empty')}</p>
-          {/if}
+          <RequestTabs
+            {transport}
+            currentId={requestId}
+            onselect={(id) => navigate({ ...scope, requestId: id })}
+            oncompare={(id) => navigate({ ...scope, requestId, compareId: id })}
+          />
+          <RequestDetail
+            {transport}
+            requestId={route.requestId}
+            selectedMessageId={route.messageId}
+            onselectmessage={(id) =>
+              navigate({ ...scope, requestId: route.requestId, messageId: id })}
+            onselectrequest={(id) => navigate({ ...scope, requestId: id })}
+          />
         </div>
         <div class="pane">
           {#if route.messageId !== undefined}
             <MessageDetail {transport} messageId={route.messageId} />
-          {:else if route.requestId !== undefined}
-            <p class="hint">{i18n.t('message.empty')}</p>
+          {:else}
+            <div class="empty">
+              <span class="empty-icon"><MessageSquare size={22} /></span>
+              <p class="empty-title">{i18n.t('message.empty')}</p>
+              <p class="empty-text">{i18n.t('message.emptyText')}</p>
+            </div>
           {/if}
+        </div>
+      {:else}
+        <div class="pane wide">
+          <div class="empty">
+            <span class="empty-icon"><List size={22} /></span>
+            <p class="empty-title">{i18n.t('detail.emptyTitle')}</p>
+            <p class="empty-text">{i18n.t('detail.emptyText')}</p>
+          </div>
         </div>
       {/if}
     </main>
@@ -408,7 +516,16 @@
   onfilter={(text) => emitCommand({ type: 'filter', text })}
   onclose={() => (paletteOpen = false)}
 />
-<ShortcutsDialog open={helpOpen} onclose={() => (helpOpen = false)} />
+<ShortcutsDialog open={shortcutsOpen} onclose={() => (shortcutsOpen = false)} />
+<HelpDialog
+  open={guideOpen}
+  topic={guideTopic}
+  onclose={() => (guideOpen = false)}
+  onshortcuts={() => {
+    guideOpen = false;
+    shortcutsOpen = true;
+  }}
+/>
 <AppearanceDialog
   open={appearanceOpen}
   {transport}
@@ -427,33 +544,9 @@
 {/if}
 
 <style>
-  .settings {
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: var(--font-size-small);
-    cursor: pointer;
-  }
-
-  .update {
-    padding: 0 var(--space-2);
-    border-radius: var(--radius);
-    background: var(--level-warning-soft);
-    color: var(--level-warning);
-    font-size: var(--font-size-small);
-  }
-
-  .settings:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
-
   .app {
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     height: 100vh;
   }
 
@@ -475,34 +568,126 @@
     --env-frame: var(--env-prod);
   }
 
-  .header {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: var(--sidebar-width);
+    min-height: 0;
+    padding: var(--space-3) 0;
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .sidebar[data-collapsed='true'] {
+    width: var(--sidebar-rail);
+    align-items: center;
+  }
+
+  .brand {
     display: flex;
     gap: var(--space-3);
     align-items: center;
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    padding: 0 var(--space-3) 0 var(--space-4);
+  }
+
+  [data-collapsed='true'] .brand {
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: 0;
+  }
+
+  .logo {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+
+  .brand-text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
   }
 
   .title {
     margin: 0;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
   }
 
   .version {
+    overflow: hidden;
     color: var(--text-muted);
     font-family: var(--font-mono);
-    font-size: var(--font-size-small);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .spacer {
+  .update {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    margin: 0 var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius);
+    background: var(--level-warning-soft);
+    color: var(--level-warning);
+    font-size: var(--font-size-small);
+    text-decoration: none;
+  }
+
+  [data-collapsed='true'] .update {
+    margin: 0;
+    padding: var(--space-2);
+  }
+
+  .nav {
     flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  [data-collapsed='true'] .nav {
+    width: 100%;
+  }
+
+  .footer {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-3) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  [data-collapsed='true'] .footer {
+    padding: var(--space-3) 0 0;
+  }
+
+  .tools {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  [data-collapsed='true'] .tools {
+    flex-direction: column;
+  }
+
+  .switches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: space-between;
   }
 
   .panes {
     display: grid;
-    grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 1fr) minmax(320px, 1fr);
+    grid-template-columns: minmax(340px, 1.15fr) minmax(320px, 1fr) minmax(320px, 1fr);
+    min-width: 0;
     min-height: 0;
     background: var(--surface);
   }
@@ -517,28 +702,55 @@
     border-right: 0;
   }
 
-  /* The comparison takes the places of the request and the message */
+  /* The comparison or the empty state take the places of the request and the message */
   .pane.wide {
     grid-column: span 2;
   }
 
-  .hint {
-    padding: var(--space-6) var(--space-4);
-    color: var(--text-muted);
+  .feed {
+    display: flex;
+    flex-direction: column;
   }
 
-  @media (max-width: 1100px) {
+  /* Narrower: the feed on the left, the request over its message on the right */
+  @media (max-width: 1360px) {
     .panes {
-      grid-template-columns: 1fr;
-      grid-auto-rows: minmax(240px, auto);
+      grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+      grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+    }
+
+    .feed {
+      grid-row: span 2;
     }
 
     .pane.wide {
+      grid-row: span 2;
       grid-column: auto;
     }
 
-    .pane {
+    .pane:not(.feed) {
       border-right: 0;
+    }
+
+    .pane:not(.feed, .wide):nth-child(2) {
+      border-bottom: 1px solid var(--border);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .panes {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      grid-auto-rows: minmax(280px, auto);
+      overflow: auto;
+    }
+
+    .feed,
+    .pane.wide {
+      grid-row: auto;
+    }
+
+    .pane {
       border-bottom: 1px solid var(--border);
     }
   }

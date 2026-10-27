@@ -84,8 +84,7 @@
         <span>{i18n.t('config.exportLabel')}</span>
         <textarea readonly rows="14" value={exported}></textarea>
       </label>
-      <a class="action" href={download} download="wapp-debugger.yaml">{i18n.t('config.download')}</a
-      >
+      <a class="btn" href={download} download="wapp-debugger.yaml">{i18n.t('config.download')}</a>
     {:else}
       <p class="note">{i18n.t('config.importHint')}</p>
       <label class="field">
@@ -93,13 +92,13 @@
         <textarea rows="12" bind:value={pasted} spellcheck="false"></textarea>
       </label>
       <div class="row">
-        <label class="action file">
+        <label class="btn file">
           {i18n.t('config.chooseFile')}
           <input type="file" accept=".yaml,.yml,application/yaml,text/yaml" onchange={chooseFile} />
         </label>
         <button
           type="button"
-          class="action primary"
+          class="btn btn-primary"
           disabled={pasted.trim() === '' || importing}
           onclick={importConfig}>{i18n.t('config.import')}</button
         >
@@ -186,28 +185,6 @@
     justify-content: space-between;
   }
 
-  .action {
-    justify-self: start;
-    padding: 2px var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: var(--font-size-small);
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .action:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .primary {
-    border-color: var(--accent);
-  }
-
   .file input {
     position: absolute;
     width: 1px;
@@ -216,7 +193,6 @@
   }
 
   .file:focus-within,
-  .action:focus-visible,
   textarea:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;

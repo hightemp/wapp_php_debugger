@@ -2,6 +2,7 @@
   import type { Transport } from '../lib/api/client';
   import { requestTitle } from '../lib/format';
   import { i18n } from '../lib/i18n/locale.svelte';
+  import { GitCompareArrows, X } from '../lib/icons';
   import { openTabs } from '../lib/tabs.svelte';
 
   let {
@@ -55,14 +56,14 @@
             class="icon"
             aria-label={i18n.t('tabs.compare', { title: title(tab) })}
             title={i18n.t('tabs.compare', { title: title(tab) })}
-            onclick={() => oncompare(tab.id)}>⇄</button
+            onclick={() => oncompare(tab.id)}><GitCompareArrows size={13} /></button
           >
         {/if}
         <button
           type="button"
           class="icon"
           aria-label={i18n.t('tabs.close', { title: title(tab) })}
-          onclick={() => close(tab.id)}>×</button
+          onclick={() => close(tab.id)}><X size={13} /></button
         >
       </span>
     {/each}
@@ -92,6 +93,7 @@
 
   .tab[data-current='true'] {
     background: var(--surface);
+    box-shadow: inset 0 2px 0 var(--accent);
   }
 
   .open {
@@ -108,6 +110,7 @@
   }
 
   .icon {
+    display: flex;
     padding: 0 var(--space-1);
     border: 0;
     background: none;

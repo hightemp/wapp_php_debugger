@@ -35,6 +35,7 @@ describe('App', () => {
   beforeEach(() => {
     i18n.set('en');
     window.location.hash = '';
+    localStorage.removeItem('wapp-debugger.sidebar');
   });
 
   it('shows the product name, the switches and an empty feed', async () => {
@@ -43,8 +44,54 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'wapp-debugger', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Language' })).toBeInTheDocument();
-    expect(await screen.findByText('No requests yet')).toBeInTheDocument();
+    // With no projects yet the feed says how to start
+    expect(await screen.findByRole('heading', { name: 'Start debugging' })).toBeInTheDocument();
     expect(await screen.findByText('v0.0.0-test')).toBeInTheDocument();
+  });
+
+  it('opens the help from the sidebar and from the first steps', async () => {
+    const { transport } = fakeTransport();
+    render(App, { transport });
+    await fireEvent.click(screen.getByRole('button', { name: 'Help' }));
+    const help = screen.getByRole('dialog', { name: 'Help' });
+    expect(within(help).getByRole('heading', { name: 'How it works' })).toBeInTheDocument();
+    await fireEvent.click(within(help).getByRole('button', { name: 'Close' }));
+
+    const start = await screen.findByRole('region', { name: 'Start debugging' });
+    await fireEvent.click(within(start).getByRole('button', { name: /Connect the library/ }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Help' })).getByRole('heading', {
+        name: 'Connect the library',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('adds the first project from the first steps', async () => {
+    const { transport } = fakeTransport();
+    render(App, { transport });
+    const start = await screen.findByRole('region', { name: 'Start debugging' });
+    await fireEvent.click(within(start).getByRole('button', { name: 'Add project' }));
+    expect(screen.getByRole('dialog', { name: 'New project' })).toBeInTheDocument();
+  });
+
+  it('collapses the sidebar to a rail and remembers it', async () => {
+    const { transport } = fakeTransport();
+    const { unmount } = render(App, { transport, store: freshStore() });
+    await fireEvent.click(screen.getByRole('button', { name: 'Collapse the sidebar' }));
+    expect(screen.getByRole('button', { name: 'Expand the sidebar' })).toBeInTheDocument();
+    expect(screen.getByRole('complementary')).toHaveAttribute('data-collapsed', 'true');
+    unmount();
+    render(App, { transport });
+    expect(screen.getByRole('button', { name: 'Expand the sidebar' })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+    expect(screen.getByRole('complementary')).toHaveAttribute('data-collapsed', 'false');
+  });
+
+  it('opens the commands from the sidebar', async () => {
+    const { transport } = fakeTransport();
+    render(App, { transport });
+    await fireEvent.click(screen.getByRole('button', { name: 'Commands' }));
+    expect(await screen.findByRole('dialog', { name: 'Commands' })).toBeInTheDocument();
   });
 
   it('offers the settings of the desktop app only in the desktop app', async () => {

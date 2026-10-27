@@ -1,6 +1,7 @@
 <script lang="ts">
   import { i18n } from '../lib/i18n/locale.svelte';
   import type { MessageKey } from '../lib/i18n/messages';
+  import { Keyboard } from '../lib/icons';
   import Dialog from './Dialog.svelte';
 
   let { open, onclose }: { open: boolean; onclose: () => void } = $props();
@@ -16,7 +17,7 @@
   ];
 </script>
 
-<Dialog {open} title={i18n.t('keys.title')} {onclose}>
+<Dialog icon={Keyboard} {open} title={i18n.t('keys.title')} {onclose}>
   <dl class="keys">
     {#each shortcuts as [keys, what] (keys)}
       <dt><kbd>{keys}</kbd></dt>
