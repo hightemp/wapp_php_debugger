@@ -1,5 +1,7 @@
 # Frozen contracts
 
+**English** · [Русский](README.ru.md)
+
 At 1.0 the contracts the parts of wapp-debugger talk through are frozen: from here on they change
 only in a backward compatible way, so a library, an agent or a script written against 1.0 keeps
 working with every 1.x viewer.

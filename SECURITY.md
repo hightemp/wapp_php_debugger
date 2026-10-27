@@ -1,5 +1,7 @@
 # Security
 
+**English** · [Русский](SECURITY.ru.md)
+
 ## Supported versions
 
 Fixes go into the latest release of the viewer and the desktop app (1.x) and into the latest 2.x

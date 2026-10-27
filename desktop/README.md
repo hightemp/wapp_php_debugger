@@ -1,5 +1,7 @@
 # desktop
 
+**English** · [Русский](README.ru.md)
+
 The desktop viewer is built with Wails v3 on top of `server/internal/*` and the same UI (`ui/`). Its entry point lives in `server/cmd/wapp-debugger-desktop` (build tag `desktop`).
 
 ```sh

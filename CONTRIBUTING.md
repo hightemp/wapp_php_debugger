@@ -1,10 +1,12 @@
 # Contributing
 
-The plan and all decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) (in Russian): section 8 is the order of work, section 10 the decisions.
+**English** · [Русский](CONTRIBUTING.ru.md)
+
+The plan and all decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md): section 8 is the order of work, section 10 the decisions.
 
 ## Language
 
-The project is open source and **English is the base language**: code, comments, identifiers, commit messages, CLI output, API error messages, specifications and documentation. Russian is the second language: the UI is translated (`ui/src/lib/i18n`) and user documentation has a Russian version (`README.ru.md`). A change to user-facing docs updates both versions.
+The project is open source and **English is the base language**: code, comments, identifiers, commit messages, CLI output, API error messages, specifications and documentation. Russian is the second language: the UI is translated (`ui/src/lib/i18n`) and every document comes in a pair: `X.md` in English and `X.ru.md` in Russian, with a language switcher at the top of both. A change to a document updates both versions, and the links of each version lead to documents in the same language. The plan is no exception: `IMPROVEMENT_PLAN.md` and `IMPROVEMENT_PLAN.ru.md` are kept in sync, and an item done is ticked in both.
 
 ## Repository layout
 

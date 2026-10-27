@@ -1,5 +1,7 @@
 # Viewer database schema
 
+**English** · [Русский](README.ru.md)
+
 SQLite (`modernc.org/sqlite`, no CGO). The source of truth is the migrations in [`server/internal/store/migrations/`](../../server/internal/store/migrations): they are embedded into the binary and applied when the database is opened. The constraints are pinned down by `server/internal/store/schema_test.go`.
 
 ```

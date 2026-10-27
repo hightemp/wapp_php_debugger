@@ -12,7 +12,7 @@
 
 A logger and debugger for PHP projects: a PHP library writes the events of every request into JSONL logs, and a viewer shows requests, messages, backtraces and variables in real time.
 
-> **Status: stable, 1.x.** The viewer is written in Go + Svelte, with a desktop app on Wails; the API and the log format are kept backward compatible since 1.0 (see [ROADMAP.md](ROADMAP.md)). The PHP library 2.x (PHP 7.4+, log format v2) comes with every release as one file and is not on Packagist; the viewer also reads logs of library v1. The plan, phases and decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) (in Russian); development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
+> **Status: stable, 1.x.** The viewer is written in Go + Svelte, with a desktop app on Wails; the API and the log format are kept backward compatible since 1.0 (see [ROADMAP.md](ROADMAP.md)). The PHP library 2.x (PHP 7.4+, log format v2) comes with every release as one file and is not on Packagist; the viewer also reads logs of library v1. The plan, phases and decisions are in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md); development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ![wapp-debugger: request feed, a request and a message with its context and backtrace](docs/screenshot.png)
 

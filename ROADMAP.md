@@ -1,6 +1,8 @@
 # Roadmap
 
-What 1.0 has and what comes after it. The detailed working plan (in Russian) is
+**English** · [Русский](ROADMAP.ru.md)
+
+What 1.0 has and what comes after it. The detailed working plan is
 [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md); ideas and bugs go to the issues.
 
 ## 1.0
