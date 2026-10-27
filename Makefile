@@ -262,7 +262,8 @@ e2e-visual: ## Screenshots of the built viewer in every theme against the commit
 		npx playwright test --project visual $(VISUAL_FLAGS)
 
 .PHONY: e2e-visual-update
-e2e-visual-update: ## Take the screenshots again after a change of the look that is meant
+e2e-visual-update: build ## Take the screenshots again after a change of the look that is meant
+	# Built first: references taken from a stale binary would not match the code
 	$(MAKE) e2e-visual VISUAL_FLAGS=--update-snapshots
 
 .PHONY: ui-build
