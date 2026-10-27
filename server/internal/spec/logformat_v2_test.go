@@ -144,7 +144,7 @@ func TestV2FixturesDirectoryHasNoStrayFiles(t *testing.T) {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if !entry.IsDir() && !strings.HasSuffix(name, ".jsonl") && name != "README.md" {
+		if !entry.IsDir() && !strings.HasSuffix(name, ".jsonl") && name != "README.md" && name != "README.ru.md" {
 			t.Errorf("unexpected file %s: valid fixtures are *.jsonl", name)
 		}
 	}

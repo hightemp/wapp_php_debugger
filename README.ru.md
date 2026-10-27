@@ -11,7 +11,7 @@
 
 Логгер-отладчик для PHP-проектов: PHP-библиотека пишет события каждого запроса в JSONL-логи, просмотрщик показывает запросы, сообщения, бэктрейсы и переменные в реальном времени.
 
-> **Статус: стабильная, 1.x.** Просмотрщик написан на Go + Svelte, есть десктоп-версия на Wails; API и формат логов с 1.0 меняются только обратно совместимо (см. [ROADMAP.md](ROADMAP.md), на английском). PHP-библиотека 2.x (PHP 7.4+, формат логов v2) выходит с каждым релизом одним файлом и не опубликована в Packagist; просмотрщик читает и логи библиотеки v1. План, фазы и решения — в [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md), правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md) (на английском).
+> **Статус: стабильная, 1.x.** Просмотрщик написан на Go + Svelte, есть десктоп-версия на Wails; API и формат логов с 1.0 меняются только обратно совместимо (см. [ROADMAP.ru.md](ROADMAP.ru.md)). PHP-библиотека 2.x (PHP 7.4+, формат логов v2) выходит с каждым релизом одним файлом и не опубликована в Packagist; просмотрщик читает и логи библиотеки v1. План, фазы и решения — в [IMPROVEMENT_PLAN.ru.md](IMPROVEMENT_PLAN.ru.md), правила разработки — в [CONTRIBUTING.ru.md](CONTRIBUTING.ru.md).
 
 ![wapp-debugger: лента запросов, запрос и сообщение с контекстом и бэктрейсом](docs/screenshot.png)
 
@@ -157,7 +157,7 @@ wapp-debugger serve --logs-dir /var/www/app/tmp/logs   # откройте http:/
 - запуск при входе в систему; окно открывается там, где было;
 - сообщение в шапке о новой версии (GitHub Releases раз в сутки; отключается).
 
-Из исходников: `make desktop-build` (нужен компилятор C, а в Linux ещё GTK4 + WebKitGTK 6.0; `make desktop-deps` проверяет их и подсказывает, как поставить недостающее в вашей системе), затем `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` и здесь необязателен. `make desktop-package` собирает установщики текущей системы; подробнее — в [desktop/README.md](desktop/README.md).
+Из исходников: `make desktop-build` (нужен компилятор C, а в Linux ещё GTK4 + WebKitGTK 6.0; `make desktop-deps` проверяет их и подсказывает, как поставить недостающее в вашей системе), затем `dist/wapp-debugger-desktop [--logs-dir …]`; `--logs-dir` и здесь необязателен. `make desktop-package` собирает установщики текущей системы; подробнее — в [desktop/README.ru.md](desktop/README.ru.md).
 
 ## Docker
 
@@ -194,7 +194,7 @@ WAPP_DEBUGGER_TOKEN=$(openssl rand -hex 32) dist/wapp-debugger serve --addr 0.0.
 | `client-php/` | PHP-библиотека 2.x; в `v1/` — библиотека v1 для старых проектов |
 | `spec/` | Форматы логов, контракты API и фикстуры |
 
-С версии 1.0 формат логов v2 и API (`/api/v1`, приёмник логов по HTTP, HTTP-режим библиотеки) меняются только обратно совместимо: библиотека или скрипт, написанные под 1.0, работают с любым просмотрщиком 1.x ([spec/frozen](spec/frozen/README.md)). У релизов есть контрольные суммы, SBOM и подтверждение происхождения сборки (`gh attestation verify <файл> --repo hightemp/wapp_php_debugger`); о проблемах безопасности — приватным сообщением ([SECURITY.md](SECURITY.md)).
+С версии 1.0 формат логов v2 и API (`/api/v1`, приёмник логов по HTTP, HTTP-режим библиотеки) меняются только обратно совместимо: библиотека или скрипт, написанные под 1.0, работают с любым просмотрщиком 1.x ([spec/frozen](spec/frozen/README.ru.md)). У релизов есть контрольные суммы, SBOM и подтверждение происхождения сборки (`gh attestation verify <файл> --repo hightemp/wapp_php_debugger`); о проблемах безопасности — приватным сообщением ([SECURITY.ru.md](SECURITY.ru.md)).
 
 Старого PHP-просмотрщика на EasyUI больше нет; он остался в истории git (тег `legacy-hotfix` — его последняя версия).
 

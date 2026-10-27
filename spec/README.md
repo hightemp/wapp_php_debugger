@@ -1,5 +1,7 @@
 # spec
 
+**English** · [Русский](README.ru.md)
+
 Shared contracts for the PHP library (`client-php/`), the Go server (`server/`) and the UI (`ui/`). Everything here is checked by the tests in `server/internal/spec`.
 
 | Path | What |
