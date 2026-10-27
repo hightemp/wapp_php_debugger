@@ -321,6 +321,8 @@ type RequestRow struct {
 	ReceivedAt    int64
 	Pinned        bool
 	Note          string
+	// Argv is the command line of a CLI run; nil for a web request.
+	Argv []string
 }
 
 // RequestFilter holds feed parameters; zero values do not filter.
@@ -448,7 +450,7 @@ func (s *Store) ListRequests(ctx context.Context, filter RequestFilter) (Request
 const selectRequestRows = `
 		SELECT r.id, r.project_id, p.server_id, r.request_key, COALESCE(r.parent_request_key, ''), COALESCE(f.format_version, 2),
 			r.sapi, COALESCE(r.method, ''), COALESCE(r.url, ''), r.is_ajax, r.status_code, r.exit_code, r.started_at, r.duration_ms,
-			r.finished, r.message_count, r.error_count, r.warning_count, r.received_at, r.pinned, COALESCE(r.note, '')
+			r.finished, r.message_count, r.error_count, r.warning_count, r.received_at, r.pinned, COALESCE(r.note, ''), r.argv
 		FROM requests r
 		JOIN projects p ON p.id = r.project_id
 		LEFT JOIN log_files f ON f.id = r.log_file_id`
@@ -459,9 +461,13 @@ type rowScanner interface {
 
 func scanRequestRow(row rowScanner) (RequestRow, error) {
 	var r RequestRow
+	var argv sql.NullString
 	err := row.Scan(&r.ID, &r.ProjectID, &r.ServerID, &r.Key, &r.ParentKey, &r.FormatVersion, &r.Sapi, &r.Method, &r.URL,
 		&r.IsAjax, &r.StatusCode, &r.ExitCode, &r.StartedAt, &r.DurationMs, &r.Finished, &r.MessageCount, &r.ErrorCount,
-		&r.WarningCount, &r.ReceivedAt, &r.Pinned, &r.Note)
+		&r.WarningCount, &r.ReceivedAt, &r.Pinned, &r.Note, &argv)
+	if err == nil && argv.Valid {
+		err = json.Unmarshal([]byte(argv.String), &r.Argv)
+	}
 	return r, err
 }
 

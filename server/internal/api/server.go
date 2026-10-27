@@ -190,7 +190,15 @@ func RequestDTO(r store.RequestRow) Request {
 		ReceivedAt:       r.ReceivedAt,
 		Pinned:           r.Pinned,
 		Note:             optional(r.Note),
+		Argv:             argvOf(r.Argv),
 	}
+}
+
+func argvOf(argv []string) *[]string {
+	if argv == nil {
+		return nil
+	}
+	return &argv
 }
 
 func optional(value string) *string {

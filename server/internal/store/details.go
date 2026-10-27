@@ -16,7 +16,6 @@ import (
 type RequestDetail struct {
 	RequestRow
 	Lang            string
-	Argv            []string
 	IP              string
 	ServerIP        string
 	ServerName      string
@@ -39,19 +38,14 @@ func (s *Store) GetRequestDetail(ctx context.Context, id int64) (RequestDetail, 
 		return RequestDetail{}, found, err
 	}
 	detail := RequestDetail{RequestRow: row}
-	var argv, ip, serverIP, serverName, hostname, processUser, appUser, sessionID, libraryVersion, phpVersion sql.NullString
+	var ip, serverIP, serverName, hostname, processUser, appUser, sessionID, libraryVersion, phpVersion sql.NullString
 	err = s.db.QueryRowContext(ctx, `
-		SELECT lang, argv, ip, server_ip, server_name, hostname, pid, process_user, app_user, session_id,
+		SELECT lang, ip, server_ip, server_name, hostname, pid, process_user, app_user, session_id,
 			library_version, php_version, ended_at, memory_peak_bytes
-		FROM requests WHERE id = ?`, id).Scan(&detail.Lang, &argv, &ip, &serverIP, &serverName, &hostname, &detail.PID,
+		FROM requests WHERE id = ?`, id).Scan(&detail.Lang, &ip, &serverIP, &serverName, &hostname, &detail.PID,
 		&processUser, &appUser, &sessionID, &libraryVersion, &phpVersion, &detail.EndedAt, &detail.MemoryPeakBytes)
 	if err != nil {
 		return RequestDetail{}, false, err
-	}
-	if argv.Valid {
-		if err := json.Unmarshal([]byte(argv.String), &detail.Argv); err != nil {
-			return RequestDetail{}, false, err
-		}
 	}
 	detail.IP, detail.ServerIP, detail.ServerName, detail.Hostname = ip.String, serverIP.String, serverName.String, hostname.String
 	detail.ProcessUser, detail.AppUser, detail.SessionID = processUser.String, appUser.String, sessionID.String
