@@ -51,6 +51,10 @@ final class ProcessTest extends TestCase
 
     public function testFatalError(): void
     {
+        if (!self::phpRunsShutdownAfterOutOfMemory()) {
+            self::markTestSkipped('This PHP build exits with code 1 on running out of memory and skips shutdown functions, '
+                . 'without the library too (seen in setup-php builds of PHP 7.4-8.1 from October 2026)');
+        }
         [$exitCode, $output, $events] = $this->runScript('fatal.php');
 
         self::assertSame(255, $exitCode, $output);
@@ -59,6 +63,17 @@ final class ProcessTest extends TestCase
         self::assertSame('fatal', $events[1]['kind']);
         self::assertSame('E_ERROR', $events[1]['error_type']);
         self::assertSame(255, $events[2]['exit_code']);
+    }
+
+    /** Whether bare PHP, with no extensions and no library, still runs shutdown functions after running out of memory. */
+    private static function phpRunsShutdownAfterOutOfMemory(): bool
+    {
+        $code = 'register_shutdown_function(function () { echo "shutdown"; }); '
+            . 'while (true) { $chunks[] = str_repeat("x", 1024 * 1024); }';
+        $command = sprintf('%s -n -d memory_limit=16M -d display_errors=0 -r %s 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg($code));
+        exec($command, $output, $exitCode);
+
+        return $exitCode === 255 && implode("\n", $output) === 'shutdown';
     }
 
     public function testProjectOfLibraryV1WithoutComposer(): void
