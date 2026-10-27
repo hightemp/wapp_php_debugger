@@ -1,6 +1,6 @@
 # wapp-php-debugger: PHP library 2.x
 
-[Русская версия](README.ru.md)
+**English** · [Русский](README.ru.md)
 
 The debugger side of [wapp_php_debugger](../README.md): it writes the events of every request (messages, timers, errors, the outcome) into JSONL logs, one file per request, and the viewer shows them live. PHP 7.4 and newer, no required dependencies.
 

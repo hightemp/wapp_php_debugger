@@ -1,9 +1,14 @@
 # wapp_php_debugger
 
 [![CI](https://github.com/hightemp/wapp_php_debugger/actions/workflows/ci.yml/badge.svg)](https://github.com/hightemp/wapp_php_debugger/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/hightemp/wapp_php_debugger/actions/workflows/codeql.yml/badge.svg)](https://github.com/hightemp/wapp_php_debugger/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/hightemp/wapp_php_debugger)](https://github.com/hightemp/wapp_php_debugger/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/hightemp/wapp_php_debugger)](LICENSE)
+[![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777BB4?logo=php&logoColor=white)](client-php/README.md)
+[![Go](https://img.shields.io/github/go-mod/go-version/hightemp/wapp_php_debugger?filename=server%2Fgo.mod)](server/go.mod)
 [![](https://asdertasd.site/counter/wapp_avto_express_debugger?a=1)](https://asdertasd.site/counter/wapp_avto_express_debugger)
 
-[Русская версия](README.ru.md)
+**English** · [Русский](README.ru.md)
 
 A logger and debugger for PHP projects: a PHP library writes the events of every request into JSONL logs, and a viewer shows requests, messages, backtraces and variables in real time.
 

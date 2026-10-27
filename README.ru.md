@@ -1,6 +1,13 @@
 # wapp_php_debugger
 
-[English version](README.md)
+[![CI](https://github.com/hightemp/wapp_php_debugger/actions/workflows/ci.yml/badge.svg)](https://github.com/hightemp/wapp_php_debugger/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/hightemp/wapp_php_debugger/actions/workflows/codeql.yml/badge.svg)](https://github.com/hightemp/wapp_php_debugger/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/hightemp/wapp_php_debugger)](https://github.com/hightemp/wapp_php_debugger/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/hightemp/wapp_php_debugger)](LICENSE)
+[![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777BB4?logo=php&logoColor=white)](client-php/README.ru.md)
+[![Go](https://img.shields.io/github/go-mod/go-version/hightemp/wapp_php_debugger?filename=server%2Fgo.mod)](server/go.mod)
+
+[English](README.md) · **Русский**
 
 Логгер-отладчик для PHP-проектов: PHP-библиотека пишет события каждого запроса в JSONL-логи, просмотрщик показывает запросы, сообщения, бэктрейсы и переменные в реальном времени.
 
